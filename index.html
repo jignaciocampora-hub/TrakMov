@@ -311,7 +311,7 @@
     <section id="v3wrap" class="hidden">
       <div class="v3bar">
         <button data-cam="front">Frente</button><button data-cam="side">Perfil</button><button data-cam="top">Arriba</button>
-        <button data-cam="spin" aria-pressed="false">⟳ Girar</button><button data-cam="in">＋</button><button data-cam="out">－</button>
+        <button data-cam="body" aria-pressed="true">🧍 Cuerpo</button><button data-cam="spin" aria-pressed="false">⟳ Girar</button><button data-cam="in">＋</button><button data-cam="out">－</button>
       </div>
       <canvas id="view3d" aria-label="Esqueleto 3D del atleta"></canvas>
       <p class="note">Arrastrá para girar, pellizcá para acercar. Ámbar = lado izquierdo, verde = derecho. La profundidad se estima desde una sola cámara: sirve para entender el movimiento desde otros ángulos, los valores siguen saliendo de las tablas.</p>
@@ -948,6 +948,7 @@ function swapLR(a) { const b = a.slice(); for (const [l, r] of PAIRS) { b[l] = a
 
 // ---------- Vista 3D ----------
 const c3 = $("view3d"), g3 = c3.getContext("2d");
+let body3d = true;
 let show3d = false, W3 = null, yaw = 0.6, pitch = 0.22, zoom3 = 1, autoRot = false;
 const LEFT = new Set([1, 2, 3, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31]), RIGHT = new Set([4, 5, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32]);
 function update3d(wl) {
@@ -974,8 +975,12 @@ function draw3d() {
     const s = F / Math.max(0.5, D + z2);
     return { x: w / 2 + x1 * s, y: h / 2 - y2 * s, d: z2, s };
   };
+  if (body3d) {
+    const bg = g3.createRadialGradient(w / 2, h * 0.45, 10, w / 2, h * 0.5, Math.max(w, h) * 0.75);
+    bg.addColorStop(0, "#0E2A44"); bg.addColorStop(1, "#06111D"); g3.fillStyle = bg; g3.fillRect(0, 0, w, h);
+  }
   // Piso con grilla
-  g3.strokeStyle = "#36414D"; g3.lineWidth = 1;
+  g3.strokeStyle = body3d ? "rgba(60,170,255,.22)" : "#36414D"; g3.lineWidth = 1;
   for (let k = -1; k <= 1.001; k += 0.25) {
     let a = proj({ x: k, y: floorY, z: -1 }), b = proj({ x: k, y: floorY, z: 1 });
     g3.beginPath(); g3.moveTo(a.x, a.y); g3.lineTo(b.x, b.y); g3.stroke();
@@ -988,6 +993,7 @@ function draw3d() {
   // Sombra en el piso
   g3.strokeStyle = "rgba(0,0,0,.35)"; g3.lineWidth = 5; g3.lineCap = "round";
   BONES.forEach(([a, b]) => { const A = proj({ ...W3[a], y: floorY }), B = proj({ ...W3[b], y: floorY }); g3.beginPath(); g3.moveTo(A.x, A.y); g3.lineTo(B.x, B.y); g3.stroke(); });
+  if (body3d) { drawBody3d(proj, w, h); return; }
   // Huesos ordenados de atrás hacia adelante
   const col = (a, b) => LEFT.has(a) && LEFT.has(b) ? "#F2A33A" : RIGHT.has(a) && RIGHT.has(b) ? "#3FB8A0" : "#E6EBF0";
   const P3 = W3.map(proj);
@@ -1006,6 +1012,92 @@ function draw3d() {
   }
   g3.textAlign = "left"; g3.fillStyle = "#F2A33A"; g3.fillText("● Izq", 10, 18); g3.fillStyle = "#3FB8A0"; g3.fillText("● Der", 52, 18);
 }
+
+// ---------- Cuerpo 3D en malla (estilo holograma) ----------
+// Cada segmento es un cilindro cónico de malla alrededor del hueso; tronco y cabeza son volúmenes.
+const v3 = { sub: (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z }), add: (a, b) => ({ x: a.x + b.x, y: a.y + b.y, z: a.z + b.z }),
+  mul: (a, k) => ({ x: a.x * k, y: a.y * k, z: a.z * k }), dot: (a, b) => a.x * b.x + a.y * b.y + a.z * b.z,
+  cross: (a, b) => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x }),
+  norm: a => { const n = Math.hypot(a.x, a.y, a.z) || 1; return { x: a.x / n, y: a.y / n, z: a.z / n }; },
+  lerp: (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t }) };
+function basis(axis, hint) {
+  const a = v3.norm(axis); let u = v3.cross(a, hint || { x: 0, y: 0, z: 1 });
+  if (Math.hypot(u.x, u.y, u.z) < 1e-3) u = v3.cross(a, { x: 1, y: 0, z: 0 });
+  u = v3.norm(u); return [u, v3.norm(v3.cross(a, u))];
+}
+function drawBody3d(proj, w, h) {
+  const g = g3, P = W3, lines = [];
+  const RING = 14;
+  // cilindro cónico entre a y b (radios en metros), con anillos y líneas longitudinales
+  const tube = (a, b, r0, r1, rings = 6, ext0 = 0, ext1 = 0) => {
+    const ax = v3.sub(b, a), A = v3.add(a, v3.mul(ax, -ext0)), B = v3.add(b, v3.mul(ax, ext1));
+    const [u, v] = basis(v3.sub(B, A));
+    const ringPts = [];
+    for (let i = 0; i <= rings; i++) {
+      const t = i / rings, c = v3.lerp(A, B, t), r = r0 + (r1 - r0) * t, bulge = 1 + 0.12 * Math.sin(Math.PI * t);
+      const ring = []; for (let k = 0; k < RING; k++) { const an = k / RING * Math.PI * 2; ring.push(v3.add(c, v3.add(v3.mul(u, Math.cos(an) * r * bulge), v3.mul(v, Math.sin(an) * r * bulge)))); }
+      ringPts.push(ring); lines.push([...ring, ring[0]]);
+    }
+    for (let k = 0; k < RING; k++) lines.push(ringPts.map(r => r[k]));
+  };
+  // elipsoide (cabeza, manos, pies)
+  const ellip = (c, ex, ey, ez, rx, ry, rz, nLat = 7, nLon = 14) => {
+    const pt = (th, ph) => v3.add(c, v3.add(v3.add(v3.mul(ex, Math.cos(ph) * Math.sin(th) * rx), v3.mul(ey, Math.cos(th) * ry)), v3.mul(ez, Math.sin(ph) * Math.sin(th) * rz)));
+    for (let i = 1; i < nLat; i++) { const th = i / nLat * Math.PI, ring = []; for (let k = 0; k <= nLon; k++) ring.push(pt(th, k / nLon * Math.PI * 2)); lines.push(ring); }
+    for (let k = 0; k < nLon; k++) { const mer = []; for (let i = 0; i <= nLat; i++) mer.push(pt(i / nLat * Math.PI, k / nLon * Math.PI * 2)); lines.push(mer); }
+  };
+  const mid = (a, b) => v3.lerp(a, b, 0.5);
+  const shL = P[11], shR = P[12], hpL = P[23], hpR = P[24], mS = mid(shL, shR), mH = mid(hpL, hpR);
+  const up = v3.norm(v3.sub(mS, mH)), rightS = v3.sub(shL, shR), rightH = v3.sub(hpL, hpR);
+  // Tronco: secciones elípticas desde la pelvis hasta los hombros (cintura más angosta)
+  const torsoRings = 9, tRing = [];
+  for (let i = 0; i <= torsoRings; i++) {
+    const t = i / torsoRings, c = v3.lerp(mH, mS, t);
+    const rv = v3.lerp(rightH, rightS, t), half = Math.hypot(rv.x, rv.y, rv.z) / 2;
+    const waist = 1 - 0.16 * Math.sin(Math.PI * Math.min(1, t * 1.25));
+    const wx = (half + (t < 0.15 ? 0.04 : t > 0.85 ? 0.02 : 0.03)) * waist * (t > 0.92 ? 0.92 : 1);
+    const depth = 0.095 + 0.03 * Math.sin(Math.PI * t);
+    const ex = v3.norm(rv), ez = v3.norm(v3.cross(ex, up));
+    const ring = []; for (let k = 0; k < 20; k++) { const an = k / 20 * Math.PI * 2; ring.push(v3.add(c, v3.add(v3.mul(ex, Math.cos(an) * wx), v3.mul(ez, Math.sin(an) * depth)))); }
+    tRing.push(ring); lines.push([...ring, ring[0]]);
+  }
+  for (let k = 0; k < 20; k++) lines.push(tRing.map(r => r[k]));
+  // Cuello y cabeza
+  const earM = mid(P[7], P[8]), neckTop = v3.lerp(mS, earM, 0.55);
+  tube(mS, neckTop, 0.055, 0.048, 3);
+  const ex = v3.norm(v3.sub(P[7], P[8])), ey0 = v3.norm(v3.sub(earM, mS)), ez = v3.norm(v3.cross(ex, ey0)), ey = v3.norm(v3.cross(ez, ex));
+  ellip(v3.add(earM, v3.mul(ey, 0.02)), ex, ey, ez, 0.078, 0.11, 0.095);
+  // Brazos, piernas, manos y pies
+  for (const [sh, el, wr, idx, hp, kn, an, he, ft] of [[11, 13, 15, 19, 23, 25, 27, 29, 31], [12, 14, 16, 20, 24, 26, 28, 30, 32]]) {
+    tube(P[sh], P[el], 0.055, 0.044, 6, 0.05, 0);
+    tube(P[el], P[wr], 0.042, 0.03, 6);
+    const hand = mid(P[wr], P[idx]), hx = v3.norm(v3.sub(P[idx], P[wr])), [hu, hv] = basis(hx);
+    ellip(hand, hu, hx, hv, 0.035, 0.06, 0.018, 5, 10);
+    tube(P[hp], P[kn], 0.085, 0.058, 7, 0.04, 0);
+    tube(P[kn], P[an], 0.055, 0.035, 7);
+    const fx = v3.norm(v3.sub(P[ft], P[he])), [fu, fv] = basis(fx, { x: 0, y: 1, z: 0 });
+    ellip(mid(P[he], P[ft]), fu, fx, fv, 0.04, Math.hypot(P[ft].x - P[he].x, P[ft].y - P[he].y, P[ft].z - P[he].z) / 2 + 0.03, 0.03, 5, 10);
+  }
+  // Dibujo: líneas que se suman (efecto luz); lo que está más lejos, más tenue
+  const pr = lines.map(l => l.map(proj));
+  const ds = pr.flatMap(l => l.map(p => p.d)), dMin = Math.min(...ds), dMax = Math.max(...ds) || dMin + 1;
+  g.save(); g.globalCompositeOperation = "lighter"; g.lineJoin = "round";
+  for (const pass of [0, 1]) {
+    for (const l of pr) {
+      const dAvg = l.reduce((s, p) => s + p.d, 0) / l.length, near = 1 - (dAvg - dMin) / (dMax - dMin + 1e-6);
+      g.strokeStyle = pass ? `rgba(150,225,255,${0.25 + 0.55 * near})` : `rgba(40,150,255,${0.08 + 0.12 * near})`;
+      g.lineWidth = pass ? 1 : 4;
+      g.beginPath(); l.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.stroke();
+    }
+  }
+  g.restore();
+  // articulaciones (izq/der) chiquitas para orientarse
+  for (const i of [11, 12, 13, 14, 23, 24, 25, 26, 27, 28]) {
+    const q = proj(P[i]); g.fillStyle = LEFT.has(i) ? "#F2A33A" : "#3FB8A0";
+    g.beginPath(); g.arc(q.x, q.y, Math.max(2.5, 0.014 * q.s), 0, 7); g.fill();
+  }
+  g.font = "13px Barlow, sans-serif"; g.textAlign = "left"; g.fillStyle = "#F2A33A"; g.fillText("● Izq", 10, 18); g.fillStyle = "#3FB8A0"; g.fillText("● Der", 52, 18);
+}
 function set3d(on) {
   show3d = on; $("v3wrap").classList.toggle("hidden", !on); $("b3d").classList.toggle("primary", on);
   if (on) { draw3d(); $("v3wrap").scrollIntoView({ behavior: "smooth", block: "nearest" }); }
@@ -1014,6 +1106,7 @@ $("b3d").onclick = () => set3d(!show3d);
 document.querySelectorAll("[data-cam]").forEach(b => b.onclick = () => {
   const c = b.dataset.cam;
   if (c === "spin") { autoRot = !autoRot; b.setAttribute("aria-pressed", autoRot); return; }
+  if (c === "body") { body3d = !body3d; b.setAttribute("aria-pressed", body3d); b.textContent = body3d ? "🧍 Cuerpo" : "🦴 Esqueleto"; draw3d(); return; }
   if (c === "in" || c === "out") { zoom3 = Math.min(3, Math.max(0.4, zoom3 * (c === "in" ? 1.2 : 1 / 1.2))); draw3d(); return; }
   autoRot = false; document.querySelector('[data-cam="spin"]').setAttribute("aria-pressed", false);
   if (c === "front") { yaw = 0; pitch = 0.05; } else if (c === "side") { yaw = Math.PI / 2; pitch = 0.05; } else { yaw = 0; pitch = 1.45; }
@@ -2535,7 +2628,7 @@ $("doneRepeat").onclick = () => { $("doneModal").classList.add("hidden"); $("res
 $("doneClose").onclick = () => { $("doneModal").classList.add("hidden"); };
 
 // ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
-const APP_VERSION = "3 oct 2026 (m)";
+const APP_VERSION = "3 oct 2026 (n)";
 $("verTxt").textContent = APP_VERSION;
 async function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
