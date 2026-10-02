@@ -50,6 +50,21 @@
   .tablewrap{overflow-x:auto}
   #chart{width:100%;height:240px;display:block;background:var(--panel);border-radius:6px;margin-top:10px}
   .hidden{display:none !important}
+  .hist .open{cursor:pointer;text-decoration:underline;text-decoration-color:#C9D2DA;text-underline-offset:3px}
+  .rvid{width:100%;border-radius:14px;background:#000;display:block;max-height:60vh}
+  .rtable{width:100%;border-collapse:collapse;font-size:14px;color:#34495E}
+  .rtable th,.rtable td{border-bottom:1px solid #E8EDF1;padding:7px 4px;text-align:right}
+  .rtable th:first-child,.rtable td:first-child{text-align:left}
+  .rtable th{color:#7A8896;font-weight:600}
+  .rchart{width:100%;height:200px;display:block}
+  .rsel{background:#fff !important;color:#34495E !important;border:1px solid #D5DCE2 !important;border-radius:10px !important;padding:8px !important;font:600 15px Barlow,sans-serif !important;max-width:100%}
+  .cmpgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media (max-width:640px){.cmpgrid{grid-template-columns:1fr}}
+  .note2{color:#7A8896;font-size:13px}
+  textarea.rnote{width:100%;min-height:70px;border:1px solid #D5DCE2;border-radius:12px;padding:10px;font:15px Barlow,sans-serif;color:#34495E;box-sizing:border-box}
+  .up{color:#2F7D55}.down{color:#C0392B}
+  #updBar{position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top));z-index:70;background:#34495E;color:#fff;border-radius:14px;padding:10px 12px 10px 16px;display:flex;gap:12px;align-items:center;box-shadow:0 8px 24px rgba(0,0,0,.25);font:600 15px Barlow,sans-serif;max-width:94%}
+  #updBar button{background:#F2A33A !important;color:#1C232B !important;border:0 !important;border-radius:10px !important;padding:8px 14px !important;font:700 15px Barlow,sans-serif !important}
   #flash{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.9);z-index:4;pointer-events:none;opacity:0;transition:opacity .15s,transform .15s;
     padding:14px 26px;border-radius:16px;font:700 clamp(26px,6vw,56px)/1.1 "Barlow Condensed",sans-serif;text-align:center;color:#fff;box-shadow:0 8px 30px rgba(0,0,0,.4);max-width:90%}
   #flash.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
@@ -176,7 +191,7 @@
     <button class="bigcard" id="goVideo"><span class="ill" data-fig="squatF"></span><span style="flex:1"><h2>Analizar un video</h2><p>Cargá cualquier video, medí ángulos de todo el cuerpo, recorrelo cuadro a cuadro y miralo en 3D.</p></span><span class="chev">›</span></button>
     <button class="bigcard" id="goEval"><span class="ill" data-fig="ohSquat"></span><span style="flex:1"><h2>Realizar una evaluación</h2><p>Elegí una evaluación guiada: se configura sola, mide lo que corresponde y guarda el resultado en el historial del atleta.</p></span><span class="chev">›</span></button>
     <button class="bigcard" id="goLive"><span class="ill" data-fig="armsUpF"></span><span style="flex:1"><h2>Cámara libre</h2><p>Análisis en vivo de todo el cuerpo con la cámara del celular o de la compu.</p></span><span class="chev">›</span></button>
-      <p id="appVer" class="sub" style="font-size:13px;text-align:center;margin-top:24px">Versión 3 oct 2026 (k) · iPhone/iPad</p>
+      <p id="appVer" class="sub" style="font-size:13px;text-align:center;margin-top:24px">Versión <span id="verTxt"></span> · iPhone/iPad</p>
   </section>
 
   <section id="scrCatalog" class="scr hidden">
@@ -209,6 +224,19 @@
     <button class="btn-o wide" id="dVid">Analizar un video grabado</button>
   </section>
 
+  <section id="scrResult" class="scr hidden">
+    <button class="backc" id="rBack" aria-label="Volver">‹</button>
+    <h1 class="lt" id="rTitle"></h1>
+    <p class="sub" id="rSub"></p>
+    <div class="card" id="rMediaCard"><h3>Video de la evaluación</h3><div id="rMedia"></div></div>
+    <div class="card" id="rRepsCard"><h3>Repeticiones</h3><div id="rReps"></div></div>
+    <div class="card" id="rChartCard"><h3>Curva en el tiempo</h3><select class="rsel" id="rChartSel"></select><canvas class="rchart" id="rChart"></canvas></div>
+    <div class="card"><h3>Todas las mediciones</h3><div style="overflow-x:auto"><table class="rtable" id="rTable"></table></div></div>
+    <div class="card"><h3>Notas</h3><textarea class="rnote" id="rNote" placeholder="Observaciones, dolor, compensaciones, contexto…"></textarea></div>
+    <div class="card"><h3>Comparar</h3><p>Elegí otra evaluación del mismo tipo para ver la evolución, con los videos lado a lado.</p>
+      <select class="rsel" id="rCmpSel"></select><div id="rCmp"></div></div>
+  </section>
+
   <section id="scrProgress" class="scr hidden">
     <h1 class="lt">Progreso</h1>
     <p class="sub">Historial de evaluaciones por atleta. Se guarda en este dispositivo.</p>
@@ -219,7 +247,7 @@
       <button class="btn-o" id="pBackup">Enviar respaldo</button>
       <label class="btn-o" style="text-align:center;cursor:pointer;position:relative;overflow:hidden">Importar respaldo<input id="pImport" type="file" accept=".json,application/json" style="position:absolute;opacity:0;width:1px"></label>
     </div>
-    <p class="sub" style="font-size:14px;margin-top:10px">Para usar el mismo historial en iPhone y iPad: «Enviar respaldo» por AirDrop y en el otro equipo «Importar respaldo». Se combinan sin duplicar.</p>
+    <p class="sub" style="font-size:14px;margin-top:10px">Para usar el mismo historial en iPhone y iPad: «Enviar respaldo» por AirDrop y en el otro equipo «Importar respaldo». Se combinan sin duplicar. Los videos no viajan en el respaldo (pesan mucho): descargalos desde el detalle de cada evaluación.</p>
   </section>
 
   <nav class="tabbar" aria-label="Navegación">
@@ -330,6 +358,7 @@
   </aside>
 </main>
 </div>
+<div id="updBar" class="hidden">Hay una versión nueva disponible <button id="updBtn">Actualizar</button></div>
 <div id="doneModal" class="hidden"><div class="box"><h3 id="doneTitle"></h3><div id="doneBody"></div>
   <div class="btns"><button id="doneRepeat">↺ Repetir</button><button id="doneSave" class="primary">💾 Guardar</button></div>
   <button id="doneClose" style="width:100%;margin-top:10px">Cerrar sin guardar</button></div></div>
@@ -744,12 +773,12 @@ function calibFrame(raw, wl) {
 
 let recording = false, recStart = 0, frames = [];
 function startRec() {
-  frames = []; recording = true; recStart = performance.now(); guideReset();
+  frames = []; recording = true; recStart = performance.now(); guideReset(); clipStart();
   $("rec").textContent = "■ Detener"; $("rec").classList.add("recon");
   $("results").classList.add("hidden");
 }
 function stopRec() {
-  recording = false; guideStop();
+  recording = false; guideStop(); clipStop();
   $("rec").textContent = "● Grabar evaluación"; $("rec").classList.remove("recon");
   showResults();
 }
@@ -1956,6 +1985,12 @@ $("dVid").onclick = () => launch(detailProto, false);
 // ---- Guardar resultados ----
 function mainVals(r) {
   const p = PR[r.proto];
+  if (r.photo) {
+    const k = p && p.key && (r.metrics[p.key] ? p.key : r.metrics[p.key + "L"] ? p.key + "L" : r.metrics[p.key + "R"] ? p.key + "R" : null) || Object.keys(r.metrics)[0];
+    if (!k || !MK[k]) return { txt: "–" };
+    const v = r.metrics[k].mx;
+    return { txt: `${MK[k].n}${MK[k].b ? (k.endsWith("L") ? " izq" : " der") : ""}: ${fmt(MK[k], v)}`, L: MK[k].s ? (v >= 0 ? v : NaN) : v, R: MK[k].s ? (v < 0 ? -v : NaN) : NaN };
+  }
   if (r.jumps) { const hs = r.jumps.map(j => j.altura).filter(isFinite); return { txt: hs.length ? `Mejor ${f1(Math.max(...hs), 1)} cm · prom. ${f1(hs.reduce((a, b) => a + b, 0) / hs.length, 1)} cm (${hs.length})` : "–", L: hs.length ? Math.max(...hs) : NaN }; }
   if (!p || !p.key) return { txt: `${Object.keys(r.metrics || {}).length} métricas` };
   const k = p.key, m = MI[k], M = r.metrics;
@@ -1983,8 +2018,12 @@ $("saveRes").onclick = () => {
   for (const k of KEYS.filter(keyShown)) { const st = stats(k); if (st) metrics[k] = { mn: +st.mn.toFixed(1), mx: +st.mx.toFixed(1), rom: +st.rom.toFixed(1) }; }
   if (!Object.keys(metrics).length) { $("status").textContent = "No hay datos para guardar."; return; }
   const extra = mode === "squat" && reps.length ? { reps: reps.map(r => ({ kL: +r.kL.toFixed(1), kR: +r.kR.toFixed(1), vL: +r.vL.toFixed(1), vR: +r.vR.toFixed(1) })) } : {};
-  db.res.push({ id: "r" + Date.now(), ath: curAth, proto: activeProto ? activeProto.id : "libre", name: activeProto ? activeProto.n : "Análisis libre", date: new Date().toISOString(), view, calib: !!calib, metrics, ...extra, ...(lastGuided ? { guided: lastGuided } : {}) });
-  saveDB(); afterSave(athObj(curAth).n);
+  const rid = "r" + Date.now(), clip = currentClip();
+  const ks = KEYS.filter(keyShown);
+  const series = { keys: ks, t: frames.map(f => +(f.t - frames[0].t).toFixed(3)), v: ks.map(k => frames.map(f => isFinite(f[k]) ? Math.round(f[k] * 10) / 10 : null)) };
+  db.res.push({ id: rid, ath: curAth, proto: activeProto ? activeProto.id : "libre", name: activeProto ? activeProto.n : "Análisis libre", date: new Date().toISOString(), view, calib: !!calib, metrics, ...extra, ...(lastGuided ? { guided: lastGuided } : {}), media: !!clip });
+  saveDB(); idbPut({ id: rid, video: clip, series }); lastClip = null;
+  afterSave(athObj(curAth).n);
 };
 $("saveJ").onclick = () => {
   if (!jumps.length) { $("status").textContent = "Todavía no hay saltos para guardar."; return; }
@@ -1993,7 +2032,9 @@ $("saveJ").onclick = () => {
   const byType = {};
   jumps.forEach(j => (byType[j.tipo] = byType[j.tipo] || []).push(Object.fromEntries(keep.map(k => [k, typeof j[k] === "number" ? +(+j[k]).toFixed(3) : j[k]]))));
   const pid = { "SJ": "sj", "CMJ": "cmj", "SJ+CM": "sjcm" };
-  for (const t in byType) db.res.push({ id: "r" + Date.now() + t, ath: curAth, proto: pid[t], name: PR[pid[t]].n, date: new Date().toISOString(), view, jumps: byType[t] });
+  let first = true; const clip = currentClip();
+  for (const t in byType) { const rid = "r" + Date.now() + t.replace(/\W/g, ""); db.res.push({ id: rid, ath: curAth, proto: pid[t], name: PR[pid[t]].n, date: new Date().toISOString(), view, jumps: byType[t], media: first && !!clip }); if (first && clip) idbPut({ id: rid, video: clip }); first = false; }
+  lastClip = null;
   saveDB(); afterSave(athObj(curAth).n);
 };
 
@@ -2003,13 +2044,13 @@ function buildProgress() {
   const rs = db.res.filter(r => r.ath === curAth);
   if (!athObj(curAth)) { $("pList").innerHTML = '<p class="empty">Agregá un atleta para empezar a guardar evaluaciones.</p>'; return; }
   if (!rs.length) { $("pList").innerHTML = '<p class="empty">Todavía no hay evaluaciones guardadas para este atleta.</p>'; return; }
-  const groups = {}; rs.forEach(r => (groups[r.proto] = groups[r.proto] || []).push(r));
+  const groups = {}; rs.forEach(r => { const g = r.proto + (r.photo ? "_foto" : ""); (groups[g] = groups[g] || []).push(r); });
   $("pList").innerHTML = Object.entries(groups).map(([pid, list]) => {
     list.sort((a, b) => a.date.localeCompare(b.date));
     const last = list[list.length - 1], mv = mainVals(last);
     return `<div class="card"><h3>${esc(last.name)}</h3><p style="margin:0">Última: <b>${mv.txt}</b> · ${new Date(last.date).toLocaleDateString("es-AR")}</p>
       ${list.length > 1 ? `<canvas class="spark" data-spark="${pid}"></canvas>` : ""}
-      <div class="hist">${list.slice(-6).reverse().map(r => `<span>${new Date(r.date).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })}</span><span>${mainVals(r).txt}</span><button data-del="${r.id}" aria-label="Borrar">✕</button>`).join("")}</div></div>`;
+      <div class="hist">${list.slice(-6).reverse().map(r => `<span class="open" data-open="${r.id}">${new Date(r.date).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })}${r.media ? " 🎬" : ""}${r.photo ? " 📸" : ""}</span><span class="open" data-open="${r.id}">${mainVals(r).txt}</span><button data-del="${r.id}" aria-label="Borrar">✕</button>`).join("")}</div></div>`;
   }).join("");
   document.querySelectorAll("[data-spark]").forEach(c => drawSpark(c, groups[c.dataset.spark]));
 }
@@ -2029,7 +2070,11 @@ function drawSpark(c, list) {
   });
 }
 $("pAths").onclick = e => { const b = e.target.closest("[data-ath]"); if (!b) return; if (b.dataset.ath === "+") addAthlete(); else setAth(b.dataset.ath); buildProgress(); };
-$("pList").onclick = e => { const b = e.target.closest("[data-del]"); if (b && confirm("¿Borrar esta evaluación del historial?")) { db.res = db.res.filter(r => r.id !== b.dataset.del); saveDB(); buildProgress(); } };
+$("pList").onclick = e => {
+  const o = e.target.closest("[data-open]"); if (o) { openResult(o.dataset.open); return; }
+  const b = e.target.closest("[data-del]");
+  if (b && confirm("¿Borrar esta evaluación del historial (incluido su video)?")) { db.res = db.res.filter(r => r.id !== b.dataset.del); saveDB(); idbDel(b.dataset.del); buildProgress(); }
+};
 $("pCsv").onclick = () => {
   const num = x => typeof x === "number" && isFinite(x) ? String(x).replace(".", ",") : "";
   const rows = [["atleta", "fecha", "evaluacion", "vista", "metrica", "min", "max", "rom"]];
@@ -2085,7 +2130,7 @@ $("pImport").onchange = async e => {
 
 // ---- Navegación ----
 function show(id) {
-  ["scrHome", "scrCatalog", "scrDetail", "scrProgress"].forEach(x => $(x).classList.toggle("hidden", x !== id));
+  ["scrHome", "scrCatalog", "scrDetail", "scrProgress", "scrResult"].forEach(x => $(x).classList.toggle("hidden", x !== id));
   $("shell").classList.remove("hidden"); $("scrAnalysis").classList.add("hidden"); document.body.classList.add("light");
   document.querySelectorAll("[data-tab]").forEach(b => b.classList.toggle("on", b.dataset.tab === id || (id === "scrDetail" && b.dataset.tab === "scrCatalog")));
   if (id === "scrCatalog") buildCatalog();
@@ -2316,7 +2361,9 @@ $("snapSave").onclick = () => {
   const th = document.createElement("canvas"), k = 360 / SNAP.W; th.width = 360; th.height = Math.round(SNAP.H * k);
   th.getContext("2d").drawImage(snapCv, 0, 0, th.width, th.height);
   const thumb = th.toDataURL("image/jpeg", 0.6);
-  snaps.push({ t: SNAP.t, name: activeProto ? activeProto.n : "Medición en foto", proto: activeProto ? activeProto.id : "foto", view: SNAP.vw, vals: out, thumb, adjusted: Object.keys(SNAP.pos).length });
+  const entry = { t: SNAP.t, name: activeProto ? activeProto.n : "Medición en foto", proto: activeProto ? activeProto.id : "foto", view: SNAP.vw, vals: out, thumb, adjusted: Object.keys(SNAP.pos).length, img: null };
+  snapCv.toBlob(b => entry.img = b, "image/jpeg", 0.88);
+  snaps.push(entry);
   renderSnaps();
   $("snapModal").classList.add("hidden"); SNAP = null;
   $("status").textContent = "Medición en foto guardada abajo. Podés pasarla al historial del atleta.";
@@ -2334,7 +2381,9 @@ $("snapItems").onclick = e => {
   if (!athObj(curAth) && !addAthlete()) return;
   const s = snaps[+b.dataset.snapsave], metrics = {};
   for (const k in s.vals) metrics[k] = { mn: +s.vals[k].toFixed(1), mx: +s.vals[k].toFixed(1), rom: 0 };
-  db.res.push({ id: "r" + Date.now(), ath: curAth, proto: s.proto, name: s.name + " (foto)", date: new Date().toISOString(), view: s.view, photo: true, thumb: s.thumb, metrics });
+  const rid = "r" + Date.now();
+  db.res.push({ id: rid, ath: curAth, proto: s.proto, name: s.name + " (foto)", date: new Date().toISOString(), view: s.view, photo: true, thumb: s.thumb, metrics, media: !!s.img });
+  if (s.img) idbPut({ id: rid, image: s.img });
   saveDB(); b.textContent = "✓ Guardada"; b.disabled = true;
   $("status").textContent = `Medición en foto guardada en el historial de ${athObj(curAth).n}.`;
 };
@@ -2484,6 +2533,152 @@ function guideComplete() {
 $("doneSave").onclick = () => { $("doneModal").classList.add("hidden"); $("saveRes").click(); };
 $("doneRepeat").onclick = () => { $("doneModal").classList.add("hidden"); $("results").classList.add("hidden"); startRec(); $("status").textContent = "Repetimos: seguí las indicaciones del recuadro."; };
 $("doneClose").onclick = () => { $("doneModal").classList.add("hidden"); };
+
+// ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
+const APP_VERSION = "3 oct 2026 (m)";
+$("verTxt").textContent = APP_VERSION;
+async function checkUpdate() {
+  if (!/^https?:/.test(location.protocol)) return;
+  try {
+    const r = await fetch(location.pathname + "?chk=" + Date.now(), { cache: "no-store" });
+    const m = (await r.text()).match(/const APP_VERSION = "([^"]+)"/);
+    if (m && m[1] !== APP_VERSION) $("updBar").classList.remove("hidden");
+  } catch {}
+}
+$("updBtn").onclick = () => { if (running) leaveAnalysis(); location.replace(location.pathname + "?v=" + Date.now()); };
+checkUpdate();
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkUpdate(); });
+setInterval(checkUpdate, 5 * 60 * 1000);
+
+// =====================================================================
+// Videos de las evaluaciones (con el esqueleto y los ángulos dibujados) guardados en el dispositivo
+// =====================================================================
+let mediaRec = null, clipChunks = [], lastClip = null;
+function clipStart() {
+  lastClip = null; clipChunks = [];
+  try {
+    if (!canvas.captureStream || typeof MediaRecorder === "undefined") return;
+    const types = ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm"];
+    const mime = types.find(t => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || "";
+    const longSide = Math.max(canvas.width, canvas.height);
+    mediaRec = new MediaRecorder(canvas.captureStream(30), { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: longSide > 1300 ? 4e6 : 2.5e6 });
+    mediaRec.ondataavailable = e => { if (e.data && e.data.size) clipChunks.push(e.data); };
+    mediaRec.onstop = () => { if (clipChunks.length) lastClip = new Blob(clipChunks, { type: mediaRec.mimeType || mime || "video/mp4" }); };
+    mediaRec.start(1000);
+  } catch { mediaRec = null; }
+}
+function currentClip() { return lastClip || (clipChunks.length ? new Blob(clipChunks, { type: (mediaRec && mediaRec.mimeType) || "video/mp4" }) : null); }
+function clipStop() { try { if (mediaRec && mediaRec.state !== "inactive") mediaRec.stop(); } catch {} }
+
+// ---- Almacenamiento local de videos y curvas (IndexedDB: aguanta archivos grandes) ----
+let idbP = null;
+function idb() {
+  return idbP = idbP || new Promise((res, rej) => { const q = indexedDB.open("am_media", 1); q.onupgradeneeded = () => q.result.createObjectStore("media", { keyPath: "id" }); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+}
+async function idbPut(o) {
+  if (!o.video && !o.image && !o.series) return;
+  // el video puede tardar un instante en cerrarse después de detener
+  try { const d = await idb(); d.transaction("media", "readwrite").objectStore("media").put(o); } catch { $("status").textContent = "No se pudo guardar el video en este dispositivo (espacio lleno)."; }
+}
+async function idbGet(id) { try { const d = await idb(); return await new Promise(r => { const q = d.transaction("media").objectStore("media").get(id); q.onsuccess = () => r(q.result || null); q.onerror = () => r(null); }); } catch { return null; } }
+async function idbDel(id) { try { const d = await idb(); d.transaction("media", "readwrite").objectStore("media").delete(id); } catch {} }
+
+// =====================================================================
+// Detalle de una evaluación guardada + comparación
+// =====================================================================
+let curRes = null, urls = [];
+const freeUrls = () => { urls.forEach(u => URL.revokeObjectURL(u)); urls = []; };
+const mkUrl = b => { const u = URL.createObjectURL(b); urls.push(u); return u; };
+const keyName = k => MK[k] ? MK[k].n + (MK[k].b ? (k.endsWith("L") ? " izq" : " der") : "") : k;
+async function openResult(id) {
+  const r = db.res.find(x => x.id === id); if (!r) return;
+  curRes = r; freeUrls();
+  const a = athObj(r.ath), d = new Date(r.date);
+  $("rTitle").textContent = r.name;
+  $("rSub").textContent = `${a ? a.n : ""} · ${d.toLocaleDateString("es-AR")} ${d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })} · ${({ front: "Frente", back: "Espalda", L: "Perfil izq", R: "Perfil der" }[r.view] || "")}${r.photo ? "" : r.calib ? " · calibrado" : " · sin calibrar"}`;
+  show("scrResult");
+  const m = await idbGet(id);
+  // video o foto
+  $("rMediaCard").classList.toggle("hidden", !(m && (m.video || m.image)) && !r.thumb);
+  if (m && m.video) {
+    const ext = (m.video.type || "").includes("mp4") ? "mp4" : "webm";
+    $("rMedia").innerHTML = `<video class="rvid" id="rVid" controls playsinline src="${mkUrl(m.video)}"></video><button class="btn-o wide" id="rDl">Descargar / compartir video</button>`;
+    $("rDl").onclick = () => saveFile(m.video, `${(a ? a.n : "atleta").replace(/\s+/g, "_")}_${r.name.replace(/\s+/g, "_")}_${d.toISOString().slice(0, 10)}.${ext}`);
+  } else if (m && m.image) $("rMedia").innerHTML = `<img class="rvid" src="${mkUrl(m.image)}" alt="Foto de la medición">`;
+  else if (r.thumb) $("rMedia").innerHTML = `<img class="rvid" src="${r.thumb}" alt="Foto de la medición">`;
+  else $("rMedia").innerHTML = "";
+  // repeticiones
+  let rh = "";
+  if (r.guided) rh = r.guided.labels.map((l, k) => `<p><b>${l}:</b> ${r.guided.peaks[k].map(x => x + "°").join(" · ") || "–"}</p>`).join("") + (r.guided.invalid ? `<p class="note2">${r.guided.invalid} intento(s) no válido(s) descartado(s).</p>` : "");
+  if (r.reps) rh += `<table class="rtable"><tr><th>#</th><th>Rodilla I</th><th>Rodilla D</th><th>Valgo I</th><th>Valgo D</th></tr>${r.reps.map((x, i) => `<tr><td>${i + 1}</td><td>${x.kL}°</td><td>${x.kR}°</td><td>${x.vL}°</td><td>${x.vR}°</td></tr>`).join("")}</table>`;
+  if (r.jumps) rh += `<table class="rtable"><tr><th>#</th><th>Altura</th><th>Vuelo</th><th>Rodilla bajo</th><th>Valgo caída I/D</th></tr>${r.jumps.map((j, i) => `<tr><td>${i + 1}</td><td>${f1(j.altura, 1)} cm</td><td>${f1(j.vuelo, 0)} ms</td><td>${f1(j.rodBot, 0)}°</td><td>${f1(j.valCaiL, 0)}° / ${f1(j.valCaiR, 0)}°</td></tr>`).join("")}</table>`;
+  $("rReps").innerHTML = rh; $("rRepsCard").classList.toggle("hidden", !rh);
+  // curva
+  const ser = m && m.series;
+  $("rChartCard").classList.toggle("hidden", !(ser && ser.t.length > 2));
+  if (ser && ser.t.length > 2) {
+    const ids = [...new Set(ser.keys.map(k => MK[k] ? MK[k].id : k))];
+    const pk = PR[r.proto] && PR[r.proto].key;
+    $("rChartSel").innerHTML = ids.map(id => `<option value="${id}" ${id === pk ? "selected" : ""}>${MI[id] ? MI[id].n : id}</option>`).join("");
+    $("rChartSel").onchange = () => drawResChart(ser, $("rChartSel").value);
+    setTimeout(() => drawResChart(ser, $("rChartSel").value), 30);
+  }
+  // tabla de mediciones
+  $("rTable").innerHTML = r.metrics ? `<tr><th>Métrica</th><th>Mín</th><th>Máx</th><th>Rango</th></tr>` + Object.entries(r.metrics).map(([k, x]) => `<tr><td>${keyName(k)}</td><td>${f1(x.mn)}°</td><td>${f1(x.mx)}°</td><td>${r.photo ? "–" : f1(x.rom) + "°"}</td></tr>`).join("") : "<tr><td>Sin mediciones de ángulos</td></tr>";
+  // notas
+  $("rNote").value = r.note || "";
+  $("rNote").oninput = () => { r.note = $("rNote").value; saveDB(); };
+  // comparar
+  const others = db.res.filter(x => x.ath === r.ath && x.proto === r.proto && !!x.photo === !!r.photo && x.id !== r.id).sort((x, y) => y.date.localeCompare(x.date));
+  $("rCmpSel").innerHTML = others.length ? `<option value="">Elegí una evaluación…</option>` + others.map(x => `<option value="${x.id}">${new Date(x.date).toLocaleDateString("es-AR")} · ${mainVals(x).txt}${x.media ? " 🎬" : ""}</option>`).join("") : `<option value="">No hay otras evaluaciones de este tipo todavía</option>`;
+  $("rCmpSel").disabled = !others.length; $("rCmp").innerHTML = "";
+  $("rCmpSel").onchange = () => { if ($("rCmpSel").value) compareWith($("rCmpSel").value); else $("rCmp").innerHTML = ""; };
+}
+function drawResChart(ser, id) {
+  const c = $("rChart"), g = c.getContext("2d"), dpr = devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+  c.width = w * dpr; c.height = h * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  const ks = ser.keys.map((k, i) => [k, i]).filter(([k]) => (MK[k] ? MK[k].id : k) === id);
+  const all = ks.flatMap(([, i]) => ser.v[i]).filter(x => x != null); if (!all.length) return;
+  let mn = Math.min(...all), mx = Math.max(...all); if (mx - mn < 6) { mn -= 3; mx += 3; }
+  const T = ser.t[ser.t.length - 1] || 1, L = 36, R = 8, Tp = 18, B = 20;
+  const X = t => L + t / T * (w - L - R), Y = v => Tp + (mx - v) / (mx - mn) * (h - Tp - B);
+  g.font = "12px Barlow, sans-serif"; g.strokeStyle = "#E8EDF1"; g.fillStyle = "#7A8896"; g.lineWidth = 1;
+  for (let i = 0; i <= 3; i++) { const v = mn + (mx - mn) * i / 3; g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(w - R, Y(v)); g.stroke(); g.textAlign = "right"; g.fillText(v.toFixed(0) + "°", L - 4, Y(v) + 4); }
+  g.textAlign = "center"; for (let i = 0; i <= 4; i++) g.fillText((T * i / 4).toFixed(1) + " s", X(T * i / 4), h - 4);
+  const cols = ["#E39B2D", "#3E9E6E"];
+  ks.forEach(([k, i], n) => {
+    g.strokeStyle = cols[n % 2]; g.lineWidth = 2.2; g.beginPath(); let pen = false;
+    ser.v[i].forEach((v, j) => { if (v == null) { pen = false; return; } pen ? g.lineTo(X(ser.t[j]), Y(v)) : g.moveTo(X(ser.t[j]), Y(v)); pen = true; }); g.stroke();
+    g.fillStyle = cols[n % 2]; g.textAlign = "left"; g.fillText(MK[k] && MK[k].b ? (k.endsWith("L") ? "Izq" : "Der") : "", L + 4 + n * 40, 12);
+  });
+}
+async function compareWith(id) {
+  const r = curRes, o = db.res.find(x => x.id === id); if (!r || !o) return;
+  const mo = await idbGet(id), mr = await idbGet(r.id);
+  const dR = new Date(r.date).toLocaleDateString("es-AR"), dO = new Date(o.date).toLocaleDateString("es-AR");
+  const vid = (m, lbl, idv) => m && m.video ? `<div><p class="note2">${lbl}</p><video class="rvid" id="${idv}" playsinline muted src="${mkUrl(m.video)}"></video></div>`
+    : m && m.image ? `<div><p class="note2">${lbl}</p><img class="rvid" src="${mkUrl(m.image)}" alt=""></div>` : `<div><p class="note2">${lbl}: sin video</p></div>`;
+  let h = `<div class="cmpgrid" style="margin-top:12px">${vid(mo, "Anterior · " + dO, "cvA")}${vid(mr, "Esta · " + dR, "cvB")}</div>`;
+  if (mo && mo.video && mr && mr.video) h += `<div class="row2" style="margin-top:10px"><button class="btn-d" id="cPlay">▶ Reproducir juntos</button><button class="btn-o" id="cRestart">⟲ Desde el inicio</button></div>`;
+  // tabla de diferencias
+  const keys = [...new Set([...Object.keys(o.metrics || {}), ...Object.keys(r.metrics || {})])];
+  const val = (x, k) => x.metrics && x.metrics[k] ? (x.photo ? x.metrics[k].mx : x.metrics[k].rom) : NaN;
+  if (keys.length) {
+    h += `<table class="rtable" style="margin-top:12px"><tr><th>${o.photo ? "Valor" : "Rango"}</th><th>${dO}</th><th>${dR}</th><th>Cambio</th></tr>` + keys.map(k => {
+      const a = val(o, k), b = val(r, k), d = b - a;
+      return `<tr><td>${keyName(k)}</td><td>${f1(a)}°</td><td>${f1(b)}°</td><td class="${isFinite(d) && Math.abs(d) >= 3 ? (d > 0 ? "up" : "down") : ""}">${isFinite(d) ? (d > 0 ? "+" : "") + f1(d) + "°" : "–"}</td></tr>`;
+    }).join("") + "</table>";
+  }
+  if (o.guided && r.guided) h += `<p class="note2" style="margin-top:8px">${r.guided.labels.map((l, k) => { const A = Math.max(...(o.guided.peaks[k] || [NaN])), B = Math.max(...(r.guided.peaks[k] || [NaN])); return `${l}: ${f1(A)}° → <b>${f1(B)}°</b>`; }).join(" · ")}</p>`;
+  if (o.jumps && r.jumps) { const best = x => Math.max(...x.jumps.map(j => j.altura)); h += `<p style="margin-top:8px">Mejor salto: ${f1(best(o), 1)} cm → <b>${f1(best(r), 1)} cm</b></p>`; }
+  $("rCmp").innerHTML = h;
+  const A = $("cvA"), B = $("cvB");
+  if ($("cPlay")) {
+    $("cPlay").onclick = () => { if (A.paused) { A.play(); B.play(); $("cPlay").textContent = "❚❚ Pausar"; } else { A.pause(); B.pause(); $("cPlay").textContent = "▶ Reproducir juntos"; } };
+    $("cRestart").onclick = () => { A.currentTime = 0; B.currentTime = 0; };
+  }
+}
+$("rBack").onclick = () => { freeUrls(); show("scrProgress"); };
 </script>
 </body>
 </html>
