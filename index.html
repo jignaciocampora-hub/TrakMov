@@ -50,6 +50,23 @@
   .tablewrap{overflow-x:auto}
   #chart{width:100%;height:240px;display:block;background:var(--panel);border-radius:6px;margin-top:10px}
   .hidden{display:none !important}
+  #flash{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.9);z-index:4;pointer-events:none;opacity:0;transition:opacity .15s,transform .15s;
+    padding:14px 26px;border-radius:16px;font:700 clamp(26px,6vw,56px)/1.1 "Barlow Condensed",sans-serif;text-align:center;color:#fff;box-shadow:0 8px 30px rgba(0,0,0,.4);max-width:90%}
+  #flash.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  #flash.ok{background:rgba(46,160,120,.92)}#flash.bad{background:rgba(214,58,64,.94)}#flash.warn{background:rgba(232,150,40,.94)}#flash.done{background:rgba(46,160,120,.96)}
+  #flash small{display:block;font:600 clamp(15px,2.6vw,22px)/1.3 Barlow,sans-serif;margin-top:4px}
+  @media (max-width:700px){#guide{font-size:13px;max-width:86%}#guide .now{font-size:16px}}
+  #guide{position:absolute;left:10px;top:10px;background:rgba(15,20,26,.82);border-radius:10px;padding:9px 12px;font:600 14px/1.45 Barlow,sans-serif;color:#E6EBF0;z-index:3;pointer-events:none;max-width:70%}
+  #guide .head{font:700 17px "Barlow Condensed",sans-serif;margin-bottom:4px}
+  #guide .now{margin-top:6px;font:700 18px "Barlow Condensed",sans-serif;color:var(--amber)}
+  #guide .warnl{color:var(--warn);font-size:12px}
+  #guide .r{display:inline-block;min-width:44px;text-align:center;border-radius:6px;padding:0 4px;margin:1px 2px;font-variant-numeric:tabular-nums}
+  #guide .r.ok{background:rgba(63,184,160,.25);color:#7FE0C8}#guide .r.bad{background:rgba(229,72,77,.25);color:#FF9A9D}#guide .r.todo{background:rgba(255,255,255,.08);color:#93A1AF}
+  #doneModal{position:fixed;inset:0;background:rgba(10,14,18,.8);z-index:60;display:grid;place-items:center;padding:16px}
+  #doneModal .box{background:var(--panel);border-radius:14px;padding:20px;max-width:440px;width:100%;color:var(--text)}
+  #doneModal h3{margin:0 0 8px;font:700 24px "Barlow Condensed",sans-serif}
+  #doneModal .btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+  #doneModal .btns button{padding:12px}
   #assist{position:absolute;left:10px;top:10px;background:rgba(15,20,26,.78);border-radius:10px;padding:8px 10px;font:600 13px/1.35 Barlow,sans-serif;color:#E6EBF0;z-index:3;pointer-events:none;min-width:190px;max-width:62%}
   #assist .row{display:flex;align-items:center;gap:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #assist .dot{flex:0 0 10px;height:10px;border-radius:50%}
@@ -159,7 +176,7 @@
     <button class="bigcard" id="goVideo"><span class="ill" data-fig="squatF"></span><span style="flex:1"><h2>Analizar un video</h2><p>Cargá cualquier video, medí ángulos de todo el cuerpo, recorrelo cuadro a cuadro y miralo en 3D.</p></span><span class="chev">›</span></button>
     <button class="bigcard" id="goEval"><span class="ill" data-fig="ohSquat"></span><span style="flex:1"><h2>Realizar una evaluación</h2><p>Elegí una evaluación guiada: se configura sola, mide lo que corresponde y guarda el resultado en el historial del atleta.</p></span><span class="chev">›</span></button>
     <button class="bigcard" id="goLive"><span class="ill" data-fig="armsUpF"></span><span style="flex:1"><h2>Cámara libre</h2><p>Análisis en vivo de todo el cuerpo con la cámara del celular o de la compu.</p></span><span class="chev">›</span></button>
-      <p id="appVer" class="sub" style="font-size:13px;text-align:center;margin-top:24px">Versión 3 oct 2026 (i) · iPhone/iPad</p>
+      <p id="appVer" class="sub" style="font-size:13px;text-align:center;margin-top:24px">Versión 3 oct 2026 (k) · iPhone/iPad</p>
   </section>
 
   <section id="scrCatalog" class="scr hidden">
@@ -239,7 +256,7 @@
 <main>
   <div>
     <div class="stage"><video id="video" playsinline muted></video><canvas id="canvas" width="1280" height="720"></canvas>
-      <div id="assist" class="hidden"></div><div id="levelBox" class="hidden"><div class="cross"></div><div class="bub" id="bub"></div></div></div>
+      <div id="assist" class="hidden"></div><div id="guide" class="hidden"></div><div id="flash"></div><div id="levelBox" class="hidden"><div class="cross"></div><div class="bub" id="bub"></div></div></div>
     <section id="snapList" class="hidden"><h2>Mediciones en foto</h2><div id="snapItems"></div></section>
     <div id="vbar" class="vbar hidden">
       <button id="vplay" aria-label="Reproducir o pausar">❚❚</button>
@@ -313,6 +330,9 @@
   </aside>
 </main>
 </div>
+<div id="doneModal" class="hidden"><div class="box"><h3 id="doneTitle"></h3><div id="doneBody"></div>
+  <div class="btns"><button id="doneRepeat">↺ Repetir</button><button id="doneSave" class="primary">💾 Guardar</button></div>
+  <button id="doneClose" style="width:100%;margin-top:10px">Cerrar sin guardar</button></div></div>
 <div id="snapModal" class="hidden">
   <div class="bar"><b style="font:700 20px 'Barlow Condensed',sans-serif;align-self:center" id="snapTitle">Medición en foto</b></div>
   <canvas id="snapCv"></canvas>
@@ -724,18 +744,19 @@ function calibFrame(raw, wl) {
 
 let recording = false, recStart = 0, frames = [];
 function startRec() {
-  frames = []; recording = true; recStart = performance.now();
+  frames = []; recording = true; recStart = performance.now(); guideReset();
   $("rec").textContent = "■ Detener"; $("rec").classList.add("recon");
   $("results").classList.add("hidden");
 }
 function stopRec() {
-  recording = false;
+  recording = false; guideStop();
   $("rec").textContent = "● Grabar evaluación"; $("rec").classList.remove("recon");
   showResults();
 }
 $("rec").onclick = () => {
   if (!running) { $("status").textContent = "Primero iniciá la cámara o cargá un video."; return; }
   if (!recording && !assistGate("grabar")) return;
+  if (!recording) unlockAudio();
   recording ? stopRec() : startRec();
 };
 
@@ -1497,6 +1518,7 @@ function frame(res) {
   drawNeckRefs(P, lm, lw);
   checkOrientation(lm, W);
   if (!isRedraw) assistUpdate(lm, W, H);
+  if (recording && !isRedraw) guideFrame(v, bad);
   lastFrameData = { lm, wl, mirror, view };
   if (trackMode) drawTrackMarkers(P, fs, v);
   else if (editMode) drawHandles(P, ed, fs);
@@ -1961,7 +1983,7 @@ $("saveRes").onclick = () => {
   for (const k of KEYS.filter(keyShown)) { const st = stats(k); if (st) metrics[k] = { mn: +st.mn.toFixed(1), mx: +st.mx.toFixed(1), rom: +st.rom.toFixed(1) }; }
   if (!Object.keys(metrics).length) { $("status").textContent = "No hay datos para guardar."; return; }
   const extra = mode === "squat" && reps.length ? { reps: reps.map(r => ({ kL: +r.kL.toFixed(1), kR: +r.kR.toFixed(1), vL: +r.vL.toFixed(1), vR: +r.vR.toFixed(1) })) } : {};
-  db.res.push({ id: "r" + Date.now(), ath: curAth, proto: activeProto ? activeProto.id : "libre", name: activeProto ? activeProto.n : "Análisis libre", date: new Date().toISOString(), view, calib: !!calib, metrics, ...extra });
+  db.res.push({ id: "r" + Date.now(), ath: curAth, proto: activeProto ? activeProto.id : "libre", name: activeProto ? activeProto.n : "Análisis libre", date: new Date().toISOString(), view, calib: !!calib, metrics, ...extra, ...(lastGuided ? { guided: lastGuided } : {}) });
   saveDB(); afterSave(athObj(curAth).n);
 };
 $("saveJ").onclick = () => {
@@ -2316,6 +2338,152 @@ $("snapItems").onclick = e => {
   saveDB(); b.textContent = "✓ Guardada"; b.disabled = true;
   $("status").textContent = `Medición en foto guardada en el historial de ${athObj(curAth).n}.`;
 };
+
+// =====================================================================
+// Evaluación guiada: cuenta las repeticiones, las valida y avisa cuando está completa
+// =====================================================================
+// sym: hacia un lado (+) y hacia el otro (−) · one: un lado filmado de perfil · both: ambos lados a la vez · alt: alterna piernas · hold: postura quieta
+const RULES = {
+  neckLat:  { type: "sym", key: "neckInc", thr: 12, ctr: 4, n: 3, labels: ["Izquierda", "Derecha"], comp: [["shTilt", 8, "subió un hombro"]], dir: ["oreja al hombro izquierdo", "oreja al hombro derecho"] },
+  neckRot:  { type: "sym", key: "neckRot", thr: 20, ctr: 6, n: 3, labels: ["Izquierda", "Derecha"], comp: [["shTilt", 8, "movió los hombros"]], dir: ["girá a la izquierda", "girá a la derecha"] },
+  cervFlex: { type: "sym", key: "neckFlex", thr: 12, ctr: 5, n: 3, labels: ["Flexión", "Extensión"], comp: [["trkFlex", 10, "movió el tronco"]], dir: ["mentón al pecho", "cabeza hacia atrás"] },
+  trkLat:   { type: "sym", key: "trkLat", thr: 10, ctr: 4, n: 3, labels: ["Izquierda", "Derecha"], comp: [], dir: ["inclinate a la izquierda", "inclinate a la derecha"] },
+  trkRot:   { type: "sym", key: "trkRot", thr: 12, ctr: 5, n: 3, labels: ["Izquierda", "Derecha"], comp: [["pelTilt", 6, "movió la pelvis"]], dir: ["girá el tronco", "girá hacia el otro lado"] },
+  shFlex:   { type: "one", key: "shElev", hi: 70, lo: 30, n: 3, labels: ["Elevación"], comp: [["trkFlex", 10, "arqueó la espalda"]], dir: ["subí el brazo hasta arriba"] },
+  shAbd:    { type: "both", key: "shElev", hi: 70, lo: 30, n: 3, labels: ["Elevación"], comp: [["trkLat", 8, "inclinó el tronco"]], dir: ["subí los dos brazos por los costados"] },
+  hipFlex:  { type: "one", key: "hipFlex", hi: 45, lo: 15, n: 3, labels: ["Flexión"], comp: [["trkFlex", 15, "inclinó el tronco"]], dir: ["rodilla al pecho"] },
+  kneeFlex: { type: "one", key: "knee", hi: 60, lo: 20, n: 3, labels: ["Flexión"], comp: [["hipFlex", 25, "adelantó el muslo"]], dir: ["talón al glúteo"] },
+  ankle:    { type: "one", key: "ankle", hi: 8, lo: 2, n: 3, labels: ["Dorsiflexión"], comp: [], dir: ["rodilla hacia adelante sin levantar el talón"] },
+  ohs:      { type: "both", key: "knee", hi: 60, lo: 25, n: 5, labels: ["Sentadillas"], comp: [["trkLat", 8, "se inclinó hacia un lado"]], dir: ["bajá"] },
+  squat:    { type: "both", key: "knee", hi: 60, lo: 25, n: 5, labels: ["Sentadillas"], comp: [["trkLat", 8, "se inclinó hacia un lado"]], dir: ["bajá"] },
+  lunge:    { type: "alt", key: "knee", hi: 60, lo: 25, n: 5, labels: ["Pierna izq", "Pierna der"], comp: [["trkLat", 10, "se inclinó hacia un lado"]], dir: ["estocada"] },
+  sls:      { type: "alt", key: "knee", hi: 45, lo: 15, n: 5, labels: ["Pierna izq", "Pierna der"], comp: [["pelTilt", 10, "cayó la pelvis"]], dir: ["bajá en una pierna"] },
+  posture:  { type: "hold", secs: 10, labels: ["Postura"], comp: [] },
+};
+
+// ---------- Aviso en pantalla y sonido por cada repetición ----------
+let actx = null, flashT = 0;
+function unlockAudio() { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch {} }
+function beep(kind) {
+  if (!actx) return;
+  const tones = kind === "ok" ? [[880, 0, .12]] : kind === "done" ? [[660, 0, .12], [880, .14, .12], [1100, .28, .2]] : [[300, 0, .14], [240, .18, .2]];
+  for (const [f, t, d] of tones) {
+    const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = f; o.type = "sine";
+    g.gain.setValueAtTime(0.0001, actx.currentTime + t); g.gain.exponentialRampToValueAtTime(0.25, actx.currentTime + t + .02); g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + t + d);
+    o.connect(g).connect(actx.destination); o.start(actx.currentTime + t); o.stop(actx.currentTime + t + d + .05);
+  }
+}
+function flash(kind, big, small, ms = 1600) {
+  const f = $("flash"); f.className = kind + " show"; f.innerHTML = `${big}${small ? `<small>${small}</small>` : ""}`;
+  clearTimeout(flashT); if (ms) flashT = setTimeout(() => f.classList.remove("show"), ms);
+}
+let GR = null, lastGuided = null;
+function guideReset() {
+  lastGuided = null;
+  const r = activeProto && RULES[activeProto.id];
+  if (!r) setTimeout(() => { if (recording) $("status").textContent = "Grabando en modo libre: el control de repeticiones (✓ / ✗) funciona en las evaluaciones del catálogo (Inicio → Realizar una evaluación)."; }, 50);
+  else { flash("ok", "● Grabando", r.type === "hold" ? "Quedate quieto" : "Seguí las indicaciones", 1200); }
+  GR = r ? { r, phase: "center", side: -1, peak: 0, base: {}, cmax: {}, badN: 0, n: 0, reps: r.labels.map(() => []), t0: performance.now(), done: false } : null;
+  $("guide").classList.toggle("hidden", !GR);
+  if (GR) guideDraw();
+}
+function guideStop() {
+  if (!(GR && GR.done)) $("flash").classList.remove("show");
+  $("guide").classList.add("hidden");
+  if (GR && !GR.done) {
+    const miss = GR.r.labels.map((l, k) => `${l}: ${GR.reps[k].filter(x => x.ok).length}/${GR.r.n}`).join(" · ");
+    if (GR.r.type !== "hold") setTimeout(() => { $("status").textContent = `Evaluación incompleta (${miss}). Podés guardarla igual o grabar de nuevo.`; }, 50);
+  }
+}
+function gVal(v) {
+  const r = GR.r, k = r.key;
+  if (r.type === "sym") return v[k];
+  if (r.type === "one") return v[k + (isProf() ? view : "L")];
+  if (r.type === "both") return Math.min(v[k + "L"], v[k + "R"]);
+  if (r.type === "alt") return Math.max(v[k + "L"], v[k + "R"]);
+  return 0;
+}
+function guideFrame(v, bad) {
+  if (!GR || GR.done) return;
+  const r = GR.r;
+  if (r.type === "hold") {
+    const el = (performance.now() - GR.t0) / 1000;
+    if (el >= r.secs) { GR.reps[0].push({ ok: true, peak: NaN }); guideComplete(); } else guideDraw(`Quieto… ${Math.ceil(r.secs - el)} s`);
+    return;
+  }
+  const x = gVal(v); if (!isFinite(x)) return;
+  const badNow = bad.some(k => MK[k].id === r.key);
+  const out = r.type === "sym" ? Math.abs(x) > r.thr : x > r.hi;
+  const back = r.type === "sym" ? Math.abs(x) < r.ctr : x < r.lo;
+  if (GR.phase === "center") {
+    for (const [c] of r.comp) if (isFinite(v[c])) GR.base[c] = GR.base[c] == null ? v[c] : GR.base[c] * 0.8 + v[c] * 0.2;
+    if (out) {
+      GR.phase = "out"; GR.peak = Math.abs(x); GR.cmax = {}; GR.badN = 0; GR.n = 0; GR.warned = false;
+      GR.side = r.type === "sym" ? (x > 0 ? 0 : 1) : r.type === "alt" ? (v[r.key + "L"] >= v[r.key + "R"] ? 0 : 1) : 0;
+    }
+  } else {
+    GR.peak = Math.max(GR.peak, Math.abs(x)); GR.n++; if (badNow) GR.badN++;
+    for (const [c] of r.comp) if (isFinite(v[c]) && GR.base[c] != null) GR.cmax[c] = Math.max(GR.cmax[c] || 0, Math.abs(v[c] - GR.base[c]));
+    for (const [c, lim, msg] of r.comp) if ((GR.cmax[c] || 0) > lim && !GR.warned) { GR.warned = true; flash("warn", "⚠ " + cap(msg), "Corregí la postura", 0); beep("bad"); }
+    if (back) {
+      const why = [];
+      for (const [c, lim, msg] of r.comp) if ((GR.cmax[c] || 0) > lim) why.push(msg);
+      if (GR.n && GR.badN / GR.n > 0.3) why.push("se perdieron los puntos");
+      if (GR.n < 3) why.push("demasiado rápido");
+      const list = GR.reps[GR.side];
+      if (list.filter(q => q.ok).length < r.n) {
+        list.push({ ok: !why.length, peak: GR.peak, why: why.join(", ") });
+        const okN = list.filter(q => q.ok).length;
+        if (!why.length) { flash("ok", `✓ Correcta · ${GR.peak.toFixed(0)}°`, `${r.labels[GR.side]} ${okN} de ${r.n}`); beep("ok"); }
+        else { flash("bad", "✗ No válida", cap(why.join(", ")) + " · repetila", 2200); beep("bad"); }
+      }
+      GR.phase = "center";
+      if (GR.reps.every(l => l.filter(q => q.ok).length >= r.n)) { guideComplete(); return; }
+    }
+  }
+  guideDraw();
+}
+function guideNext() {
+  const r = GR.r;
+  if (GR.phase === "out") return r.type === "sym" ? "Volvé al centro" : "Volvé a la posición inicial";
+  const k = GR.reps.findIndex(l => l.filter(q => q.ok).length < r.n);
+  if (k < 0) return "";
+  return "Ahora: " + (r.dir[k] || r.dir[0]);
+}
+function guideDraw(nowTxt) {
+  const r = GR.r, cal = calib || !activeProto.m || !activeProto.m.some(id => MI[id].neu);
+  let h = `<div class="head">${esc(activeProto.n)}</div>`;
+  if (r.type !== "hold") h += `<div>${cal ? "✓ Calibrado" : "⚠ Sin calibrar: los valores pueden tener error"}</div>`;
+  r.labels.forEach((l, k) => {
+    const okN = GR.reps[k].filter(q => q.ok).length, cells = GR.reps[k].map(q => `<span class="r ${q.ok ? "ok" : "bad"}">${q.ok ? "✓" : "✗"} ${isFinite(q.peak) ? q.peak.toFixed(0) + "°" : ""}</span>`).join("");
+    const todo = Array.from({ length: Math.max(0, r.n - okN) }, () => `<span class="r todo">◻</span>`).join("");
+    h += `<div>${l}: ${cells}${todo}</div>`;
+  });
+  const lastBad = GR.reps.flat().filter(q => !q.ok).slice(-1)[0];
+  if (lastBad) h += `<div class="warnl">✗ No válida: ${lastBad.why}. Repetila.</div>`;
+  h += `<div class="now">${nowTxt || guideNext()}</div>`;
+  $("guide").innerHTML = h;
+}
+function guideComplete() {
+  GR.done = true;
+  const r = GR.r, best = GR.reps.map(l => { const ok = l.filter(q => q.ok && isFinite(q.peak)); return ok.length ? { max: Math.max(...ok.map(q => q.peak)), avg: ok.reduce((a, q) => a + q.peak, 0) / ok.length } : null; });
+  const invalid = GR.reps.flat().filter(q => !q.ok).length;
+  lastGuided = { labels: r.labels, peaks: GR.reps.map(l => l.filter(q => q.ok).map(q => +q.peak.toFixed(1))), invalid };
+  flash("done", "✅ Evaluación completada", "", 1800); beep("done");
+  stopRec();
+  let body = r.labels.map((l, k) => best[k] ? `<p style="margin:4px 0"><b>${l}</b>: máx ${best[k].max.toFixed(0)}° · prom ${best[k].avg.toFixed(0)}°</p>` : "").join("");
+  if (best.length === 2 && best[0] && best[1]) {
+    const a = Math.abs(best[0].max - best[1].max) / Math.max(best[0].max, best[1].max) * 100;
+    body += `<p style="margin:4px 0">Asimetría: <b class="${a >= 25 ? "bad" : a >= 15 ? "warn" : "ok"}">${a.toFixed(0)}%</b></p>`;
+  }
+  body += `<p class="note">${invalid ? `${invalid} intento(s) no válido(s) descartado(s). ` : "Todas las repeticiones fueron válidas. "}${calib ? "" : "⚠ Se hizo sin calibrar."}</p>`;
+  $("doneTitle").textContent = "✅ Evaluación completada";
+  $("doneBody").innerHTML = body;
+  $("doneModal").classList.remove("hidden");
+}
+$("doneSave").onclick = () => { $("doneModal").classList.add("hidden"); $("saveRes").click(); };
+$("doneRepeat").onclick = () => { $("doneModal").classList.add("hidden"); $("results").classList.add("hidden"); startRec(); $("status").textContent = "Repetimos: seguí las indicaciones del recuadro."; };
+$("doneClose").onclick = () => { $("doneModal").classList.add("hidden"); };
 </script>
 </body>
 </html>
