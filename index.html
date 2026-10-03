@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Análisis de movimiento y saltos · cámara</title>
+<title>Artio · Análisis de movimiento</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#1C232B">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Movimiento">
+<meta name="apple-mobile-web-app-title" content="Artio">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Barlow:wght@400;600&display=swap" rel="stylesheet">
 <style>
@@ -186,6 +186,7 @@
 <body class="light">
 <div id="shell">
   <section id="scrHome" class="scr">
+    <div style="font:800 15px Barlow,sans-serif;letter-spacing:3px;color:#5BBF8A">ARTIO</div>
     <h1 class="lt">¡Hola!</h1>
     <p class="sub">¿Cómo querés empezar?</p>
     <button class="bigcard" id="goVideo"><span class="ill" data-fig="squatF"></span><span style="flex:1"><h2>Analizar un video</h2><p>Cargá cualquier video, medí ángulos de todo el cuerpo, recorrelo cuadro a cuadro y miralo en 3D.</p></span><span class="chev">›</span></button>
@@ -228,11 +229,19 @@
     <button class="backc" id="rBack" aria-label="Volver">‹</button>
     <h1 class="lt" id="rTitle"></h1>
     <p class="sub" id="rSub"></p>
+    <div class="card" id="rScoreCard"><h3>Puntuación</h3><div id="rScore"></div></div>
     <div class="card" id="rMediaCard"><h3>Video de la evaluación</h3><div id="rMedia"></div></div>
     <div class="card" id="rRepsCard"><h3>Repeticiones</h3><div id="rReps"></div></div>
     <div class="card" id="rChartCard"><h3>Curva en el tiempo</h3><select class="rsel" id="rChartSel"></select><canvas class="rchart" id="rChart"></canvas></div>
     <div class="card"><h3>Todas las mediciones</h3><div style="overflow-x:auto"><table class="rtable" id="rTable"></table></div></div>
-    <div class="card"><h3>Notas</h3><textarea class="rnote" id="rNote" placeholder="Observaciones, dolor, compensaciones, contexto…"></textarea></div>
+    <div class="card" id="rReportCard"><h3>Informe</h3>
+      <p>Conclusiones generadas automáticamente: podés editarlas libremente.</p>
+      <textarea class="rnote" id="rConcl" style="min-height:130px"></textarea>
+      <button class="btn-o" id="rReConcl" style="margin-top:8px;padding:10px !important">↻ Volver a generar conclusiones</button>
+      <h3 style="margin-top:14px">Notas del profesional</h3>
+      <textarea class="rnote" id="rNote" placeholder="Observaciones, dolor, compensaciones, indicaciones, contexto…"></textarea>
+      <button class="btn-d wide" id="rPdf">📄 Generar informe PDF</button>
+    </div>
     <div class="card"><h3>Comparar</h3><p>Elegí otra evaluación del mismo tipo para ver la evolución, con los videos lado a lado.</p>
       <select class="rsel" id="rCmpSel"></select><div id="rCmp"></div></div>
   </section>
@@ -1463,7 +1472,7 @@ $("track").onclick = () => setTrackMode(!trackMode);
 
 
 // ---------- Líneas reales de la medición de cuello (para ver qué se está midiendo) ----------
-function drawNeckRefs(P, lm, lw) {
+function drawNeckRefs(P, lm, lw, v = {}, fs = 18) {
   if (pickMode || editMode) return;
   const vis = i => (lm[i].visibility ?? 1) > 0.5;
   ctx.save(); ctx.lineCap = "round";
@@ -1478,14 +1487,40 @@ function drawNeckRefs(P, lm, lw) {
       for (const p of [A, B]) { ctx.beginPath(); ctx.arc(p.x, p.y, lw * 3, 0, 7); ctx.fillStyle = "#F2A33A"; ctx.fill(); }
     }
   } else if (!isProf() && (shown("neckInc") || shown("neckRot"))) {
-    if (vis(7) && vis(8)) {
-      const A = P(7), B = P(8), dx = (B.x - A.x) * .35, dy = (B.y - A.y) * .35;
-      ctx.strokeStyle = "#F2A33A"; ctx.lineWidth = lw * 1.6;
-      ctx.beginPath(); ctx.moveTo(A.x - dx, A.y - dy); ctx.lineTo(B.x + dx, B.y + dy); ctx.stroke();   // línea entre orejas (inclinación)
-      for (const p of [A, B]) { ctx.beginPath(); ctx.arc(p.x, p.y, lw * 2.6, 0, 7); ctx.fillStyle = "#F2A33A"; ctx.fill(); }
-      if (shown("neckRot") && vis(0)) {
-        const M = { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 }, N = P(0);
-        ctx.strokeStyle = "#4FC3F7"; ctx.lineWidth = lw * 1.4; ctx.beginPath(); ctx.moveTo(M.x, M.y); ctx.lineTo(N.x, N.y); ctx.stroke();   // centro de la cabeza → nariz (rotación)
+    if (vis(7) && vis(8) && vis(11) && vis(12)) {
+      // Como un goniómetro: eje en la base del cuello, brazo fijo vertical (perpendicular a la línea de hombros),
+      // brazo móvil hacia el centro de la cara. La cuña verde es el ángulo.
+      const S1 = P(11), S2 = P(12), E1 = P(7), E2 = P(8);
+      const ms = { x: (S1.x + S2.x) / 2, y: (S1.y + S2.y) / 2 }, me = { x: (E1.x + E2.x) / 2, y: (E1.y + E2.y) / 2 };
+      const base = { x: ms.x + (me.x - ms.x) * 0.12, y: ms.y + (me.y - ms.y) * 0.12 };
+      const face = vis(2) && vis(5) ? { x: (P(2).x + P(5).x) / 2, y: (P(2).y + P(5).y) / 2 } : vis(0) ? P(0) : me;
+      let ux = -(S2.y - S1.y), uy = S2.x - S1.x; if (uy > 0) { ux = -ux; uy = -uy; }        // perpendicular a los hombros, hacia arriba
+      const un = Math.hypot(ux, uy) || 1; ux /= un; uy /= un;
+      const L = Math.hypot(face.x - base.x, face.y - base.y) * 1.7;
+      const fx = (face.x - base.x) / (Math.hypot(face.x - base.x, face.y - base.y) || 1), fy = (face.y - base.y) / (Math.hypot(face.x - base.x, face.y - base.y) || 1);
+      const T = { x: base.x + ux * L, y: base.y + uy * L }, F = { x: base.x + fx * L, y: base.y + fy * L };
+      if (shown("neckInc")) {
+        ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(T.x, T.y); ctx.lineTo(F.x, F.y); ctx.closePath();
+        ctx.fillStyle = "rgba(76,175,80,.55)"; ctx.fill();
+        ctx.setLineDash([10, 8]); ctx.strokeStyle = "#fff"; ctx.lineWidth = lw * 1.2; ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(T.x, T.y); ctx.stroke(); ctx.setLineDash([]);
+        ctx.lineWidth = lw * 1.6; ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(F.x, F.y); ctx.stroke();
+        for (const p of [base, T, face]) { ctx.beginPath(); ctx.arc(p.x, p.y, lw * 2.4, 0, 7); ctx.fillStyle = "#fff"; ctx.fill(); }
+        if (isFinite(v.neckInc)) {
+          const txt = fmt(MK.neckInc, v.neckInc); ctx.font = `700 ${Math.round(fs * 1.05)}px "Barlow Condensed", sans-serif`; ctx.textAlign = "center";
+          const tw = ctx.measureText(txt).width + 14, tx = (T.x + F.x) / 2, ty = Math.min(T.y, F.y) - fs * 0.6;
+          ctx.fillStyle = "rgba(46,125,50,.9)"; ctx.fillRect(tx - tw / 2, ty - fs * 0.85, tw, fs * 1.2); ctx.fillStyle = "#fff"; ctx.fillText(txt, tx, ty + fs * 0.1);
+        }
+      }
+      if (shown("neckRot") && vis(0) && isFinite(v.neckRot)) {
+        // indicador de giro visto desde arriba: arco sobre la cabeza
+        const hw = Math.hypot(E2.x - E1.x, E2.y - E1.y) * 0.9, cx = me.x, cy = Math.min(E1.y, E2.y) - hw * 0.9;
+        const a = Math.max(-1.4, Math.min(1.4, v.neckRot * Math.PI / 180)) * (Math.sign(P(11).x - P(12).x) || 1);
+        ctx.strokeStyle = "rgba(79,195,247,.5)"; ctx.lineWidth = lw; ctx.beginPath(); ctx.ellipse(cx, cy, hw, hw * 0.35, 0, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, cy + hw * 0.35); ctx.setLineDash([6, 6]); ctx.strokeStyle = "#fff"; ctx.stroke(); ctx.setLineDash([]);
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.sin(a) * hw, cy + Math.cos(a) * hw * 0.35); ctx.strokeStyle = "#4FC3F7"; ctx.lineWidth = lw * 1.8; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.ellipse(cx, cy, hw * 0.6, hw * 0.21, 0, Math.PI / 2, Math.PI / 2 - a, a > 0); ctx.closePath(); ctx.fillStyle = "rgba(79,195,247,.35)"; ctx.fill();
+        const txt = fmt(MK.neckRot, v.neckRot); ctx.font = `700 ${Math.round(fs)}px "Barlow Condensed", sans-serif`; ctx.textAlign = "center";
+        const tw = ctx.measureText(txt).width + 14; ctx.fillStyle = "rgba(2,119,189,.9)"; ctx.fillRect(cx - tw / 2, cy - hw * 0.35 - fs * 1.4, tw, fs * 1.2); ctx.fillStyle = "#fff"; ctx.fillText(txt, cx, cy - hw * 0.35 - fs * 0.45);
       }
     }
   }
@@ -1637,7 +1672,7 @@ function frame(res) {
 
   ctx.font = `700 ${fs}px "Barlow Condensed", sans-serif`;
   lastLmN = lm;
-  drawNeckRefs(P, lm, lw);
+  drawNeckRefs(P, lm, lw, v, fs);
   checkOrientation(lm, W);
   if (!isRedraw) assistUpdate(lm, W, H);
   if (recording && !isRedraw) guideFrame(v, bad);
@@ -2103,8 +2138,13 @@ function afterSave(name) {
     const next = PR[flowQueue.shift()];
     $("status").textContent = `Guardado en el historial de ${name}. Siguiente del flujo: ${next.n}.`;
     if (confirm(`Guardado. ¿Seguir con «${next.n}»?`)) { leaveAnalysis(); openDetail(next.id); }
-  } else $("status").textContent = `Guardado en el historial de ${name}.`;
+  } else {
+    $("status").textContent = `Guardado en el historial de ${name}.`;
+    if (lastSavedId && confirm("Guardado. ¿Querés ver el resultado y generar el informe PDF?")) { const id = lastSavedId; leaveAnalysis(); setTimeout(() => openResult(id, true), 300); }
+  }
+  lastSavedId = null;
 }
+let lastSavedId = null;
 $("saveRes").onclick = () => {
   if (!athObj(curAth) && !addAthlete()) return;
   const metrics = {};
@@ -2115,7 +2155,7 @@ $("saveRes").onclick = () => {
   const ks = KEYS.filter(keyShown);
   const series = { keys: ks, t: frames.map(f => +(f.t - frames[0].t).toFixed(3)), v: ks.map(k => frames.map(f => isFinite(f[k]) ? Math.round(f[k] * 10) / 10 : null)) };
   db.res.push({ id: rid, ath: curAth, proto: activeProto ? activeProto.id : "libre", name: activeProto ? activeProto.n : "Análisis libre", date: new Date().toISOString(), view, calib: !!calib, metrics, ...extra, ...(lastGuided ? { guided: lastGuided } : {}), media: !!clip });
-  saveDB(); idbPut({ id: rid, video: clip, series }); lastClip = null;
+  saveDB(); idbPut({ id: rid, video: clip, series }); lastClip = null; lastSavedId = rid;
   afterSave(athObj(curAth).n);
 };
 $("saveJ").onclick = () => {
@@ -2141,7 +2181,7 @@ function buildProgress() {
   $("pList").innerHTML = Object.entries(groups).map(([pid, list]) => {
     list.sort((a, b) => a.date.localeCompare(b.date));
     const last = list[list.length - 1], mv = mainVals(last);
-    return `<div class="card"><h3>${esc(last.name)}</h3><p style="margin:0">Última: <b>${mv.txt}</b> · ${new Date(last.date).toLocaleDateString("es-AR")}</p>
+    return `<div class="card"><h3 style="display:flex;justify-content:space-between;align-items:center;gap:8px">${esc(last.name)} ${scoreHTML(last, true)}</h3><p style="margin:0">Última: <b>${mv.txt}</b> · ${new Date(last.date).toLocaleDateString("es-AR")}</p>
       ${list.length > 1 ? `<canvas class="spark" data-spark="${pid}"></canvas>` : ""}
       <div class="hist">${list.slice(-6).reverse().map(r => `<span class="open" data-open="${r.id}">${new Date(r.date).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })}${r.media ? " 🎬" : ""}${r.photo ? " 📸" : ""}</span><span class="open" data-open="${r.id}">${mainVals(r).txt}</span><button data-del="${r.id}" aria-label="Borrar">✕</button>`).join("")}</div></div>`;
   }).join("");
@@ -2618,6 +2658,9 @@ function guideComplete() {
     const a = Math.abs(best[0].max - best[1].max) / Math.max(best[0].max, best[1].max) * 100;
     body += `<p style="margin:4px 0">Asimetría: <b class="${a >= 25 ? "bad" : a >= 15 ? "warn" : "ok"}">${a.toFixed(0)}%</b></p>`;
   }
+  const tmpRes = { proto: activeProto.id, guided: lastGuided, metrics: Object.fromEntries(KEYS.filter(keyShown).map(k => [k, stats(k)]).filter(([, v]) => v).map(([k, v]) => [k, { mn: v.mn, mx: v.mx, rom: v.rom }])) };
+  const sc = scoreHTML(tmpRes);
+  if (sc) body = `<div style="background:#fff;border-radius:12px;padding:10px 12px;margin-bottom:8px">${sc}</div>`;
   body += `<p class="note">${invalid ? `${invalid} intento(s) no válido(s) descartado(s). ` : "Todas las repeticiones fueron válidas. "}${calib ? "" : "⚠ Se hizo sin calibrar."}</p>`;
   $("doneTitle").textContent = "✅ Evaluación completada";
   $("doneBody").innerHTML = body;
@@ -2627,8 +2670,217 @@ $("doneSave").onclick = () => { $("doneModal").classList.add("hidden"); $("saveR
 $("doneRepeat").onclick = () => { $("doneModal").classList.add("hidden"); $("results").classList.add("hidden"); startRec(); $("status").textContent = "Repetimos: seguí las indicaciones del recuadro."; };
 $("doneClose").onclick = () => { $("doneModal").classList.add("hidden"); };
 
+
+// =====================================================================
+// Puntaje respecto de valores normales (rango activo de referencia en adultos) y colores
+// =====================================================================
+const NORMS = {
+  neckLat: [45, 45], neckRot: [80, 80], cervFlex: [50, 60], trkLat: [35, 35], trkRot: [45, 45],
+  shFlex: [180], shAbd: [180, 180], hipFlex: [120], kneeFlex: [135], ankle: [40]
+};
+function sideVals(r) {
+  const p = PR[r.proto], n = NORMS[r.proto]; if (!p || !n || !r.metrics) return null;
+  const k = p.key, M = r.metrics;
+  if (r.guided && r.guided.labels.length === n.length) return r.guided.labels.map((l, i) => ({ label: l, val: Math.max(...(r.guided.peaks[i].length ? r.guided.peaks[i] : [NaN])), norm: n[i] }));
+  if (MI[k] && MI[k].s && M[k]) {
+    const labs = RULES[r.proto] ? RULES[r.proto].labels : ["Izquierda", "Derecha"];
+    if (r.photo) { const v0 = M[k].mx; return [{ label: v0 >= 0 ? labs[0] : labs[1], val: Math.abs(v0), norm: v0 >= 0 ? n[0] : (n[1] || n[0]) }]; }
+    return [{ label: labs[0], val: Math.max(0, M[k].mx), norm: n[0] }, { label: labs[1], val: Math.max(0, -M[k].mn), norm: n[1] || n[0] }];
+  }
+  if (MI[k] && MI[k].b) {
+    const out = [];
+    if (M[k + "L"]) out.push({ label: "Izquierda", val: M[k + "L"].mx, norm: n[0] });
+    if (M[k + "R"]) out.push({ label: "Derecha", val: M[k + "R"].mx, norm: n[1] || n[0] });
+    return out.length ? out : null;
+  }
+  return null;
+}
+const pct = (val, norm) => Math.max(0, Math.min(100, val / norm * 100));
+const band = p => p >= 90 ? { bg: "#CDEFD8", bd: "#4CAF79", tx: "#1E6B43" } : p >= 75 ? { bg: "#E3F4C9", bd: "#8BC34A", tx: "#41691A" } : p >= 50 ? { bg: "#FBEFB8", bd: "#E3C232", tx: "#7A6408" } : { bg: "#F9D5BC", bd: "#E8955A", tx: "#8A4513" };
+function scoreHTML(r, compact = false) {
+  const sv = sideVals(r); if (!sv || !sv.length || sv.some(x => !isFinite(x.val))) return "";
+  const score = Math.round(sv.reduce((a, x) => a + pct(x.val, x.norm), 0) / sv.length), b = band(score);
+  if (compact) return `<span style="background:${b.bg};color:${b.tx};border:1px solid ${b.bd};border-radius:999px;padding:2px 10px;font-weight:700;font-size:13px">${score}%</span>`;
+  const R = 54, C = 2 * Math.PI * R;
+  const ring = `<svg viewBox="0 0 140 140" width="140" height="140" style="display:block;margin:4px auto 10px"><circle cx="70" cy="70" r="${R}" fill="none" stroke="#E6EEE9" stroke-width="12"/>
+    <circle cx="70" cy="70" r="${R}" fill="none" stroke="${b.bd}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C * score / 100} ${C}" transform="rotate(-90 70 70)"/>
+    <text x="70" y="80" text-anchor="middle" font-family="Barlow, sans-serif" font-weight="700" font-size="30" fill="#34495E">${score}%</text></svg>`;
+  const pills = `<div style="display:grid;grid-template-columns:repeat(${sv.length},1fr);gap:10px">${sv.map(x => { const q = pct(x.val, x.norm), c = band(q);
+    return `<div style="text-align:center"><div style="font-size:13px;color:#6B7B8A;margin-bottom:4px">${x.label}</div>
+      <div style="background:${c.bg};border:1.5px solid ${c.bd};color:${c.tx};border-radius:999px;padding:6px 0;font:700 18px Barlow,sans-serif">${Math.round(x.val)}°</div>
+      <div style="font-size:12px;color:#7A8896;margin-top:3px">normal ≈ ${x.norm}° · ${Math.round(q)}%</div></div>`; }).join("")}</div>`;
+  return ring + pills + `<p style="font-size:12px;color:#7A8896;margin:10px 0 0;text-align:center">Puntaje = rango alcanzado respecto del valor normal de referencia. 🟢 ≥90% · 🟡 50–75% · 🟠 &lt;50%</p>`;
+}
+
+
+// =====================================================================
+// Conclusiones automáticas + informe PDF
+// =====================================================================
+const APP_NAME = "Artio";
+function conclusions(r) {
+  const out = [], p = PR[r.proto], M = r.metrics || {};
+  const sv = sideVals(r);
+  if (sv && sv.length && sv.every(x => isFinite(x.val))) {
+    const score = Math.round(sv.reduce((a, x) => a + pct(x.val, x.norm), 0) / sv.length);
+    out.push(`${r.name.replace(" (foto)", "")}: ${score}% del rango normal de referencia (${sv.map(x => `${x.label.toLowerCase()} ${Math.round(x.val)}°`).join(", ")}).`);
+    sv.forEach(x => { const q = pct(x.val, x.norm);
+      if (q < 50) out.push(`Rango marcadamente reducido en ${x.label.toLowerCase()}: ${Math.round(x.val)}° frente a ≈${x.norm}° esperados.`);
+      else if (q < 75) out.push(`Rango moderadamente reducido en ${x.label.toLowerCase()} (${Math.round(x.val)}° de ≈${x.norm}°).`); });
+    if (sv.length === 2) {
+      const a = Math.abs(sv[0].val - sv[1].val) / Math.max(sv[0].val, sv[1].val, 1) * 100;
+      const hi = sv[0].val > sv[1].val ? sv[0].label : sv[1].label;
+      out.push(a >= 15 ? `Asimetría de ${a.toFixed(0)}% entre lados, con mayor rango hacia ${hi.toLowerCase()}.` : `Simetría adecuada entre lados (diferencia ${a.toFixed(0)}%).`);
+    }
+  }
+  // funcionales
+  const mx = k => M[k] ? M[k].mx : NaN;
+  if (["ohs", "squat", "lunge", "sls"].includes(r.proto) || r.proto === "libre") {
+    const kL = mx("kneeL"), kR = mx("kneeR");
+    if (isFinite(kL) || isFinite(kR)) out.push(`Profundidad: flexión máxima de rodilla ${f1(kL)}° izq / ${f1(kR)}° der.`);
+    for (const [k, lado] of [["valgusL", "izquierda"], ["valgusR", "derecha"]]) { const v = mx(k); if (v >= 10) out.push(`Valgo dinámico marcado en rodilla ${lado} (${v.toFixed(0)}°).`); else if (v >= 5) out.push(`Valgo dinámico leve en rodilla ${lado} (${v.toFixed(0)}°).`); }
+    if (M.pelTilt && M.pelTilt.rom >= 6) out.push(`Variación de la línea de pelvis de ${M.pelTilt.rom.toFixed(0)}° durante el movimiento (posible caída o compensación de cadera).`);
+    if (M.trkLat && Math.max(Math.abs(M.trkLat.mn), Math.abs(M.trkLat.mx)) >= 6) out.push(`Inclinación lateral del tronco de hasta ${Math.max(Math.abs(M.trkLat.mn), Math.abs(M.trkLat.mx)).toFixed(0)}°.`);
+  }
+  if (r.reps && r.reps.length) out.push(`${r.reps.length} repeticiones registradas.`);
+  if (r.jumps && r.jumps.length) {
+    const hs = r.jumps.map(j => j.altura).filter(isFinite);
+    if (hs.length) out.push(`${r.name}: mejor salto ${f1(Math.max(...hs), 1)} cm, promedio ${f1(hs.reduce((a, b) => a + b, 0) / hs.length, 1)} cm (${hs.length} saltos).`);
+    const vl = Math.max(...r.jumps.map(j => j.valCaiL).filter(isFinite)), vr = Math.max(...r.jumps.map(j => j.valCaiR).filter(isFinite));
+    if (vl >= 10 || vr >= 10) out.push(`Valgo en la caída: ${f1(vl)}° izq / ${f1(vr)}° der.`);
+  }
+  if (r.guided && r.guided.invalid) out.push(`Se descartaron ${r.guided.invalid} intento(s) por compensación o técnica incorrecta.`);
+  // evolución respecto de la evaluación anterior del mismo tipo
+  const prev = db.res.filter(x => x.ath === r.ath && x.proto === r.proto && !!x.photo === !!r.photo && x.date < r.date).sort((a, b) => b.date.localeCompare(a.date))[0];
+  if (prev) {
+    const a = sideVals(prev), b = sv;
+    if (a && b && a.length === b.length) out.push(`Respecto del ${new Date(prev.date).toLocaleDateString("es-AR")}: ${b.map((x, i) => { const d = x.val - a[i].val; return `${x.label.toLowerCase()} ${d >= 0 ? "+" : ""}${d.toFixed(0)}°`; }).join(", ")}.`);
+    else if (prev.jumps && r.jumps) { const best = x => Math.max(...x.jumps.map(j => j.altura)); const d = best(r) - best(prev); out.push(`Respecto del ${new Date(prev.date).toLocaleDateString("es-AR")}: ${d >= 0 ? "+" : ""}${d.toFixed(1)} cm en el mejor salto.`); }
+  }
+  if (!r.photo && r.calib === false) out.push("Evaluación realizada sin calibración previa: interpretar los valores con cautela.");
+  if (!out.length) out.push("Sin observaciones automáticas para esta evaluación.");
+  return out.map(x => "• " + x).join("\n");
+}
+async function loadJsPDF() {
+  if (window.jspdf) return window.jspdf.jsPDF;
+  await new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"; sc.onload = res; sc.onerror = () => rej(new Error("no se pudo cargar el generador de PDF (revisá la conexión)")); document.head.appendChild(sc); });
+  return window.jspdf.jsPDF;
+}
+const blobToURL = b => new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b); });
+async function reportImage(r, m) {
+  if (m && m.image) return blobToURL(m.image);
+  if (m && m.video) {
+    try {
+      const vid = document.createElement("video"); vid.muted = true; vid.playsInline = true; const u = URL.createObjectURL(m.video); vid.src = u;
+      await new Promise(res => { vid.onloadeddata = res; vid.onerror = res; setTimeout(res, 4000); });
+      let t = isFinite(vid.duration) ? vid.duration / 2 : 0.5;
+      const key = PR[r.proto] && PR[r.proto].key, ser = m.series;
+      if (ser && key) {   // cuadro del punto máximo del movimiento
+        let best = -1, bi = 0; ser.keys.forEach((k, i) => { if ((MK[k] ? MK[k].id : k) !== key) return; ser.v[i].forEach((v, j) => { if (v != null && Math.abs(v) > best) { best = Math.abs(v); bi = j; } }); });
+        t = ser.t[bi] || t;
+      }
+      await new Promise(res => { vid.onseeked = res; setTimeout(res, 3000); vid.currentTime = Math.max(0, isFinite(vid.duration) ? Math.min(t, vid.duration - 0.05) : t); });
+      const c = document.createElement("canvas"); c.width = vid.videoWidth || 1280; c.height = vid.videoHeight || 720; c.getContext("2d").drawImage(vid, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(u); return c.toDataURL("image/jpeg", 0.85);
+    } catch {}
+  }
+  return r.thumb || null;
+}
+const imgSize = src => new Promise(res => { const im = new Image(); im.onload = () => res([im.naturalWidth, im.naturalHeight]); im.onerror = () => res([4, 3]); im.src = src; });
+const hexRGB = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+function ringPNG(score, color) {
+  const c = document.createElement("canvas"); c.width = c.height = 240; const g = c.getContext("2d");
+  g.lineWidth = 24; g.lineCap = "round"; g.strokeStyle = "#E6EEE9"; g.beginPath(); g.arc(120, 120, 96, 0, Math.PI * 2); g.stroke();
+  g.strokeStyle = color; g.beginPath(); g.arc(120, 120, 96, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * score / 100); g.stroke();
+  g.fillStyle = "#34495E"; g.font = "bold 56px Helvetica, Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(score + "%", 120, 124);
+  return c.toDataURL("image/png");
+}
+async function makeReport(r) {
+  const btn = $("rPdf"), old = btn.textContent; btn.textContent = "Generando informe…"; btn.disabled = true;
+  try {
+    const jsPDF = await loadJsPDF(), m = await idbGet(r.id), a = athObj(r.ath), d = new Date(r.date);
+    const doc = new jsPDF({ unit: "mm", format: "a4" }), W = 210, M = 14, CW = W - 2 * M;
+    let y = 0;
+    const ensure = h => { if (y + h > 280) { doc.addPage(); y = 18; } };
+    const h2 = t => { ensure(12); doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(52, 73, 94); doc.text(t, M, y); doc.setDrawColor(91, 191, 138); doc.setLineWidth(0.6); doc.line(M, y + 1.6, M + 22, y + 1.6); y += 7; };
+    const san = t => String(t).replace(/≈/g, "~").replace(/•/g, "-").replace(/→/g, "->").replace(/[^\x00-\xFF]/g, "");   // la fuente del PDF no tiene esos símbolos
+    const para = (t, size = 10, col = [60, 72, 84]) => { doc.setFont("helvetica", "normal"); doc.setFontSize(size); doc.setTextColor(...col); for (const ln of doc.splitTextToSize(san(t), CW)) { ensure(5); doc.text(ln, M, y); y += size * 0.45; } y += 2; };
+    // encabezado
+    doc.setFillColor(52, 73, 94); doc.rect(0, 0, W, 22, "F");
+    doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.text(APP_NAME.toUpperCase(), M, 14);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.text("Informe de evaluación de movimiento", W - M, 14, { align: "right" });
+    y = 32;
+    doc.setTextColor(52, 73, 94); doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text(r.name, M, y); y += 6.5;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(107, 123, 138);
+    doc.text(`${a ? a.n : ""}  ·  ${d.toLocaleDateString("es-AR")} ${d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}  ·  Plano: ${({ front: "frente", back: "espalda", L: "perfil izquierdo", R: "perfil derecho" }[r.view] || "-")}${r.photo ? "  ·  medición en foto" : r.calib ? "  ·  calibrado" : "  ·  sin calibrar"}`, M, y);
+    y += 8;
+    // imagen + puntaje
+    const top = y, img = await reportImage(r, m);
+    let leftH = 0;
+    if (img) { const [iw, ih] = await imgSize(img); let w = 92, h = w * ih / iw; if (h > 88) { h = 88; w = h * iw / ih; } doc.addImage(img, "JPEG", M, y, w, h); leftH = h; }
+    const sv = sideVals(r), xR = img ? M + 98 : M;
+    let rightH = 0;
+    if (sv && sv.length && sv.every(x => isFinite(x.val))) {
+      const score = Math.round(sv.reduce((s2, x) => s2 + pct(x.val, x.norm), 0) / sv.length), bd = band(score);
+      doc.addImage(ringPNG(score, bd.bd), "PNG", xR, y, 34, 34);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(52, 73, 94); doc.text("Puntuación", xR + 38, y + 10);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(107, 123, 138); doc.text(doc.splitTextToSize("Rango alcanzado respecto del valor normal de referencia en adultos.", W - M - xR - 38), xR + 38, y + 15);
+      let py = y + 40; const pw = (W - M - xR - 4 * (sv.length - 1)) / sv.length;
+      sv.forEach((x, i) => {
+        const q = pct(x.val, x.norm), c = band(q), px = xR + i * (pw + 4);
+        doc.setFontSize(9); doc.setTextColor(107, 123, 138); doc.text(x.label, px + pw / 2, py, { align: "center" });
+        doc.setFillColor(...hexRGB(c.bg)); doc.setDrawColor(...hexRGB(c.bd)); doc.setLineWidth(0.5); doc.roundedRect(px, py + 2, pw, 10, 5, 5, "FD");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(...hexRGB(c.tx)); doc.text(`${Math.round(x.val)}°`, px + pw / 2, py + 9, { align: "center" });
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(122, 136, 150); doc.text(`normal ~${x.norm}° · ${Math.round(q)}%`, px + pw / 2, py + 17, { align: "center" });
+      });
+      rightH = 40 + 20;
+    } else if (r.jumps) {
+      const hs = r.jumps.map(j => j.altura).filter(isFinite);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(26); doc.setTextColor(52, 73, 94); doc.text(`${f1(Math.max(...hs), 1)} cm`, xR, y + 12);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(107, 123, 138); doc.text(`Mejor salto · promedio ${f1(hs.reduce((s2, b) => s2 + b, 0) / hs.length, 1)} cm`, xR, y + 19);
+      rightH = 24;
+    }
+    y = top + Math.max(leftH, rightH) + 8;
+    // repeticiones
+    if (r.guided) { h2("Repeticiones válidas"); r.guided.labels.forEach((l, k) => para(`${l}: ${r.guided.peaks[k].map(x => x + "°").join("  ·  ") || "-"}`)); }
+    if (r.jumps) {
+      h2("Saltos"); doc.setFontSize(9);
+      const cols = [["#", 8], ["Altura", 24], ["Vuelo", 22], ["Rodilla bajo", 28], ["Cadera bajo", 26], ["Valgo caída I / D", 36]];
+      let x = M; doc.setFont("helvetica", "bold"); doc.setTextColor(122, 136, 150); cols.forEach(([t, w]) => { doc.text(t, x, y); x += w; }); y += 5;
+      doc.setFont("helvetica", "normal"); doc.setTextColor(60, 72, 84);
+      r.jumps.forEach((j, i) => { ensure(5); x = M; [String(i + 1), `${f1(j.altura, 1)} cm`, `${f1(j.vuelo, 0)} ms`, `${f1(j.rodBot, 0)}°`, `${f1(j.cadBot, 0)}°`, `${f1(j.valCaiL, 0)}° / ${f1(j.valCaiR, 0)}°`].forEach((t, c) => { doc.text(t, x, y); x += cols[c][1]; }); y += 5; });
+      y += 3;
+    }
+    // tabla de mediciones
+    if (r.metrics && Object.keys(r.metrics).length) {
+      h2("Mediciones"); doc.setFontSize(9);
+      doc.setFont("helvetica", "bold"); doc.setTextColor(122, 136, 150);
+      doc.text("Métrica", M, y); doc.text("Mín", M + 110, y, { align: "right" }); doc.text("Máx", M + 135, y, { align: "right" }); if (!r.photo) doc.text("Rango", M + 165, y, { align: "right" }); y += 2;
+      doc.setDrawColor(225, 230, 234); doc.setLineWidth(0.2); doc.line(M, y, W - M, y); y += 4.5;
+      doc.setFont("helvetica", "normal"); doc.setTextColor(60, 72, 84);
+      for (const [k, x] of Object.entries(r.metrics)) { ensure(5); doc.text(keyName(k), M, y); doc.text(`${f1(x.mn)}°`, M + 110, y, { align: "right" }); doc.text(`${f1(x.mx)}°`, M + 135, y, { align: "right" }); if (!r.photo) doc.text(`${f1(x.rom)}°`, M + 165, y, { align: "right" }); y += 5; }
+      y += 3;
+    }
+    // conclusiones y notas
+    const concl = ($("rConcl") && curRes === r ? $("rConcl").value : (r.concl != null ? r.concl : conclusions(r))).trim();
+    if (concl) { h2("Conclusiones"); para(concl.replace(/•/g, "-"), 10.5); }
+    const note = (r.note || "").trim();
+    if (note) { h2("Observaciones del profesional"); para(note, 10.5); }
+    // pie
+    const pages = doc.getNumberOfPages();
+    for (let i = 1; i <= pages; i++) {
+      doc.setPage(i); doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(150, 160, 170);
+      doc.text(`Generado con ${APP_NAME} · ${new Date().toLocaleDateString("es-AR")}`, M, 287);
+      doc.text("Mediciones estimadas por visión computacional con una cámara: complementan, no reemplazan, la evaluación clínica.", M, 291);
+      doc.text(`${i}/${pages}`, W - M, 287, { align: "right" });
+    }
+    const fname = `Informe_${(a ? a.n : "atleta").replace(/\s+/g, "_")}_${r.name.replace(/[^\wáéíóúñÁÉÍÓÚÑ]+/g, "_")}_${d.toISOString().slice(0, 10)}.pdf`;
+    await saveFile(doc.output("blob"), fname);
+  } catch (e) { alert("No se pudo generar el informe: " + (e.message || e)); }
+  btn.textContent = old; btn.disabled = false;
+}
+
 // ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
-const APP_VERSION = "3 oct 2026 (n)";
+const APP_VERSION = "3 oct 2026 (p)";
 $("verTxt").textContent = APP_VERSION;
 async function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
@@ -2683,11 +2935,12 @@ let curRes = null, urls = [];
 const freeUrls = () => { urls.forEach(u => URL.revokeObjectURL(u)); urls = []; };
 const mkUrl = b => { const u = URL.createObjectURL(b); urls.push(u); return u; };
 const keyName = k => MK[k] ? MK[k].n + (MK[k].b ? (k.endsWith("L") ? " izq" : " der") : "") : k;
-async function openResult(id) {
+async function openResult(id, scrollToReport = false) {
   const r = db.res.find(x => x.id === id); if (!r) return;
   curRes = r; freeUrls();
   const a = athObj(r.ath), d = new Date(r.date);
   $("rTitle").textContent = r.name;
+  const scH = scoreHTML(r); $("rScore").innerHTML = scH; $("rScoreCard").classList.toggle("hidden", !scH);
   $("rSub").textContent = `${a ? a.n : ""} · ${d.toLocaleDateString("es-AR")} ${d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })} · ${({ front: "Frente", back: "Espalda", L: "Perfil izq", R: "Perfil der" }[r.view] || "")}${r.photo ? "" : r.calib ? " · calibrado" : " · sin calibrar"}`;
   show("scrResult");
   const m = await idbGet(id);
@@ -2721,6 +2974,11 @@ async function openResult(id) {
   // notas
   $("rNote").value = r.note || "";
   $("rNote").oninput = () => { r.note = $("rNote").value; saveDB(); };
+  $("rConcl").value = r.concl != null ? r.concl : conclusions(r);
+  $("rConcl").oninput = () => { r.concl = $("rConcl").value; saveDB(); };
+  $("rReConcl").onclick = () => { if (!r.concl || confirm("¿Reemplazar las conclusiones por las automáticas?")) { r.concl = null; $("rConcl").value = conclusions(r); saveDB(); } };
+  $("rPdf").onclick = () => makeReport(r);
+  if (scrollToReport) setTimeout(() => $("rReportCard").scrollIntoView({ behavior: "smooth", block: "start" }), 250);
   // comparar
   const others = db.res.filter(x => x.ath === r.ath && x.proto === r.proto && !!x.photo === !!r.photo && x.id !== r.id).sort((x, y) => y.date.localeCompare(x.date));
   $("rCmpSel").innerHTML = others.length ? `<option value="">Elegí una evaluación…</option>` + others.map(x => `<option value="${x.id}">${new Date(x.date).toLocaleDateString("es-AR")} · ${mainVals(x).txt}${x.media ? " 🎬" : ""}</option>`).join("") : `<option value="">No hay otras evaluaciones de este tipo todavía</option>`;
