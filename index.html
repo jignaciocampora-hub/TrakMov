@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TrakMov · Análisis biomecánico</title>
-<link rel="icon" type="image/png" href="favicon.png">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="tm-favicon.png?v=3">
+<link rel="manifest" href="manifest.webmanifest?v=3">
+<link rel="apple-touch-icon" sizes="180x180" href="tm-icon-180.png?v=3">
 <meta name="theme-color" content="#1C232B">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -187,7 +187,7 @@
 <body class="light">
 <div id="shell">
   <section id="scrHome" class="scr">
-    <div style="display:flex;align-items:center;gap:10px"><img src="icon-192.png" alt="" style="width:40px;height:40px;border-radius:10px"><span style="font:800 22px Barlow,sans-serif;letter-spacing:.5px;color:#34495E">Trak<span style="color:#5BBF8A">Mov</span></span></div>
+    <div style="display:flex;align-items:center;gap:10px"><img src="tm-icon-192.png?v=3" alt="" style="width:40px;height:40px;border-radius:10px"><span style="font:800 22px Barlow,sans-serif;letter-spacing:.5px;color:#34495E">Trak<span style="color:#5BBF8A">Mov</span></span></div>
     <h1 class="lt">¡Hola!</h1>
     <p class="sub">¿Cómo querés empezar?</p>
     <button class="bigcard" id="goVideo"><span class="ill" data-fig="squatF"></span><span style="flex:1"><h2>Analizar un video</h2><p>Cargá cualquier video, medí ángulos de todo el cuerpo, recorrelo cuadro a cuadro y miralo en 3D.</p></span><span class="chev">›</span></button>
@@ -2881,7 +2881,7 @@ async function makeReport(r) {
 }
 
 // ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
-const APP_VERSION = "3 oct 2026 (q)";
+const APP_VERSION = "3 oct 2026 (r)";
 $("verTxt").textContent = APP_VERSION;
 async function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
