@@ -51,6 +51,12 @@
   .tablewrap{overflow-x:auto}
   #chart{width:100%;height:240px;display:block;background:var(--panel);border-radius:6px;margin-top:10px}
   .hidden{display:none !important}
+  /* En celular/iPad vertical el botón Volver queda siempre visible, flotando arriba a la izquierda */
+  @media (max-width:900px){
+    #anBack{position:fixed;top:calc(8px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));z-index:45;flex:none !important;width:auto !important;
+      border-radius:999px !important;padding:9px 16px !important;background:rgba(28,35,43,.92) !important;border:1px solid var(--line) !important;box-shadow:0 4px 14px rgba(0,0,0,.35);font-size:15px !important}
+    #anTitle{padding-left:112px;min-height:40px;display:flex;align-items:center}
+  }
   .hist .open{cursor:pointer;text-decoration:underline;text-decoration-color:#C9D2DA;text-underline-offset:3px}
   .rvid{width:100%;border-radius:14px;background:#000;display:block;max-height:60vh}
   .rtable{width:100%;border-collapse:collapse;font-size:14px;color:#34495E}
@@ -241,6 +247,8 @@
       <button class="btn-o" id="rReConcl" style="margin-top:8px;padding:10px !important">↻ Volver a generar conclusiones</button>
       <h3 style="margin-top:14px">Notas del profesional</h3>
       <textarea class="rnote" id="rNote" placeholder="Observaciones, dolor, compensaciones, indicaciones, contexto…"></textarea>
+      <h3 style="margin-top:14px">Ejercicios correctivos sugeridos</h3>
+      <div id="rEx"></div>
       <button class="btn-d wide" id="rPdf">📄 Generar informe PDF</button>
     </div>
     <div class="card"><h3>Comparar</h3><p>Elegí otra evaluación del mismo tipo para ver la evolución, con los videos lado a lado.</p>
@@ -312,6 +320,11 @@
       </div>
       <button id="roi">▭ Marcar zona</button><button id="roiClear" class="hidden">Quitar zona</button>
       <button id="pick">◎ Marcar articulaciones</button>
+      <button id="proc">✨ Procesar video (máxima precisión)</button>
+      <button id="thin" aria-pressed="true">Trazo fino</button>
+      <button id="trail" aria-pressed="false">〰 Trayectorias</button>
+      <button id="gonio">📐 Medir ángulo</button><button id="gonioClear" class="hidden">Borrar mediciones</button>
+      <button id="planeHelp">❔ ¿Desde dónde filmo?</button>
       <button id="track">🎯 Seguir puntos</button>
       <select id="trkStep" aria-label="Cuadros por segundo del video" title="Cuadros por segundo del video"><option value="30">30 fps</option><option value="60">60 fps</option><option value="120">120 fps</option><option value="240">240 fps</option></select>
       <button id="edit">✋ Corregir puntos</button><button id="editFrame" class="hidden">Quitar corrección del cuadro</button><button id="editClear" class="hidden">Borrar todas</button>
@@ -409,18 +422,33 @@ const METRICS = [
   { id: "trkLat",  n: "Inclinación lateral", s: ["izq", "der"], w: 3, bad: 6 },
   { id: "trkFlex", n: "Flexión anterior", neu: true, est: true },
   { id: "trkRot",  n: "Rotación (hombro adelantado)", s: ["izq", "der"], neu: true, est: true },
+  { id: "hipRot",  n: "Rotación de pelvis respecto de los pies", s: ["izq", "der"], neu: true, est: true },
   { id: "shTilt",  n: "Línea de hombros · lado bajo", s: ["izq", "der"], w: 3, bad: 6 },
   { id: "pelTilt", n: "Pelvis · lado bajo", s: ["izq", "der"], w: 3, bad: 6 },
   { g: "Hombros y brazos" },
   { id: "shElev",   n: "Elevación de hombro", b: true },
   { id: "armPlane", n: "Plano del brazo (0 lateral, 90 frente)", b: true, est: true },
   { id: "elbow",    n: "Flexión de codo", b: true },
+  { id: "shSag",    n: "Hombro flexión / extensión", s: ["flex", "ext"] },
+  { id: "shFront",  n: "Hombro abducción / aducción", b: true, s: ["abd", "add"] },
+  { id: "shRot",    n: "Hombro rotación (90/90)", s: ["ext", "int"] },
+  { id: "trkSag",   n: "Tronco flexión / extensión (respecto del muslo)", s: ["flex", "ext"] },
   { g: "Cadera y piernas" },
   { id: "hipFlex", n: "Flexión de cadera", b: true },
   { id: "hipAbd",  n: "Abducción de cadera", b: true },
+  { id: "hipIR",   n: "Cadera rotación sentado (pierna vs vertical)", b: true, s: ["int", "ext"], neu: true },
   { id: "knee",    n: "Flexión de rodilla", b: true },
+  { id: "shin",    n: "Inclinación de tibia hacia adelante", b: true, est: true },
   { id: "valgus",  n: "Valgo de rodilla (FPPA)", b: true, s: ["valgo", "varo"], w: 5, bad: 10 },
   { id: "ankle",   n: "Dorsiflexión de tobillo", b: true, neu: true, est: true },
+  { g: "Postura de perfil" },
+  { id: "headFwd",  n: "Cabeza adelantada (oreja vs hombro)", s: ["adelante", "atrás"], u: "cm" },
+  { id: "shFwd",    n: "Hombro adelantado (hombro vs cadera)", s: ["adelante", "atrás"], u: "cm" },
+  { id: "hipFwd",   n: "Cadera vs tobillo (plomada)", s: ["adelante", "atrás"], u: "cm" },
+  { id: "kneeAlign", n: "Rodilla de pie", s: ["flexión", "hiperext."] },
+  { id: "fhAng",    n: "Cabeza adelantada (ángulo hombro–oreja vs vertical)", s: ["adelante", "atrás"] },
+  { id: "headPitch", n: "Cabeza inclinada adelante/atrás (oreja–ojo)", s: ["arriba", "abajo"], est: true },
+  { id: "footRot",  n: "Rotación del pie (punta hacia afuera)", b: true, s: ["afuera", "adentro"], est: true },
 ];
 const MK = {};
 METRICS.forEach(m => { if (!m.id) return; if (m.b) { MK[m.id + "L"] = m; MK[m.id + "R"] = m; } else MK[m.id] = m; });
@@ -442,20 +470,21 @@ catch { sel = new Set(ALL); }
 // La selección manual se usa solo con videos cargados; con cámara en vivo se analiza todo automáticamente
 let selUser = sel; sel = new Set(ALL);
 // Vista: "front" = ambos lados; "L"/"R" = filmado de perfil desde ese lado (solo con video cargado)
-const FRONTAL = new Set(["neckInc", "neckRot", "trkLat", "trkRot", "shTilt", "pelTilt", "armPlane", "hipAbd", "valgus"]);
+const FRONTAL = new Set(["neckInc", "neckRot", "trkLat", "trkRot", "hipRot", "hipIR", "footRot", "shTilt", "pelTilt", "armPlane", "hipAbd", "valgus", "shFront"]);
+const PROFILE_ONLY = new Set(["headFwd", "shFwd", "hipFwd", "kneeAlign", "shSag", "shRot", "trkSag", "fhAng", "headPitch"]);
 const FAR = { L: [8, 12, 14, 16, 24, 26, 28, 30, 32], R: [7, 11, 13, 15, 23, 25, 27, 29, 31] };
 let viewUser = "front", view = "front";
 try { const vs = localStorage.getItem("am_view"); if (["front", "back", "L", "R"].includes(vs)) viewUser = vs; } catch {}
 const isProf = () => view === "L" || view === "R";
 const both = () => !isProf();
-const shown = id => sel.has(id) && !(isProf() && FRONTAL.has(id)) && !(view === "back" && id === "neckRot");
+const shown = id => sel.has(id) && !(isProf() && FRONTAL.has(id)) && !(!isProf() && PROFILE_ONLY.has(id)) && !(view === "back" && id === "neckRot");
 const keyShown = k => shown(MK[k].id) && (!MK[k].b || both() || k.endsWith(view));
 function setView(vw) {
   if (!activeProto) { viewUser = vw; try { localStorage.setItem("am_view", vw); } catch {} }
   view = vw;
   neutral = {}; calib = null; resetSmooth();
   document.querySelectorAll("[data-v]").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === view));
-  buildLive(); lastT = -1;
+  buildLive(); lastT = -1; planeHint();
   if (!$("results").classList.contains("hidden")) showResults(true);
 }
 document.querySelectorAll("[data-v]").forEach(b => b.onclick = () => setView(b.dataset.v));
@@ -468,7 +497,7 @@ function setSourceSel() {
   $("pickbar").classList.remove("hidden");
   $("pick").classList.toggle("hidden", !fromFile || !!activeProto);
   $("edit").classList.toggle("hidden", !fromFile);
-  $("track").classList.toggle("hidden", !fromFile); $("trkStep").classList.toggle("hidden", !fromFile);
+  $("track").classList.toggle("hidden", !fromFile); $("proc").classList.toggle("hidden", !fromFile); $("trkStep").classList.toggle("hidden", !fromFile);
   buildSel(); setView(activeProto ? protoView : viewUser);
 }
 const on = k => keyShown(k);
@@ -490,7 +519,7 @@ function applySel() {
   if (!fromFile) return;
   selUser = new Set(sel);
   try { localStorage.setItem("am_sel", JSON.stringify([...selUser])); } catch {}
-  buildSel(); buildLive();
+  buildSel(); buildLive(); planeHint();
   if (!$("results").classList.contains("hidden")) showResults(true);
 }
 $("selList").onchange = e => {
@@ -536,8 +565,10 @@ function filterPts(arr, tag, t) {
     F.last = q; return q;
   });
 }
-function resetSmooth() { for (const k in S) delete S[k]; FILT = {}; }
-const fmt = (m, v) => !isFinite(v) ? "–" : m.s ? `${Math.abs(v).toFixed(0)}° ${v >= 0 ? m.s[0] : m.s[1]}` : `${v.toFixed(0)}°`;
+function resetSmooth() { for (const k in S) delete S[k]; FILT = {}; TRAIL = {}; }
+let TRAIL = {};
+const fmt = (m, v) => { const u = m.u ? " " + m.u : "°"; return !isFinite(v) ? "–" : m.s ? `${Math.abs(v).toFixed(m.u ? 1 : 0)}${u} ${v >= 0 ? m.s[0] : m.s[1]}` : `${v.toFixed(0)}${u}`; };
+const U = k => (MK[k] && MK[k].u) ? " " + MK[k].u : "°";
 const cls = (m, v) => !m.w || !isFinite(v) ? "" : Math.abs(v) >= m.bad ? "bad" : Math.abs(v) >= m.w ? "warn" : "ok";
 
 // ---------- Geometría ----------
@@ -575,6 +606,18 @@ function compute(lm, wl, P) {
     const leftFwd = (wl[11].z - wl[12].z) - (wl[23].z - wl[24].z) < 0;
     m.trkRot = Math.abs(d) * (leftFwd ? 1 : -1);
   } else m.trkRot = NaN;
+  // Rotación de cada pie: ángulo talón→punta respecto de "adelante" (hacia la cámara), + punta hacia afuera
+  const leftOut = Math.sign(wl[23].x - wl[24].x) || 1;
+  for (const [sd, he, to, so] of [["L", 29, 31, leftOut], ["R", 30, 32, -leftOut]]) {
+    if (vis(he, to)) { const vx = wl[to].x - wl[he].x, vz = wl[to].z - wl[he].z; m["footRot" + sd] = deg(Math.atan2(vx * so, -vz)); }
+    else m["footRot" + sd] = NaN;
+  }
+  // Rotación de la pelvis respecto de los pies (línea de caderas vs línea de tobillos, vista desde arriba)
+  if (vis(23, 24, 27, 28)) {
+    let d2 = deg(Math.atan2(wl[23].z - wl[24].z, wl[23].x - wl[24].x) - Math.atan2(wl[27].z - wl[28].z, wl[27].x - wl[28].x));
+    d2 = ((d2 + 540) % 360) - 180;
+    m.hipRot = Math.abs(d2) * ((wl[23].z - wl[24].z) - (wl[27].z - wl[28].z) < 0 ? 1 : -1);
+  } else m.hipRot = NaN;
   // Cuello
   if ((lm[0].visibility ?? 1) > 0.5 && vis(11, 12)) {
     const eL = P(7), eR = P(8), me = mid(eL, eR), ed = Math.abs(eL.x - eR.x) || 1;
@@ -588,8 +631,18 @@ function compute(lm, wl, P) {
     m["shElev" + s] = elev;
     const a = sub(wl[el], wl[sh]);
     m["armPlane" + s] = elev > 30 ? deg(Math.atan2(-a.z, Math.abs(a.x))) : NaN;
+    // Abducción (+, brazo hacia afuera) / aducción (−, brazo cruzando hacia la línea media), en el plano de la imagen
+    if (vis(sh, el, hp)) {
+      const outS = Math.sign(P(sh).x - ms.x) || 1;
+      const aArm = Math.atan2((P(el).x - P(sh).x) * outS, P(el).y - P(sh).y), aTr = Math.atan2((P(hp).x - P(sh).x) * outS, P(hp).y - P(sh).y);
+      let d = deg(aArm - aTr); d = ((d + 540) % 360) - 180; if (d < -120) d += 360;
+      m["shFront" + s] = d;
+    } else m["shFront" + s] = NaN;
     m["elbow" + s] = vis(sh, el, wr) ? 180 - ang3(wl[sh], wl[el], wl[wr]) : NaN;
     m["hipFlex" + s] = vis(sh, hp, kn) ? 180 - ang3(wl[sh], wl[hp], wl[kn]) : NaN;
+    // Rotación de cadera sentado: desvío de la pierna (rodilla→tobillo) respecto de la vertical; + pie hacia afuera (interna), − hacia adentro (externa)
+    m["shin" + s] = vis(kn, an) ? sag(sub(wl[kn], wl[an])) : NaN;
+    m["hipIR" + s] = vis(kn, an) ? deg(Math.atan2((P(an).x - P(kn).x) * (Math.sign(P(kn).x - mh.x) || 1), P(an).y - P(kn).y)) : NaN;
     m["hipAbd" + s] = vis(hp, ohp, kn) ? ang2(P(ohp), P(hp), P(kn)) - 90 : NaN;
     m["knee" + s] = vis(hp, kn, an) ? 180 - ang3(wl[hp], wl[kn], wl[an]) : NaN;
     m["valgus" + s] = vis(hp, kn, an) ? fppa(P(hp), P(kn), P(an), mh.x) : NaN;
@@ -607,12 +660,37 @@ function compute(lm, wl, P) {
       hipFlex: v1(sh, hp, kn) ? 180 - ang2(P(sh), P(hp), P(kn)) : NaN,
       knee: v1(hp, kn, an) ? 180 - ang2(P(hp), P(kn), P(an)) : NaN,
       ankle: v1(kn, an, ft) ? 90 - ang2(P(kn), P(an), P(ft)) : NaN,
-      armPlane: NaN, hipAbd: NaN, valgus: NaN
+      armPlane: NaN, hipAbd: NaN, valgus: NaN, shin: v1(kn, an) ? vert(P(an), P(kn)) : NaN
     };
     for (const id in val) m[id + "L"] = m[id + "R"] = val[id];
     m.trkFlex = v1(sh, hp) ? vert(P(hp), P(sh)) : NaN;
     m.neckFlex = v1(ear, sh) ? vert(P(sh), P(ear)) - (isFinite(m.trkFlex) ? m.trkFlex : 0) : NaN;
+    // Postura de perfil: distancias horizontales en cm (escala sacada del largo real de la pierna)
+    const pxL = Math.hypot(P(hp).x - P(an).x, P(hp).y - P(an).y);
+    const cmPx = pxL > 1 ? Math.hypot(wl[hp].x - wl[an].x, wl[hp].y - wl[an].y, wl[hp].z - wl[an].z) / pxL * 100 : NaN;
+    const ahead = (a, b) => (P(a).x - P(b).x) * fwd * cmPx;
+    m.headFwd = v1(ear, sh) ? ahead(ear, sh) : NaN;
+    m.fhAng = v1(ear, sh) ? vert(P(sh), P(ear)) : NaN;
+    const eye = view === "L" ? 2 : 5;
+    m.headPitch = v1(ear, eye) ? deg(Math.atan2(-(P(eye).y - P(ear).y), (P(eye).x - P(ear).x) * fwd)) : NaN;
+    // Hombro con signo: ángulo brazo–tronco, + hacia adelante (flexión), − hacia atrás (extensión). Admite más de 180°.
+    if (v1(sh, el, hp)) {
+      const aArm = Math.atan2((P(el).x - P(sh).x) * fwd, P(el).y - P(sh).y), aTr = Math.atan2((P(hp).x - P(sh).x) * fwd, P(hp).y - P(sh).y);
+      let d = deg(aArm - aTr); d = ((d + 540) % 360) - 180; if (d < -120) d += 360;
+      m.shSag = d;
+    } else m.shSag = NaN;
+    // Rotación de hombro en 90/90: ángulo del antebrazo respecto de la horizontal hacia adelante; + arriba (externa), − abajo (interna)
+    // Tronco respecto del muslo: 0 de pie, + inclinado hacia adelante, − hacia atrás
+    if (v1(sh, hp, kn)) { const angUp = (a, b) => Math.atan2((P(b).x - P(a).x) * fwd, -(P(b).y - P(a).y)); let d = deg(angUp(hp, sh) - angUp(kn, hp)); m.trkSag = ((d + 540) % 360) - 180; } else m.trkSag = NaN;
+    m.shRot = v1(el, wr) ? deg(Math.atan2(-(P(wr).y - P(el).y), (P(wr).x - P(el).x) * fwd)) : NaN;
+    m.shFwd = v1(sh, hp) ? ahead(sh, hp) : NaN;
+    m.hipFwd = v1(hp, an) ? ahead(hp, an) : NaN;
+    if (v1(hp, kn, an)) {
+      const H = P(hp), K = P(kn), A = P(an), lx = H.x + (A.x - H.x) * (K.y - H.y) / ((A.y - H.y) || 1);
+      m.kneeAlign = (180 - ang2(H, K, A)) * (Math.sign((K.x - lx) * fwd) || 1);
+    } else m.kneeAlign = NaN;
     ["neckInc", "neckRot", "trkLat", "trkRot", "shTilt", "pelTilt"].forEach(k => m[k] = NaN);
+  } else { ["headFwd", "shFwd", "hipFwd", "kneeAlign", "shSag", "shRot", "trkSag", "fhAng", "headPitch"].forEach(k => m[k] = NaN);
   }
   return m;
 }
@@ -694,7 +772,7 @@ $("file").onchange = async e => {
     landmarker = null;
     stopStream(); video.srcObject = null; resetAll(); resetJumpState();
     keepAwake();
-    EDITS = []; if (editMode) $("edit").click(); if (trackMode) setTrackMode(false);
+    EDITS = []; if (editMode) $("edit").click(); if (trackMode) setTrackMode(false); PROC = null; procBtn();
     video.src = URL.createObjectURL(f); video.loop = false; mirror = false; fromFile = true; target = null; calib = null; neutral = {}; roi = null; setRoiMode(false); setSourceSel();
     $("vbar").classList.remove("hidden");
     await video.play();
@@ -849,7 +927,7 @@ function pickPose(res) {
   return idx;
 }
 canvas.addEventListener("click", e => {
-  if (roiMode || editMode || trackMode || performance.now() - swipeAt < 400) return;
+  if (roiMode || editMode || trackMode || gonioMode || performance.now() - swipeAt < 400) return;
   const r = canvas.getBoundingClientRect();
   if (pickMode) {
     const cx = (e.clientX - r.left) / r.width * canvas.width, cy = (e.clientY - r.top) / r.height * canvas.height;
@@ -1542,6 +1620,208 @@ function checkOrientation(lm, W) {
     : "⚠ La persona parece estar de perfil. Si es así, elegí «Perfil izq» o «Perfil der» para que los ángulos sean correctos.";
 }
 
+
+// =====================================================================
+// Procesamiento preciso del video (como las apps que analizan después de filmar):
+// 1) se analiza cuadro por cuadro con el modelo más preciso, 2) se rellenan los cuadros dudosos,
+// 3) se suaviza hacia adelante y hacia atrás (sin retraso). Después la reproducción usa esos puntos:
+// quedan pegados a las articulaciones también en el salto.
+// =====================================================================
+let PROC = null, procRunning = false, procLive = null, thinStyle = true;
+try { thinStyle = localStorage.getItem("am_thin") !== "0"; } catch {}
+$("thin").setAttribute("aria-pressed", thinStyle); $("thin").textContent = thinStyle ? "Trazo fino" : "Trazo grueso";
+$("thin").onclick = () => { thinStyle = !thinStyle; try { localStorage.setItem("am_thin", thinStyle ? "1" : "0"); } catch {} $("thin").textContent = thinStyle ? "Trazo fino" : "Trazo grueso"; redrawOnly = true; if (!lastRes) lastT = -1; };
+function procBtn() { $("proc").textContent = procRunning ? "■ Cancelar procesamiento" : PROC ? "✨ Video procesado ✓ (volver a procesar)" : "✨ Procesar video (máxima precisión)"; $("proc").classList.toggle("primary", procRunning || !!PROC); }
+function procAt(t) {
+  const i = Math.max(0, Math.min(PROC.n - 1, Math.round((t - PROC.t0) * PROC.fps)));
+  const f = PROC.frames[i]; if (!f) return { landmarks: [], worldLandmarks: [] };
+  return { landmarks: [f.lm], worldLandmarks: [f.wl] };
+}
+function gaussSmooth(arr, ok, sigma) {
+  // rellena huecos (cuadros dudosos) por interpolación y suaviza sin desfase
+  const n = arr.length, a = arr.slice();
+  let last = -1;
+  for (let i = 0; i < n; i++) if (ok[i]) {
+    if (last >= 0 && i - last > 1) for (let j = last + 1; j < i; j++) a[j] = a[last] + (a[i] - a[last]) * (j - last) / (i - last);
+    else if (last < 0) for (let j = 0; j < i; j++) a[j] = a[i];
+    last = i;
+  }
+  if (last >= 0) for (let j = last + 1; j < n; j++) a[j] = a[last];
+  const R = Math.max(1, Math.ceil(sigma * 2.5)), w = []; for (let k = -R; k <= R; k++) w.push(Math.exp(-k * k / (2 * sigma * sigma)));
+  const out = new Array(n);
+  for (let i = 0; i < n; i++) { let s1 = 0, s2 = 0; for (let k = -R; k <= R; k++) { const j = i + k; if (j < 0 || j >= n) continue; s1 += a[j] * w[k + R]; s2 += w[k + R]; } out[i] = s1 / s2; }
+  return out;
+}
+async function runProcessing() {
+  if (!fromFile || !video.duration) return;
+  if (procRunning) { procRunning = false; return; }
+  if (trackMode) setTrackMode(false); if (editMode) $("edit").click();
+  procRunning = true; procBtn(); video.pause();
+  try { await init(isMobile ? "full" : "heavy"); } catch (e) { $("status").textContent = "Error: " + e.message; procRunning = false; procBtn(); return; }
+  const fps = fpsV(), dt = 1 / fps, start = 0, end = video.duration - 0.001;
+  const raw = []; target = null; resetSmooth();
+  for (let t = start; t <= end && procRunning; t += dt) {
+    await seekTo(t);
+    let res = null; try { res = detect(); } catch {}
+    let idx = res && res.landmarks.length ? pickPose(res) : -1;
+    if (idx >= 0) {
+      let lm = res.landmarks[idx], wl = res.worldLandmarks[idx];
+      if (view === "back" && lm[11].x > lm[12].x) { lm = swapLR(lm); wl = swapLR(wl); }
+      raw.push({ lm: lm.map(p => ({ x: p.x, y: p.y, z: p.z || 0, visibility: p.visibility ?? 1 })), wl: wl.map(p => ({ x: p.x, y: p.y, z: p.z })) });
+    } else raw.push(null);
+    const pctDone = Math.round((t - start) / (end - start) * 100);
+    $("status").textContent = `Procesando video con máxima precisión… ${pctDone}% (cuadro ${raw.length})`;
+    procLive = res;
+    if (raw.length % 3 === 0) await new Promise(r => requestAnimationFrame(r));
+  }
+  if (!procRunning) { $("status").textContent = "Procesamiento cancelado."; procBtn(); return; }
+  procRunning = false;
+  // Suavizado sin desfase + relleno de cuadros dudosos
+  const n = raw.length, sigma = Math.max(0.8, fps / 30 * 1.0);
+  const frames = Array.from({ length: n }, () => ({ lm: [], wl: [] }));
+  for (let j = 0; j < 33; j++) {
+    const ok = raw.map(r => !!r && r.lm[j].visibility > 0.5);
+    // descarta saltos bruscos aislados (un cuadro que "se va" y vuelve)
+    for (let i = 1; i < n - 1; i++) if (ok[i] && raw[i - 1] && raw[i + 1]) {
+      const p = raw[i].lm[j], a = raw[i - 1].lm[j], b = raw[i + 1].lm[j];
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2, dAB = Math.hypot(a.x - b.x, a.y - b.y);
+      if (Math.hypot(p.x - mx, p.y - my) > Math.max(0.05, dAB * 1.5)) ok[i] = false;
+    }
+    const get = (f, k) => raw.map(r => r ? r[f][j][k] : 0);
+    const okAny = raw.map(r => !!r);
+    const sx = gaussSmooth(get("lm", "x"), ok, sigma), sy = gaussSmooth(get("lm", "y"), ok, sigma), sz = gaussSmooth(get("lm", "z"), ok, sigma);
+    const wx = gaussSmooth(get("wl", "x"), okAny, sigma), wy = gaussSmooth(get("wl", "y"), okAny, sigma), wz = gaussSmooth(get("wl", "z"), okAny, sigma);
+    const anyOk = ok.some(Boolean);
+    for (let i = 0; i < n; i++) {
+      frames[i].lm[j] = { x: sx[i], y: sy[i], z: sz[i], visibility: anyOk ? Math.max(raw[i] ? raw[i].lm[j].visibility : 0, ok[i] ? 1 : 0.6) : 0 };
+      frames[i].wl[j] = { x: wx[i], y: wy[i], z: wz[i] };
+    }
+  }
+  PROC = { fps, t0: start, n, frames };
+  procBtn(); resetSmooth(); resetJumpState(); resetAll();
+  $("status").textContent = `Video procesado: ${n} cuadros. Ahora los puntos quedan fijos en las articulaciones. Volvé al inicio y reproducilo (o grabá la evaluación) para medir.`;
+  await seekTo(0); lastT = -1;
+}
+$("proc").onclick = runProcessing;
+
+
+// ---------- Trayectorias de las articulaciones con velocidad (verde = lento, rojo = rápido) ----------
+// En video el recorrido queda completo y se vuelve a dibujar si rebobinás; en vivo se ven los últimos 4 s.
+const PATH_J = [[0, "Cabeza"], [11, "Hombro izq"], [12, "Hombro der"], [13, "Codo izq"], [14, "Codo der"], [15, "Muñeca izq"], [16, "Muñeca der"],
+  [23, "Cadera izq"], [24, "Cadera der"], [25, "Rodilla izq"], [26, "Rodilla der"], [27, "Tobillo izq"], [28, "Tobillo der"], [31, "Punta pie izq"], [32, "Punta pie der"]];
+let PATH_SEL = new Set(); try { const ps = JSON.parse(localStorage.getItem("am_paths") || "[]"); PATH_SEL = new Set(ps); } catch {}
+const trailsActive = () => PATH_SEL.size > 0;
+function pathBtn() { $("trail").textContent = PATH_SEL.size ? `〰 Trayectorias (${PATH_SEL.size})` : "〰 Trayectorias"; $("trail").classList.toggle("primary", PATH_SEL.size > 0); }
+$("trail").onclick = () => {
+  $("doneTitle").textContent = "Trayectorias de articulaciones";
+  $("doneBody").innerHTML = `<p class="note">Elegí qué articulaciones seguir. El recorrido se pinta en verde cuando el movimiento es lento y en rojo cuando es rápido, y marca la velocidad máxima de cada una. Sirve para ver compensaciones, qué articulación se mueve primero, pérdida de forma por fatiga y simetría entre lados.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">${PATH_J.map(([i, n]) => `<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-path="${i}" ${PATH_SEL.has(i) ? "checked" : ""}>${n}</label>`).join("")}</div>
+    <div style="display:flex;gap:8px;margin-top:10px"><button id="pathPreset1">Rodillas y tobillos</button><button id="pathPreset2">Muñecas y codos</button><button id="pathClear">Limpiar</button></div>`;
+  const sync = () => { PATH_SEL = new Set([...$("doneBody").querySelectorAll("[data-path]:checked")].map(x => +x.dataset.path)); try { localStorage.setItem("am_paths", JSON.stringify([...PATH_SEL])); } catch {} TRAIL = {}; pathBtn(); };
+  $("doneBody").onchange = sync;
+  const preset = ids => { $("doneBody").querySelectorAll("[data-path]").forEach(x => x.checked = ids.includes(+x.dataset.path)); sync(); };
+  $("pathPreset1").onclick = () => preset([25, 26, 27, 28]); $("pathPreset2").onclick = () => preset([13, 14, 15, 16]); $("pathClear").onclick = () => preset([]);
+  $("doneSave").classList.add("hidden"); $("doneRepeat").classList.add("hidden"); $("doneClose").textContent = "Listo";
+  $("doneModal").classList.remove("hidden");
+};
+pathBtn();
+function drawTrails(P, W, H, lw, wl) {
+  if (!trailsActive()) return;
+  if (!isRedraw) {
+    const tv = fromFile ? video.currentTime : performance.now() / 1000, tr = nowT();
+    // escala metros por píxel (largo real de la pierna)
+    const px = Math.hypot(P(23).x - P(27).x, P(23).y - P(27).y), mPx = px > 1 && wl ? Math.hypot(wl[23].x - wl[27].x, wl[23].y - wl[27].y, wl[23].z - wl[27].z) / px : NaN;
+    for (const i of PATH_SEL) {
+      const arr = TRAIL[i] = TRAIL[i] || [];
+      if (fromFile) while (arr.length && arr[arr.length - 1].tv > tv + 1e-4) arr.pop();          // al rebobinar, se borra lo posterior
+      else while (arr.length && tv - arr[0].tv > 4) arr.shift();
+      const p = P(i), last = arr[arr.length - 1];
+      let v = 0;
+      if (last && tr > last.tr) { v = Math.hypot(p.x - last.x * W, p.y - last.y * H) * mPx / (tr - last.tr); v = last.v * 0.5 + (isFinite(v) ? v : 0) * 0.5; }
+      if (!last || tv > last.tv) arr.push({ x: p.x / W, y: p.y / H, tv, tr, v });
+    }
+  }
+  ctx.save(); ctx.lineCap = "round";
+  for (const i in TRAIL) {
+    const arr = TRAIL[i]; if (arr.length < 2) continue;
+    const vmax = Math.max(...arr.map(q => q.v || 0), 0.05);
+    for (let k = 1; k < arr.length; k++) {
+      const q = arr[k], hue = 120 * (1 - Math.min(1, (q.v || 0) / vmax));
+      ctx.strokeStyle = `hsl(${hue},90%,50%)`; ctx.lineWidth = lw * 1.5;
+      ctx.beginPath(); ctx.moveTo(arr[k - 1].x * W, arr[k - 1].y * H); ctx.lineTo(q.x * W, q.y * H); ctx.stroke();
+    }
+    const mx = arr.reduce((a, q) => (q.v || 0) > (a.v || 0) ? q : a, arr[0]);
+    if (mx.v > 0.05) {
+      const txt = `${mx.v.toFixed(1).replace(".", ",")} m/s`, fz = Math.max(12, Math.round(W / 70));
+      ctx.font = `700 ${fz}px "Barlow Condensed", sans-serif`; const tw = ctx.measureText(txt).width + 10;
+      ctx.fillStyle = "rgba(20,20,20,.75)"; ctx.fillRect(mx.x * W + 8, mx.y * H - fz, tw, fz * 1.3);
+      ctx.fillStyle = "#FF6B5B"; ctx.textAlign = "left"; ctx.fillText(txt, mx.x * W + 13, mx.y * H + fz * 0.05);
+    }
+  }
+  ctx.restore();
+}
+// ---------- Medición manual con goniómetro: 3 toques = ángulo (los puntos se pueden arrastrar) ----------
+let gonioMode = false, GON = [], gonDrag = null;
+$("gonio").onclick = () => {
+  gonioMode = !gonioMode;
+  if (gonioMode) { if (editMode) $("edit").click(); if (pickMode) $("pick").click(); if (roiMode) setRoiMode(false); if (trackMode) setTrackMode(false); }
+  $("gonio").classList.toggle("primary", gonioMode); $("gonio").textContent = gonioMode ? "✓ Listo" : "📐 Medir ángulo";
+  canvas.style.touchAction = gonioMode ? "none" : "";
+  $("status").textContent = gonioMode ? "Tocá 3 puntos: extremo, vértice (articulación) y el otro extremo. Podés arrastrar los puntos para ajustarlos." : "Mediciones guardadas en pantalla.";
+  $("gonioClear").classList.toggle("hidden", !GON.length); redrawOnly = true; if (!lastRes) lastT = -1;
+};
+$("gonioClear").onclick = () => { GON = []; $("gonioClear").classList.add("hidden"); redrawOnly = true; if (!lastRes) lastT = -1; };
+const nPt = e => { const c = canvasPt(e); return { x: c.x / canvas.width, y: c.y / canvas.height }; };
+canvas.addEventListener("pointerdown", e => {
+  if (!gonioMode) return;
+  const p = nPt(e), W = canvas.width, H = canvas.height;
+  for (const g of GON) for (let k = 0; k < g.length; k++) if (Math.hypot((g[k].x - p.x) * W, (g[k].y - p.y) * H) < Math.max(28, W * 0.035)) { gonDrag = { g, k }; canvas.setPointerCapture(e.pointerId); e.preventDefault(); return; }
+  let cur = GON[GON.length - 1]; if (!cur || cur.length === 3) { cur = []; GON.push(cur); }
+  cur.push(p); $("gonioClear").classList.remove("hidden"); redrawOnly = true; if (!lastRes) lastT = -1; e.preventDefault();
+});
+canvas.addEventListener("pointermove", e => { if (!gonioMode || !gonDrag) return; gonDrag.g[gonDrag.k] = nPt(e); redrawOnly = true; if (!lastRes) lastT = -1; });
+canvas.addEventListener("pointerup", () => { gonDrag = null; });
+function drawGonio(W, H, fs) {
+  if (!GON.length) return;
+  ctx.save(); ctx.lineCap = "round";
+  for (const g of GON) {
+    const P2 = g.map(q => ({ x: q.x * W, y: q.y * H }));
+    ctx.strokeStyle = "#FFD54F"; ctx.lineWidth = Math.max(2.5, W / 450);
+    ctx.beginPath(); P2.forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); ctx.stroke();
+    P2.forEach(q => { ctx.beginPath(); ctx.arc(q.x, q.y, Math.max(6, W / 160), 0, 7); ctx.fillStyle = "#FFD54F"; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#1C232B"; ctx.stroke(); });
+    if (P2.length === 3) {
+      const [A, B, C] = P2, a0 = Math.atan2(A.y - B.y, A.x - B.x); let d = Math.atan2(C.y - B.y, C.x - B.x) - a0;
+      while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+      const r = Math.max(26, fs * 1.8), deg2 = Math.abs(d) * 180 / Math.PI;
+      ctx.beginPath(); ctx.moveTo(B.x, B.y); ctx.arc(B.x, B.y, r, a0, a0 + d, d < 0); ctx.closePath(); ctx.fillStyle = "rgba(255,213,79,.3)"; ctx.fill();
+      const am = a0 + d / 2, tx = B.x + Math.cos(am) * r * 1.6, ty = B.y + Math.sin(am) * r * 1.6, txt = `${deg2.toFixed(1)}°`;
+      ctx.font = `700 ${Math.round(fs * 1.1)}px "Barlow Condensed", sans-serif`; ctx.textAlign = "center";
+      const tw = ctx.measureText(txt).width + 14; ctx.fillStyle = "rgba(28,35,43,.9)"; ctx.fillRect(tx - tw / 2, ty - fs * 0.85, tw, fs * 1.25); ctx.fillStyle = "#FFD54F"; ctx.fillText(txt, tx, ty + fs * 0.15);
+    }
+  }
+  ctx.restore();
+}
+// ---------- Guía de planos y sugerencia automática ----------
+const SAGITTAL = new Set(["neckFlex", "trkFlex", "elbow", "hipFlex", "knee", "ankle", "headFwd", "shFwd", "hipFwd", "kneeAlign"]);
+$("planeHelp").onclick = () => {
+  $("doneTitle").textContent = "¿Desde dónde filmo?";
+  $("doneBody").innerHTML = `<div style="font-size:15px;line-height:1.5">
+    <p><b>De frente o de espaldas (plano frontal)</b>: movimientos hacia los costados. Inclinación lateral de cuello y tronco, rotaciones, desnivel de hombros y pelvis, valgo de rodilla, abducción de hombro y cadera. Cámara a la altura de la cadera, centrada.</p>
+    <p><b>De perfil (plano sagital)</b>: movimientos hacia adelante y atrás. Flexión y extensión de cuello, tronco, hombro, codo, cadera, rodilla y tobillo, postura con plomada, profundidad de sentadilla y saltos. Cámara bien perpendicular a la persona.</p>
+    <p><b>Rotaciones (plano transversal)</b>: se verían desde arriba. Con una cámara de frente o de perfil solo se pueden <b>estimar</b>; por eso aparecen como (est.).</p>
+    <p class="note">En todos los casos: cuerpo entero en cuadro con margen, equipo derecho (mirá el nivel del asistente), buena luz y ropa ajustada.</p></div>`;
+  $("doneSave").classList.add("hidden"); $("doneRepeat").classList.add("hidden"); $("doneClose").textContent = "Entendido";
+  $("doneModal").classList.remove("hidden");
+};
+$("doneClose").addEventListener("click", () => { $("doneSave").classList.remove("hidden"); $("doneRepeat").classList.remove("hidden"); $("doneClose").textContent = "Cerrar sin guardar"; });
+function planeHint() {
+  const ids = [...sel].filter(id => MI[id]);
+  if (!ids.length || activeProto) return;
+  const sag = ids.filter(id => SAGITTAL.has(id)).length, fro = ids.filter(id => FRONTAL.has(id)).length;
+  if (!isProf() && sag > 0 && fro === 0) $("status").textContent = "💡 Las articulaciones elegidas se miden mejor de costado: elegí «Perfil izq» o «Perfil der» y filmá de perfil.";
+  else if (isProf() && fro > 0 && sag === 0) $("status").textContent = "💡 Las articulaciones elegidas se miden de frente: elegí «Frente» o «Espalda».";
+}
+
 // ---------- Línea de tiempo del video ----------
 const fmtT = t => isFinite(t) ? `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, "0")}` : "0:00";
 let dragging = false;
@@ -1575,7 +1855,9 @@ function loop() {
     lastT = video.currentTime; redrawOnly = false;
     if (canvas.width !== video.videoWidth) { canvas.width = video.videoWidth; canvas.height = video.videoHeight; }
     let res = null;
-    if (landmarker) {
+    if (procRunning) res = procLive;
+    else if (PROC && fromFile) res = procAt(video.currentTime);
+    else if (landmarker) {
       try { res = detect(); detectFails = 0; }
       catch (e) {
         if (++detectFails === 3 && !forceCPU) {
@@ -1622,7 +1904,7 @@ function frame(res) {
   }
   const ed = fromFile ? editAt(ekey()) : {};
   const lmRaw = applyEdits(lm, wl, ed, W, H)[0], tF = nowT();
-  lm = filterPts(lm, "i", tF); wl = filterPts(wl, "w", tF);
+  if (!(PROC && fromFile)) { lm = filterPts(lm, "i", tF); wl = filterPts(wl, "w", tF); }
   [lm, wl] = applyEdits(lm, wl, ed, W, H);
   update3d(wl);
   const P = i => ({ x: (mirror ? 1 - lm[i].x : lm[i].x) * W, y: lm[i].y * H });
@@ -1640,7 +1922,8 @@ function frame(res) {
   const lw = Math.max(2, W / 400), fs = Math.max(14, Math.round(Math.min(W, H) / 28));
   const far = FAR[view] || [];
   const relevant = (a, b) => !far.includes(a) && !far.includes(b) && [a, b].some(l => LMJ[l] && jOn(LMJ[l])) || (jOn(JTRK) && TORSO.some(([x, y]) => (x === a && y === b) || (x === b && y === a)));
-  ctx.lineWidth = lw;
+  ctx.lineWidth = thinStyle ? Math.max(1.6, W / 650) : lw;
+  if (thinStyle) ctx.setLineDash([Math.max(6, W / 120), Math.max(5, W / 160)]);
   BONES.forEach(([a, b]) => {
     const isFar = far.includes(a) || far.includes(b);
     if ((lm[a].visibility ?? 1) < 0.4 || (lm[b].visibility ?? 1) < 0.4 || lm[a].y > 1.02 || lm[b].y > 1.02) return;   // fuera de cuadro
@@ -1649,6 +1932,7 @@ function frame(res) {
     ctx.strokeStyle = isFar ? "rgba(255,255,255,.12)" : pickMode && !relevant(a, b) ? "rgba(255,255,255,.35)" : "rgba(255,255,255,.9)";
     ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
   });
+  ctx.setLineDash([]); ctx.lineWidth = lw;
   ctx.strokeStyle = "rgba(242,163,58,.9)";
   [[11, 12, "shTilt"], [23, 24, "pelTilt"]].forEach(([a, b, id]) => { if (!shown(id)) return; const A = P(a), B = P(b), dx = (B.x - A.x) * .6, dy = (B.y - A.y) * .6; ctx.beginPath(); ctx.moveTo(A.x - dx, A.y - dy); ctx.lineTo(B.x + dx, B.y + dy); ctx.stroke(); });
   // Puntos articulares: en modo marcado se muestran todos para tocarlos
@@ -1666,7 +1950,7 @@ function frame(res) {
         ctx.lineWidth = 3; ctx.strokeStyle = onJ ? "#1C232B" : "rgba(255,255,255,.8)"; ctx.stroke(); ctx.lineWidth = lw;
         if (k === 0) { ctx.font = `700 ${Math.round(fs * .8)}px "Barlow Condensed", sans-serif`; ctx.textAlign = "left"; ctx.fillStyle = onJ ? "#F2A33A" : "#fff"; ctx.fillText(j.n, p.x + r + 6, p.y + fs * .25); }
       } else if (onJ && l !== 0) {
-        ctx.fillStyle = "#F2A33A"; ctx.beginPath(); ctx.arc(p.x, p.y, lw * 2.4, 0, 7); ctx.fill();
+        ctx.fillStyle = thinStyle ? "#fff" : "#F2A33A"; ctx.beginPath(); ctx.arc(p.x, p.y, thinStyle ? Math.max(3, lw * 1.3) : lw * 2.4, 0, 7); ctx.fill();
       }
     });
   }
@@ -1680,6 +1964,7 @@ function frame(res) {
   lastFrameData = { lm, wl, mirror, view };
   if (trackMode) drawTrackMarkers(P, fs, v);
   else if (editMode) drawHandles(P, ed, fs);
+  drawTrails(P, W, H, lw, wl); drawGonio(W, H, fs);
   const midX = (P(23).x + P(24).x) / 2;
   const label = (p, txt, color, dir) => {
     if (pickMode || editMode) return;   // en modo marcado/corrección no se muestran números
@@ -1751,7 +2036,7 @@ function stats(k) {
 function cell(st) {
   if (!st) return "–";
   const nz = calib && calib.noise[st.k] != null ? ` ±${Math.max(1, 2 * calib.noise[st.k]).toFixed(0)}` : "";
-  return `${st.rom.toFixed(0)}°<span class="note">${nz}</span><br><span class="note">${st.mn.toFixed(0)} → ${st.mx.toFixed(0)}</span>`;
+  return `${st.rom.toFixed(0)}${U(st.k)}<span class="note">${nz}</span><br><span class="note">${st.mn.toFixed(0)} → ${st.mx.toFixed(0)}</span>`;
 }
 function showResults(noScroll) {
   if (frames.length < 5) { $("status").textContent = "La evaluación fue muy corta, no hay datos suficientes."; return; }
@@ -1979,6 +2264,9 @@ const FIGS = {
   singleLeg:{ h: [50, 17], l: ["38,32 62,32 58,66 42,66 38,32", "38,32 32,48 36,60", "62,32 68,48 64,60", "58,66 63,88 58,112", "42,66 37,84 45,95"] },
   jumpF:    { h: [50, 9], l: ["38,24 62,24 57,58 43,58 38,24", "38,24 30,40 43,50", "62,24 70,40 57,50", "43,58 43,82 40,104", "57,58 57,82 60,104"], a: "M 18 112 L 18 82" },
   neckFlexP:{ h: [56, 16], l: [...PF.t, ...PF.arm, ...PF.leg], a: "M 66 5 A 15 15 0 0 1 70 24" },
+  trunkFlexP: { h: [82, 52], l: ["50,64 74,50", "72,51 74,74", "50,64 50,88 50,112 59,112"], a: "M 66 30 A 26 26 0 0 1 86 66" },
+  hipRotF:  { h: [50, 14], l: ["38,28 62,28 57,60 43,60 38,28", "38,28 34,44 40,58", "62,28 66,44 60,58", "26,68 74,68", "43,60 43,68 43,100", "57,60 57,68 72,96"], a: "M 50 104 A 22 22 0 0 0 76 100" },
+  shRotP:   { h: [50, 15], l: [...PF.t, "50,30 61,31 61,13", ...PF.leg], a: "M 76 24 A 15 15 0 0 0 64 8" },
   shFlexP:  { h: [52, 15], l: [...PF.t, "50,30 62,19 69,6", ...PF.leg], a: "M 64 50 A 26 26 0 0 0 80 20" },
   hipFlexP: { h: [52, 15], l: [...PF.t, ...PF.arm, ...PF.leg, "50,64 69,67 67,90"], a: "M 58 94 A 22 22 0 0 0 76 80" },
   kneeFlexP:{ h: [52, 15], l: [...PF.t, ...PF.arm, ...PF.leg, "50,64 52,88 35,82"], a: "M 56 100 A 18 18 0 0 1 30 92" },
@@ -2003,33 +2291,50 @@ const PROTOS = [
   { id: "cervFlex", cat: "rom", reg: "Cuello", n: "Flexión-extensión cervical", fig: "neckFlexP", view: "profile", m: ["neckFlex"], key: "neckFlex", dur: "30 segundos", lvl: "Principiante",
     desc: "Mide cuánto lleva el mentón hacia el pecho y la cabeza hacia atrás.", steps: ["Filmá de perfil a la altura de los hombros. Puede estar sentado: alcanza con que se vean cabeza y hombros.", "Calibrá con la cabeza derecha mirando al frente.", "Grabá: mentón al pecho, volver al centro y cabeza hacia atrás. 3 veces, lento."] },
   { id: "neckLat", cat: "rom", reg: "Cuello", n: "Flexión lateral del cuello", fig: "neckTilt", view: "front", m: ["neckInc"], key: "neckInc", dur: "30 segundos", lvl: "Principiante",
-    desc: "Mide cuánto acerca la oreja al hombro de cada lado, sin subir el hombro.", steps: ["Filmá de frente, cara y hombros bien visibles. Puede estar sentado.", "Calibrá con la cabeza derecha mirando a la cámara.", "Grabá: oreja al hombro izquierdo, centro, oreja al hombro derecho. 3 veces."] },
+    desc: "Mide cuánto acerca la oreja al hombro de cada lado, sin subir el hombro. Evalúa la flexibilidad y fuerza de los músculos de la inclinación lateral (esternocleidomastoideo y escalenos); un lado limitado puede indicar tensión o desequilibrio. Puntaje: excelente >40°, bueno 30–40°, regular 20–30°, pobre <20°.", steps: ["Filmá de frente, cara y hombros bien visibles. Puede estar sentado.", "Calibrá con la cabeza derecha mirando a la cámara.", "Grabá: oreja al hombro izquierdo, centro, oreja al hombro derecho. 3 veces."] },
   { id: "neckRot", cat: "rom", reg: "Cuello", n: "Rotación del cuello", fig: "neckRot", view: "front", m: ["neckRot"], key: "neckRot", dur: "30 segundos", lvl: "Principiante",
-    desc: "Mide el giro de la cabeza hacia cada lado. Confiable hasta unos 70°: más allá se tapa una oreja.", steps: ["Filmá de frente, cara bien iluminada. Puede estar sentado.", "Calibrá con la cabeza derecha mirando a la cámara.", "Grabá: girar la cabeza a la izquierda, centro, a la derecha. 3 veces, sin mover los hombros."] },
-  { id: "shFlex", cat: "rom", reg: "Hombro", n: "Flexión del hombro", fig: "shFlexP", view: "profile", m: ["shElev", "elbow", "trkFlex"], key: "shElev", dur: "40 segundos", lvl: "Principiante",
-    desc: "Mide hasta dónde eleva el brazo por delante, con el codo extendido.", steps: ["Filmá de perfil del lado del brazo a evaluar.", CAL, "Grabá: elevar el brazo estirado por delante hasta arriba y bajar. 3 veces, sin arquear la espalda.", "Repetí la evaluación del otro lado."] },
-  { id: "shAbd", cat: "rom", reg: "Hombro", n: "Abducción del hombro", fig: "shAbd", view: "front", m: ["shElev", "trkLat", "shTilt"], key: "shElev", dur: "40 segundos", lvl: "Principiante",
-    desc: "Mide la elevación lateral de ambos brazos y compara los lados.", steps: ["Filmá de frente, brazos y tronco visibles.", CAL, "Grabá: subir ambos brazos por los costados hasta arriba y bajar. 3 veces, palmas hacia adelante."] },
+    desc: "Mide el giro de la cabeza hacia cada lado. Necesaria para tareas como mirar por encima del hombro o gestos deportivos que exigen girar la cabeza; una rotación limitada puede indicar rigidez articular cervical o desequilibrio muscular. Puntaje: excelente >60°, bueno 45–60°, regular 30–45°, pobre <30°. Confiable hasta unos 70°: más allá se tapa una oreja.", steps: ["Filmá de frente, cara bien iluminada. Puede estar sentado.", "Calibrá con la cabeza derecha mirando a la cámara.", "Grabá: girar la cabeza a la izquierda, centro, a la derecha. 3 veces, sin mover los hombros."] },
+  { id: "shFlex", cat: "rom", reg: "Hombro", n: "Flexión y extensión del hombro", fig: "shFlexP", view: "profile", m: ["shSag", "elbow", "trkFlex"], key: "shSag", dur: "40 segundos", lvl: "Principiante",
+    desc: "Flexión: elevar el brazo hacia adelante y arriba (alcanzar arriba, lanzar, levantar). Extensión: llevarlo hacia atrás (postura, remar, alcanzar por detrás). Se mide el ángulo entre brazo y tronco. Una flexión limitada puede indicar restricción de la cápsula o compensación arqueando la espalda; una extensión limitada, pectorales acortados o debilidad posterior. Puntaje flexión: excelente ≥180°, bueno 165–180°, regular 150–165°, pobre <150°. Extensión: excelente >60°, bueno 50–60°, regular 40–50°, pobre <40°.",
+    steps: ["Filmá de perfil del lado del brazo a evaluar, cuerpo entero.", CAL, "Grabá: brazo estirado hacia adelante y arriba hasta el máximo y volver; después hacia atrás hasta el máximo y volver. 3 veces cada uno, sin arquear ni inclinar el tronco.", "Repetí del otro lado."] },
+  { id: "shAbd", cat: "rom", reg: "Hombro", n: "Abducción y aducción del hombro", fig: "shAbd", view: "front", m: ["shFront", "trkLat", "shTilt"], key: "shFront", dur: "40 segundos", lvl: "Principiante",
+    desc: "Abducción: separar el brazo del cuerpo hacia el costado y arriba (deltoides y supraespinoso), clave en gestos por encima de la cabeza. Aducción: llevar el brazo hacia la línea media del cuerpo (pectoral mayor, dorsal ancho, redondo mayor), importante para estabilidad y para empujar y traccionar. Se mide el ángulo entre brazo y tronco, con el hombro como eje. Puntaje abducción: excelente ≥180°, bueno 165–180°, regular 150–165°, pobre <150°. Aducción: excelente >50°, bueno 35–50°, regular 20–35°, pobre <20°.",
+    steps: ["Filmá de frente, brazos y tronco visibles.", CAL, "Grabá: subí los dos brazos por los costados hasta arriba y volvé (3 veces, palmas hacia adelante).", "Después: llevá los dos brazos estirados cruzando por delante del cuerpo hacia el lado contrario y volvé (3 veces), sin girar ni inclinar el tronco."] },
+  { id: "shRot", cat: "rom", reg: "Hombro", n: "Rotación del hombro (90/90)", fig: "shRotP", view: "profile", m: ["shRot", "elbow"], key: "shRot", dur: "40 segundos", lvl: "Intermedio",
+    desc: "Rotación interna (subescapular, pectoral mayor, redondo mayor) y externa (infraespinoso, redondo menor) con el brazo separado a 90° y el codo a 90°. Clave en lanzamientos, gestos por encima de la cabeza y estabilidad del hombro. Una interna limitada puede indicar cápsula posterior tensa; una externa limitada, estructuras anteriores tensas o desequilibrio del manguito rotador. Puntaje externa: excelente ≥100°, bueno 90–100°, regular 70–90°, pobre <70°. Interna: excelente ≥90°, bueno 75–90°, regular 60–75°, pobre <60°.",
+    steps: ["Filmá de perfil del lado del brazo a evaluar, a la altura del hombro.", "Posición inicial: brazo separado a 90° (codo a la altura del hombro), codo a 90° y antebrazo horizontal apuntando hacia adelante.", "Grabá: girá el antebrazo hacia arriba y atrás (externa) y volvé; después hacia abajo (interna) y volvé. 3 veces cada uno, sin mover el codo de lugar ni el tronco.", "Repetí del otro lado."] },
   { id: "trkLat", cat: "rom", reg: "Tronco", n: "Inclinación lateral del tronco", fig: "trunkLat", view: "front", m: ["trkLat", "pelTilt"], key: "trkLat", dur: "40 segundos", lvl: "Principiante",
     desc: "Mide cuánto se inclina el tronco hacia cada lado.", steps: ["Filmá de frente, cuerpo entero.", CAL, "Grabá: deslizar la mano por el muslo hacia abajo de un lado, volver, y del otro lado. 3 veces."] },
-  { id: "trkRot", cat: "rom", reg: "Tronco", n: "Rotación del tronco", fig: "trunkRot", view: "front", m: ["trkRot", "pelTilt"], key: "trkRot", dur: "40 segundos", lvl: "Intermedio",
-    desc: "Estima el giro de los hombros respecto de la pelvis. Es una estimación desde una sola cámara.", steps: ["Filmá de frente, cuerpo entero.", CAL, "Grabá: brazos cruzados al pecho, girar el tronco a cada lado sin mover la pelvis. 3 veces."] },
+  { id: "trkFE", cat: "rom", reg: "Tronco", n: "Flexión y extensión de tronco (de pie)", fig: "trunkFlexP", view: "profile", m: ["trkSag", "knee", "hipFlex"], key: "trkSag", dur: "40 segundos", lvl: "Principiante",
+    desc: "Flexión: cuánto se inclina hacia adelante con las rodillas extendidas (flexibilidad de la cadena posterior, cadera y columna). Extensión: cuánto se inclina hacia atrás (cadena anterior y control de columna y cadera). Se mide el ángulo entre el tronco y el muslo, y se controla que las rodillas se mantengan extendidas, porque flexionarlas es una compensación. Puntaje flexión: excelente ≥90°, bueno 75–90°, regular 45–75°, pobre <45°. Extensión: excelente ≥30°, bueno 20–30°, regular 10–20°, pobre <10°. Rodillas: excelente <10°, bueno 10–20°, regular 20–30°, pobre >30°.",
+    steps: ["Filmá de perfil, cuerpo entero, cámara a la altura de la cadera.", "Calibrá parado derecho con las rodillas extendidas.", "Grabá: inclinate hacia adelante lo más que puedas sin doblar las rodillas y volvé; después hacia atrás con las manos en la cintura y volvé. 3 veces cada uno, lento."] },
+  { id: "trkRot", cat: "rom", reg: "Tronco", n: "Rotación del tronco (de pie)", fig: "trunkRot", view: "front", m: ["trkRot", "hipRot", "pelTilt"], key: "trkRot", dur: "40 segundos", lvl: "Intermedio",
+    desc: "Evalúa la rotación del tronco superior (movilidad torácica y control del core, independiente de la cadera) y la rotación de la cadera (pelvis respecto de los pies fijos), claves para transferir fuerza en lanzamientos, giros y gestos rotacionales. Restricciones aquí suelen compensarse con la columna o las rodillas. Tronco: diferencia angular entre hombros y caderas; excelente ≥90°, bueno 60–90°, regular 30–60°, pobre <30°. Cadera: pelvis respecto de los pies; excelente ≥45°, bueno 35–45°, regular 25–35°, pobre <25°. Desde una cámara de frente, las rotaciones son estimadas.",
+    steps: ["Filmá de frente, cuerpo entero.", "Pies fijos al ancho de hombros, brazos cruzados sobre el pecho. Calibrá mirando al frente.", "Grabá: girá todo lo que puedas hacia un lado sin mover los pies, volvé, y hacia el otro lado. 3 veces cada uno, lento."] },
+  { id: "thorRot", cat: "rom", reg: "Tronco", n: "Rotación torácica (sentado)", fig: "trunkRot", view: "front", m: ["trkRot", "pelTilt"], key: "trkRot", dur: "40 segundos", lvl: "Principiante",
+    desc: "Rotación de la columna torácica con la pelvis estable (sentado). Esencial para girar, lanzar o golpear; una rotación limitada puede indicar rigidez torácica o falta de control del core, con compensaciones y riesgo de lesión. Se mide la diferencia angular entre la línea de hombros y la de caderas. Excelente ≥45°, bueno 35–45°, regular 25–35°, pobre <25°. Desde una cámara de frente es una estimación.",
+    steps: ["Filmá de frente. Sentado en un banco o silla sin respaldo, pies apoyados, cadera y hombros visibles.", "Brazos cruzados sobre el pecho (o un bastón detrás de los hombros). Calibrá mirando al frente.", "Grabá: girá el tronco hacia un lado sin mover la pelvis, volvé, y hacia el otro. 3 veces cada uno."] },
+  { id: "hipRotS", cat: "rom", reg: "Cadera", n: "Rotación de cadera (sentado)", fig: "hipRotF", view: "front", sidePick: true, m: ["hipIR", "pelTilt", "trkLat"], key: "hipIR", dur: "40 segundos", lvl: "Intermedio",
+    desc: "Rotación interna y externa de la cadera, sentado con la rodilla a 90°. Se mide el desvío de la pierna respecto de la vertical. Una rotación limitada o asimétrica suele compensarse con rodillas o zona lumbar. Interna (pie hacia afuera): clave en la marcha, la sentadilla y el control rotacional; excelente ≥40°, bueno 30–40°, regular 20–30°, pobre <20°. Externa (pie hacia adentro): estabilidad, agilidad y cambios de dirección; excelente ≥50°, bueno 40–50°, regular 30–40°, pobre <30°.",
+    steps: ["Sentado al borde de una camilla o banco alto, rodillas a 90° y piernas colgando. Filmá de frente a la altura de las rodillas.", "Calibrá con las piernas colgando verticales.", "Grabá con la pierna elegida: llevá el pie hacia afuera (rotación interna) y volvé; después hacia adentro (externa) y volvé. 3 veces cada uno, sin mover el muslo ni inclinar el tronco.", "Repetí con la otra pierna."] },
   { id: "hipFlex", cat: "rom", reg: "Cadera", n: "Flexión de cadera", fig: "hipFlexP", view: "profile", m: ["hipFlex", "knee", "trkFlex"], key: "hipFlex", dur: "40 segundos", lvl: "Principiante",
     desc: "Mide cuánto eleva la rodilla hacia el pecho de pie.", steps: ["Filmá de perfil del lado de la pierna a evaluar.", CAL, "Grabá: llevar la rodilla al pecho y bajar. 3 veces, tronco derecho.", "Repetí del otro lado."] },
   { id: "kneeFlex", cat: "rom", reg: "Rodilla", n: "Flexión de rodilla", fig: "kneeFlexP", view: "profile", m: ["knee", "hipFlex"], key: "knee", dur: "40 segundos", lvl: "Principiante",
     desc: "Mide cuánto lleva el talón hacia el glúteo de pie.", steps: ["Filmá de perfil del lado de la pierna a evaluar.", CAL, "Grabá: talón al glúteo y bajar. 3 veces, muslo vertical.", "Repetí del otro lado."] },
   { id: "ankle", cat: "rom", reg: "Tobillo", n: "Dorsiflexión de tobillo", fig: "ankleP", view: "profile", m: ["ankle", "knee"], key: "ankle", dur: "40 segundos", lvl: "Intermedio",
     desc: "Rodilla a la pared: mide cuánto avanza la rodilla sobre el pie sin levantar el talón.", steps: ["Filmá de perfil del lado del tobillo a evaluar.", CAL, "Grabá: con el pie adelante, llevar la rodilla hacia adelante sin despegar el talón. 3 veces.", "Repetí del otro lado."] },
-  { id: "ohs", cat: "func", n: "Sentadilla sobre la cabeza", fig: "ohSquat", view: "front", m: ["knee", "hipFlex", "valgus", "trkLat", "pelTilt", "shElev", "shTilt"], key: "knee", dur: "60 segundos", lvl: "Intermedio",
-    desc: "Evalúa movilidad y control de todo el cuerpo: profundidad, rodillas hacia adentro, desnivel de pelvis y brazos.", steps: ["Filmá de frente, cuerpo entero con margen.", CAL, "Grabá: brazos estirados arriba, 5 sentadillas lentas a la máxima profundidad cómoda.", "Opcional: repetila filmando de perfil."] },
-  { id: "squat", cat: "func", mode: "squat", n: "Sentadilla", fig: "squatF", view: "front", m: ["knee", "hipFlex", "valgus", "pelTilt", "trkLat"], key: "knee", dur: "60 segundos", lvl: "Principiante",
-    desc: "Cuenta repeticiones y registra profundidad, valgo y asimetría en cada una.", steps: ["Filmá de frente, cuerpo entero.", CAL, "Grabá: 5 a 10 sentadillas a ritmo controlado."] },
-  { id: "posture", cat: "func", n: "Postura", fig: "standF", view: "front", m: ["neckInc", "shTilt", "pelTilt", "trkLat", "valgus"], key: "shTilt", dur: "15 segundos", lvl: "Principiante",
-    desc: "Registra desniveles de hombros y pelvis, inclinación de cabeza y tronco en posición de pie.", steps: ["Filmá de frente, cuerpo entero.", "Grabá 10 segundos con la persona parada relajada, sin calibrar antes (así se mide su postura real)."] },
-  { id: "lunge", cat: "func", n: "Estocada", fig: "lungeP", view: "front", m: ["knee", "hipFlex", "valgus", "pelTilt", "trkLat"], key: "valgus", dur: "60 segundos", lvl: "Intermedio",
-    desc: "Evalúa el control de rodilla y pelvis en la estocada.", steps: ["Filmá de frente, cuerpo entero.", CAL, "Grabá: 5 estocadas con cada pierna, alternando."] },
-  { id: "sls", cat: "perf", n: "Sentadilla a una pierna", fig: "singleLeg", view: "front", m: ["knee", "valgus", "pelTilt", "trkLat", "hipAbd"], key: "valgus", dur: "60 segundos", lvl: "Intermedio",
-    desc: "Control de rodilla, cadera y pelvis apoyado en una pierna. Clave para riesgo de lesión de rodilla.", steps: ["Filmá de frente, cuerpo entero.", CAL, "Grabá: 5 sentadillas a una pierna con cada lado."] },
+  { id: "ohs", cat: "func", n: "Sentadilla sobre la cabeza", fig: "ohSquat", view: "front", m: ["knee", "hipFlex", "valgus", "trkLat", "trkFlex", "shin", "pelTilt", "shElev", "shTilt"], key: "knee", dur: "60 segundos", lvl: "Intermedio",
+    desc: "Calidad global del movimiento: movilidad, estabilidad y alineación. Componentes: estabilidad (desvío lateral de la línea media; excelente <5°, pobre >15°), postura (tronco paralelo a la tibia; <5° a >15°), profundidad (flexión de rodilla abajo; excelente >120°, pobre <90°) y movilidad de hombros (flexión de hombros abajo; excelente ≥180°, pobre <150°). Además informa alineación de rodillas y simetría como datos complementarios.", steps: ["Filmá de frente, cuerpo entero con margen.", CAL, "Grabá: brazos estirados arriba, 5 sentadillas lentas a la máxima profundidad cómoda.", "Opcional: repetila filmando de perfil."] },
+  { id: "squat", cat: "func", mode: "squat", n: "Sentadilla", fig: "squatF", view: "front", m: ["knee", "hipFlex", "valgus", "trkLat", "trkFlex", "shin", "pelTilt"], key: "knee", dur: "60 segundos", lvl: "Principiante",
+    desc: "Calidad global del movimiento: movilidad, estabilidad y alineación. Componentes: estabilidad (desvío lateral de la línea media; excelente <5°, pobre >15°), postura (tronco paralelo a la tibia; <5° a >15°), profundidad (flexión de rodilla abajo; excelente >120°, pobre <90°). Además informa alineación de rodillas y simetría como datos complementarios.", steps: ["Filmá de frente, cuerpo entero.", CAL, "Grabá: 5 a 10 sentadillas a ritmo controlado."] },
+  { id: "postureP", cat: "func", n: "Postura de perfil", fig: "postureP", view: "profile", m: ["headPitch", "fhAng", "headFwd", "shFwd", "hipFwd", "kneeAlign", "trkFlex", "neckFlex"], key: "headFwd", dur: "15 segundos", lvl: "Principiante",
+    desc: "Alineación estática de perfil: inclinación de la cabeza adelante/atrás y cabeza adelantada (excelente <5°, pobre >25°), tronco adelante/atrás (<5° a >15°) y rodillas en flexión o hiperextensión (<2° a >8°). También informa en centímetros cuánto quedan la oreja, el hombro y la cadera fuera de la línea de plomada.", steps: ["Filmá de perfil, cuerpo entero, cámara a la altura de la cadera y bien perpendicular.", "Persona descalza, relajada, mirando al frente, brazos al costado.", "Grabá 10 segundos sin calibrar antes (así se mide su postura real)."] },
+  { id: "posture", cat: "func", n: "Postura", fig: "standF", view: "front", m: ["neckInc", "neckRot", "shTilt", "pelTilt", "trkLat", "valgus", "footRot"], key: "shTilt", dur: "15 segundos", lvl: "Principiante",
+    desc: "Alineación estática de frente: inclinación lateral y rotación de cabeza (excelente <5°, pobre >15°), desnivel de hombros y de cadera (excelente <2°, pobre >8°), inclinación lateral del tronco (<5° a >15°), alineación de rodillas (<2° a >8°) y rotación de los pies (<5° a >25°). Detecta desequilibrios musculares y compensaciones que pueden afectar el rendimiento o causar dolor. Complementala con la postura de perfil.", steps: ["Filmá de frente, cuerpo entero.", "Grabá 10 segundos con la persona parada relajada, sin calibrar antes (así se mide su postura real)."] },
+  { id: "lunge", cat: "func", n: "Estocada", fig: "lungeP", view: "front", m: ["knee", "hipFlex", "valgus", "pelTilt", "trkLat", "trkFlex", "ankle"], key: "valgus", dur: "60 segundos", lvl: "Intermedio",
+    desc: "Evalúa fuerza, flexibilidad y estabilidad del miembro inferior y la coordinación de cadera, rodilla y tobillo. 6 componentes: valgo de rodilla (abductores y rotadores externos de cadera; excelente <5°, pobre >15°), estabilidad (desvío de la línea media; <5° a >15°), postura (inclinación del tronco; <5° a >15°), profundidad (flexión de la rodilla de adelante; excelente >90°, pobre <60°), movilidad de cadera (>90° a <60°) y movilidad de tobillo (dorsiflexión con el talón apoyado).", steps: ["Filmá de frente, cuerpo entero.", CAL, "Grabá: 5 estocadas con cada pierna, alternando."] },
+  { id: "sls", cat: "perf", n: "Sentadilla a una pierna", fig: "singleLeg", view: "front", m: ["knee", "valgus", "pelTilt", "trkLat", "trkFlex", "hipAbd"], key: "valgus", dur: "60 segundos", lvl: "Intermedio",
+    desc: "Visión general del estado funcional del miembro inferior en apoyo unipodal: fuerza, estabilidad y alineación. Evalúa 5 componentes: valgo de rodilla (debilidad de abductores y rotadores externos de cadera; excelente <5°, pobre >10°), flexión lateral de tronco y de pelvis (estabilidad del core y la cadera; excelente <5°, pobre >15°), flexión de tronco adelante/atrás (control postural; excelente <5°, pobre >15°) y flexión de rodilla (rango y control; excelente >90°, pobre <60°). Clave para riesgo de lesión de rodilla.", steps: ["Filmá de frente, cuerpo entero.", CAL, "Grabá: 5 sentadillas a una pierna con cada lado."] },
   { id: "sj", cat: "perf", mode: "jump", jt: "SJ", n: "Squat Jump (SJ)", fig: "jumpF", view: "front", key: "jump", dur: "3 saltos", lvl: "Avanzado",
     desc: "Salto desde posición sostenida, sin contramovimiento. Altura por tiempo de vuelo y control de la técnica.", steps: ["Filmá en cámara lenta, de frente o de perfil, pies y cadera siempre en cuadro.", "Manos en la cintura. Bajar a la posición, sostener 2-3 s y saltar sin rebote.", "3 saltos con pausa entre cada uno."] },
   { id: "cmj", cat: "perf", mode: "jump", jt: "CMJ", n: "Countermovement Jump (CMJ)", fig: "jumpF", view: "front", key: "jump", dur: "3 saltos", lvl: "Avanzado",
@@ -2089,7 +2394,9 @@ function openDetail(id, flowName) {
   $("dFig").innerHTML = figSVG(p.fig);
   $("dDur").textContent = "⏱ " + p.dur; $("dLvl").textContent = "▮▮▯ " + p.lvl;
   $("dSteps").innerHTML = p.steps.map(x => `<li>${x}</li>`).join(""); $("dSteps").classList.add("hidden");
-  $("dSideWrap").classList.toggle("hidden", p.view !== "profile");
+  $("dSideWrap").classList.toggle("hidden", p.view !== "profile" && !p.sidePick);
+  $("dSideWrap").querySelector("p").textContent = p.sidePick ? "¿Qué pierna evaluás?" : "¿Desde qué lado filmás?";
+  $("dSideWrap").querySelectorAll("[data-side]").forEach(b => b.textContent = (b.dataset.side === "L" ? (p.sidePick ? "Pierna izquierda" : "Lado izquierdo") : (p.sidePick ? "Pierna derecha" : "Lado derecho")));
   fillAthSelect(); show("scrDetail");
 }
 $("dInstr").onclick = () => $("dSteps").classList.toggle("hidden");
@@ -2155,7 +2462,7 @@ $("saveRes").onclick = () => {
   const rid = "r" + Date.now(), clip = currentClip();
   const ks = KEYS.filter(keyShown);
   const series = { keys: ks, t: frames.map(f => +(f.t - frames[0].t).toFixed(3)), v: ks.map(k => frames.map(f => isFinite(f[k]) ? Math.round(f[k] * 10) / 10 : null)) };
-  db.res.push({ id: rid, ath: curAth, proto: activeProto ? activeProto.id : "libre", name: activeProto ? activeProto.n : "Análisis libre", date: new Date().toISOString(), view, calib: !!calib, metrics, ...extra, ...(lastGuided ? { guided: lastGuided } : {}), media: !!clip });
+  db.res.push({ id: rid, ath: curAth, proto: activeProto ? activeProto.id : "libre", name: activeProto ? activeProto.n : "Análisis libre", date: new Date().toISOString(), view, calib: !!calib, metrics, ...extra, ...(lastGuided ? { guided: lastGuided } : {}), media: !!clip, ...(activeProto && activeProto.sidePick ? { side: protoSide } : {}), ...(activeProto && FUNC.includes(activeProto.id) ? { fscore: funcScore(activeProto.id, frames) } : {}) });
   saveDB(); idbPut({ id: rid, video: clip, series }); lastClip = null; lastSavedId = rid;
   afterSave(athObj(curAth).n);
 };
@@ -2182,7 +2489,7 @@ function buildProgress() {
   $("pList").innerHTML = Object.entries(groups).map(([pid, list]) => {
     list.sort((a, b) => a.date.localeCompare(b.date));
     const last = list[list.length - 1], mv = mainVals(last);
-    return `<div class="card"><h3 style="display:flex;justify-content:space-between;align-items:center;gap:8px">${esc(last.name)} ${scoreHTML(last, true)}</h3><p style="margin:0">Última: <b>${mv.txt}</b> · ${new Date(last.date).toLocaleDateString("es-AR")}</p>
+    return `<div class="card"><h3 style="display:flex;justify-content:space-between;align-items:center;gap:8px">${esc(last.name)} ${scoreHTML(last, true) || funcScoreHTML(last.fscore, true)}</h3><p style="margin:0">Última: <b>${mv.txt}</b> · ${new Date(last.date).toLocaleDateString("es-AR")}${(() => { const d = Math.floor((Date.now() - new Date(last.date)) / 864e5); return d >= 14 ? ` · <span style="color:#C0392B;font-weight:700">hace ${d} días: reevaluar</span>` : d >= 1 ? ` · hace ${d} día${d > 1 ? "s" : ""}` : ""; })()}</p>
       ${list.length > 1 ? `<canvas class="spark" data-spark="${pid}"></canvas>` : ""}
       <div class="hist">${list.slice(-6).reverse().map(r => `<span class="open" data-open="${r.id}">${new Date(r.date).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })}${r.media ? " 🎬" : ""}${r.photo ? " 📸" : ""}</span><span class="open" data-open="${r.id}">${mainVals(r).txt}</span><button data-del="${r.id}" aria-label="Borrar">✕</button>`).join("")}</div></div>`;
   }).join("");
@@ -2531,9 +2838,14 @@ const RULES = {
   neckRot:  { type: "sym", key: "neckRot", thr: 20, ctr: 6, n: 3, labels: ["Izquierda", "Derecha"], comp: [["shTilt", 8, "movió los hombros"]], dir: ["girá a la izquierda", "girá a la derecha"] },
   cervFlex: { type: "sym", key: "neckFlex", thr: 12, ctr: 5, n: 3, labels: ["Flexión", "Extensión"], comp: [["trkFlex", 10, "movió el tronco"]], dir: ["mentón al pecho", "cabeza hacia atrás"] },
   trkLat:   { type: "sym", key: "trkLat", thr: 10, ctr: 4, n: 3, labels: ["Izquierda", "Derecha"], comp: [], dir: ["inclinate a la izquierda", "inclinate a la derecha"] },
-  trkRot:   { type: "sym", key: "trkRot", thr: 12, ctr: 5, n: 3, labels: ["Izquierda", "Derecha"], comp: [["pelTilt", 6, "movió la pelvis"]], dir: ["girá el tronco", "girá hacia el otro lado"] },
-  shFlex:   { type: "one", key: "shElev", hi: 70, lo: 30, n: 3, labels: ["Elevación"], comp: [["trkFlex", 10, "arqueó la espalda"]], dir: ["subí el brazo hasta arriba"] },
-  shAbd:    { type: "both", key: "shElev", hi: 70, lo: 30, n: 3, labels: ["Elevación"], comp: [["trkLat", 8, "inclinó el tronco"]], dir: ["subí los dos brazos por los costados"] },
+  hipRotS:  { type: "sym", key: "hipIR", side: true, thr: 12, ctr: 6, n: 3, labels: ["Interna", "Externa"], comp: [["pelTilt", 6, "levantó la cadera"], ["trkLat", 6, "inclinó el tronco"]], dir: ["pie hacia afuera", "pie hacia adentro"] },
+  trkRot:   { type: "sym", key: "trkRot", thr: 12, ctr: 5, n: 3, labels: ["Izquierda", "Derecha"], comp: [["pelTilt", 6, "inclinó la pelvis"]], dir: ["girá hacia un lado sin mover los pies", "girá hacia el otro lado"] },
+  thorRot:  { type: "sym", key: "trkRot", thr: 12, ctr: 5, n: 3, labels: ["Izquierda", "Derecha"], comp: [["pelTilt", 6, "movió la pelvis"]], dir: ["girá el tronco sin mover la pelvis", "girá hacia el otro lado"] },
+  shFlex:   { type: "sym", key: "shSag", thr: 35, ctr: 20, n: 3, labels: ["Flexión", "Extensión"], comp: [["trkFlex", 10, "movió el tronco (arqueó o se inclinó)"]], dir: ["brazo adelante y arriba", "brazo hacia atrás"] },
+  trkFE:    { type: "sym", key: "trkSag", thr: 20, ctr: 8, n: 3, labels: ["Flexión", "Extensión"], comp: [["kneeL", 30, "flexionó mucho las rodillas"]], dir: ["inclinate hacia adelante sin doblar las rodillas", "inclinate hacia atrás"] },
+  shRot:    { type: "sym", key: "shRot", thr: 30, ctr: 15, n: 3, labels: ["Rotación externa", "Rotación interna"], comp: [["elbowL", 25, "no mantuvo el codo a 90°"], ["trkFlex", 10, "movió el tronco"]], dir: ["antebrazo hacia arriba y atrás", "antebrazo hacia abajo"] },
+  shAbd:    { type: "symB", key: "shFront", thr: 35, ctr: 15, n: 3, labels: ["Abducción", "Aducción"], comp: [["trkLat", 8, "inclinó el tronco"], ["shTilt", 8, "elevó un hombro"]], dir: ["subí los brazos por los costados", "cruzá los brazos por delante del cuerpo"] },
+  shAbdOld: { type: "both", key: "shElev", hi: 70, lo: 30, n: 3, labels: ["Elevación"], comp: [["trkLat", 8, "inclinó el tronco"]], dir: ["subí los dos brazos por los costados"] },
   hipFlex:  { type: "one", key: "hipFlex", hi: 45, lo: 15, n: 3, labels: ["Flexión"], comp: [["trkFlex", 15, "inclinó el tronco"]], dir: ["rodilla al pecho"] },
   kneeFlex: { type: "one", key: "knee", hi: 60, lo: 20, n: 3, labels: ["Flexión"], comp: [["hipFlex", 25, "adelantó el muslo"]], dir: ["talón al glúteo"] },
   ankle:    { type: "one", key: "ankle", hi: 8, lo: 2, n: 3, labels: ["Dorsiflexión"], comp: [], dir: ["rodilla hacia adelante sin levantar el talón"] },
@@ -2542,6 +2854,7 @@ const RULES = {
   lunge:    { type: "alt", key: "knee", hi: 60, lo: 25, n: 5, labels: ["Pierna izq", "Pierna der"], comp: [["trkLat", 10, "se inclinó hacia un lado"]], dir: ["estocada"] },
   sls:      { type: "alt", key: "knee", hi: 45, lo: 15, n: 5, labels: ["Pierna izq", "Pierna der"], comp: [["pelTilt", 10, "cayó la pelvis"]], dir: ["bajá en una pierna"] },
   posture:  { type: "hold", secs: 10, labels: ["Postura"], comp: [] },
+  postureP: { type: "hold", secs: 10, labels: ["Postura"], comp: [] },
 };
 
 // ---------- Aviso en pantalla y sonido por cada repetición ----------
@@ -2580,7 +2893,8 @@ function guideStop() {
 }
 function gVal(v) {
   const r = GR.r, k = r.key;
-  if (r.type === "sym") return v[k];
+  if (r.type === "sym") return r.side ? v[k + protoSide] : v[k];
+  if (r.type === "symB") { const a = v[k + "L"], b = v[k + "R"]; if (!isFinite(a) || !isFinite(b)) return NaN; return a > 0 && b > 0 ? Math.min(a, b) : a < 0 && b < 0 ? Math.max(a, b) : 0; }
   if (r.type === "one") return v[k + (isProf() ? view : "L")];
   if (r.type === "both") return Math.min(v[k + "L"], v[k + "R"]);
   if (r.type === "alt") return Math.max(v[k + "L"], v[k + "R"]);
@@ -2596,13 +2910,13 @@ function guideFrame(v, bad) {
   }
   const x = gVal(v); if (!isFinite(x)) return;
   const badNow = bad.some(k => MK[k].id === r.key);
-  const out = r.type === "sym" ? Math.abs(x) > r.thr : x > r.hi;
-  const back = r.type === "sym" ? Math.abs(x) < r.ctr : x < r.lo;
+  const out = /^sym/.test(r.type) ? Math.abs(x) > r.thr : x > r.hi;
+  const back = /^sym/.test(r.type) ? Math.abs(x) < r.ctr : x < r.lo;
   if (GR.phase === "center") {
     for (const [c] of r.comp) if (isFinite(v[c])) GR.base[c] = GR.base[c] == null ? v[c] : GR.base[c] * 0.8 + v[c] * 0.2;
     if (out) {
       GR.phase = "out"; GR.peak = Math.abs(x); GR.cmax = {}; GR.badN = 0; GR.n = 0; GR.warned = false;
-      GR.side = r.type === "sym" ? (x > 0 ? 0 : 1) : r.type === "alt" ? (v[r.key + "L"] >= v[r.key + "R"] ? 0 : 1) : 0;
+      GR.side = /^sym/.test(r.type) ? (x > 0 ? 0 : 1) : r.type === "alt" ? (v[r.key + "L"] >= v[r.key + "R"] ? 0 : 1) : 0;
     }
   } else {
     GR.peak = Math.max(GR.peak, Math.abs(x)); GR.n++; if (badNow) GR.badN++;
@@ -2628,7 +2942,7 @@ function guideFrame(v, bad) {
 }
 function guideNext() {
   const r = GR.r;
-  if (GR.phase === "out") return r.type === "sym" ? "Volvé al centro" : "Volvé a la posición inicial";
+  if (GR.phase === "out") return /^sym/.test(r.type) ? "Volvé al centro" : "Volvé a la posición inicial";
   const k = GR.reps.findIndex(l => l.filter(q => q.ok).length < r.n);
   if (k < 0) return "";
   return "Ahora: " + (r.dir[k] || r.dir[0]);
@@ -2660,7 +2974,7 @@ function guideComplete() {
     body += `<p style="margin:4px 0">Asimetría: <b class="${a >= 25 ? "bad" : a >= 15 ? "warn" : "ok"}">${a.toFixed(0)}%</b></p>`;
   }
   const tmpRes = { proto: activeProto.id, guided: lastGuided, metrics: Object.fromEntries(KEYS.filter(keyShown).map(k => [k, stats(k)]).filter(([, v]) => v).map(([k, v]) => [k, { mn: v.mn, mx: v.mx, rom: v.rom }])) };
-  const sc = scoreHTML(tmpRes);
+  const sc = scoreHTML(tmpRes) || funcScoreHTML(funcScore(activeProto.id, frames));
   if (sc) body = `<div style="background:#fff;border-radius:12px;padding:10px 12px;margin-bottom:8px">${sc}</div>`;
   body += `<p class="note">${invalid ? `${invalid} intento(s) no válido(s) descartado(s). ` : "Todas las repeticiones fueron válidas. "}${calib ? "" : "⚠ Se hizo sin calibrar."}</p>`;
   $("doneTitle").textContent = "✅ Evaluación completada";
@@ -2676,12 +2990,62 @@ $("doneClose").onclick = () => { $("doneModal").classList.add("hidden"); };
 // Puntaje respecto de valores normales (rango activo de referencia en adultos) y colores
 // =====================================================================
 const NORMS = {
-  neckLat: [45, 45], neckRot: [80, 80], cervFlex: [50, 60], trkLat: [35, 35], trkRot: [45, 45],
-  shFlex: [180], shAbd: [180, 180], hipFlex: [120], kneeFlex: [135], ankle: [40]
+  neckLat: [45, 45], neckRot: [80, 80], cervFlex: [50, 60], trkLat: [35, 35], trkRot: [90, 90, 45, 45], thorRot: [45, 45],
+  shFlex: [180, 60], shAbd: [180, 180, 50, 50], shRot: [100, 90], trkFE: [90, 30, 10], hipRotS: [40, 50], hipFlex: [120], kneeFlex: [135], ankle: [40]
+};
+// Criterios de puntaje por evaluación (cuando hay criterio publicado): 0% en "zero", 100% en "full", lineal entre ambos
+// y niveles Excelente / Bueno / Regular / Pobre. Si no hay criterio, se usa el % respecto del valor normal.
+const SCORING = {
+  cervFlex: { "Flexión": { zero: 20, full: 40, mid: 30 }, "Extensión": { zero: 20, full: 40, mid: 30 } },
+  neckLat: { "*": { zero: 20, full: 40, mid: 30 } },
+  neckRot: { "*": { zero: 30, full: 60, mid: 45 } },
+  shFlex: { "Flexión": { zero: 150, full: 180, mid: 165 }, "Extensión": { zero: 40, full: 60, mid: 50 } },
+  shAbd: { "Abducción": { zero: 150, full: 180, mid: 165 }, "Aducción": { zero: 20, full: 50, mid: 35 } },
+  hipRotS: { "Interna": { zero: 20, full: 40, mid: 30 }, "Externa": { zero: 30, full: 50, mid: 40 } },
+  trkRot: { "Tronco": { zero: 30, full: 90, mid: 60 }, "Cadera": { zero: 25, full: 45, mid: 35 } },
+  thorRot: { "*": { zero: 25, full: 45, mid: 35 } },
+  trkFE: { "Flexión de tronco": { zero: 45, full: 90, mid: 75 }, "Extensión de tronco": { zero: 10, full: 30, mid: 20 }, "Flexión de rodillas": { zero: 30, full: 10, mid: 20 } },
+  shRot: { "Rotación externa": { zero: 70, full: 100, mid: 90 }, "Rotación interna": { zero: 60, full: 90, mid: 75 } },
 };
 function sideVals(r) {
+  const sv = sideVals0(r); if (!sv) return sv;
+  const sc = SCORING[r.proto];
+  return sv.map(x => ({ ...x, sc: sc ? (sc[x.label] || sc[x.label.split(" ")[0]] || sc["*"] || null) : null }));
+}
+const pctX = x => x.sc ? Math.max(0, Math.min(100, (x.val - x.sc.zero) / (x.sc.full - x.sc.zero) * 100)) : pct(x.val, x.norm);
+const lowBetter = x => x.sc && x.sc.full < x.sc.zero;
+const lvlX = x => { if (lowBetter(x)) return x.val <= x.sc.full ? "Excelente" : x.val <= x.sc.mid ? "Bueno" : x.val <= x.sc.zero ? "Regular" : "Pobre";
+  if (x.sc) return x.val >= x.sc.full ? "Excelente" : x.val >= x.sc.mid ? "Bueno" : x.val >= x.sc.zero ? "Regular" : "Pobre";
+  const q = pct(x.val, x.norm); return q >= 90 ? "Excelente" : q >= 75 ? "Bueno" : q >= 50 ? "Regular" : "Pobre"; };
+const lvlBand = x => ({ Excelente: band(95), Bueno: band(80), Regular: band(60), Pobre: band(20) })[lvlX(x)];
+const refX = x => lowBetter(x) ? `excelente <${x.sc.full}° · pobre >${x.sc.zero}°` : x.sc ? `excelente ≥${x.sc.full}° · pobre <${x.sc.zero}°` : `normal ≈ ${x.norm}°`;
+function sideVals0(r) {
   const p = PR[r.proto], n = NORMS[r.proto]; if (!p || !n || !r.metrics) return null;
   const k = p.key, M = r.metrics;
+  if (r.proto === "trkFE" && M.trkSag) {
+    const kn = M.kneeL || M.kneeR, it = [
+      { label: "Flexión de tronco", val: r.guided ? Math.max(...(r.guided.peaks[0].length ? r.guided.peaks[0] : [M.trkSag.mx])) : M.trkSag.mx, norm: 90 },
+      { label: "Extensión de tronco", val: r.guided ? Math.max(...(r.guided.peaks[1].length ? r.guided.peaks[1] : [-M.trkSag.mn])) : Math.max(0, -M.trkSag.mn), norm: 30 }];
+    if (kn) it.push({ label: "Flexión de rodillas", val: Math.max(0, kn.mx), norm: 10 });
+    return it;
+  }
+  if (r.proto === "hipRotS") {
+    const sd = r.side || "L", lb = sd === "L" ? "izq" : "der", K = M["hipIR" + sd];
+    if (r.guided) return [{ label: `Interna ${lb}`, val: Math.max(...(r.guided.peaks[0].length ? r.guided.peaks[0] : [NaN])), norm: 40 }, { label: `Externa ${lb}`, val: Math.max(...(r.guided.peaks[1].length ? r.guided.peaks[1] : [NaN])), norm: 50 }];
+    if (K) return [{ label: `Interna ${lb}`, val: Math.max(0, K.mx), norm: 40 }, { label: `Externa ${lb}`, val: Math.max(0, -K.mn), norm: 50 }];
+    return null;
+  }
+  if (r.proto === "trkRot" && M.trkRot) {
+    const it = [{ label: "Tronco izq", val: Math.max(0, M.trkRot.mx), norm: 90 }, { label: "Tronco der", val: Math.max(0, -M.trkRot.mn), norm: 90 }];
+    if (M.hipRot) it.push({ label: "Cadera izq", val: Math.max(0, M.hipRot.mx), norm: 45 }, { label: "Cadera der", val: Math.max(0, -M.hipRot.mn), norm: 45 });
+    return it;
+  }
+  if (r.proto === "shAbd" && M.shFrontL) {
+    const it = [];
+    for (const [sd, lb] of [["L", "izq"], ["R", "der"]]) if (M["shFront" + sd]) it.push({ label: `Abducción ${lb}`, val: M["shFront" + sd].mx, norm: 180 });
+    for (const [sd, lb] of [["L", "izq"], ["R", "der"]]) if (M["shFront" + sd]) it.push({ label: `Aducción ${lb}`, val: Math.max(0, -M["shFront" + sd].mn), norm: 50 });
+    return it;
+  }
   if (r.guided && r.guided.labels.length === n.length) return r.guided.labels.map((l, i) => ({ label: l, val: Math.max(...(r.guided.peaks[i].length ? r.guided.peaks[i] : [NaN])), norm: n[i] }));
   if (MI[k] && MI[k].s && M[k]) {
     const labs = RULES[r.proto] ? RULES[r.proto].labels : ["Izquierda", "Derecha"];
@@ -2700,17 +3064,18 @@ const pct = (val, norm) => Math.max(0, Math.min(100, val / norm * 100));
 const band = p => p >= 90 ? { bg: "#CDEFD8", bd: "#4CAF79", tx: "#1E6B43" } : p >= 75 ? { bg: "#E3F4C9", bd: "#8BC34A", tx: "#41691A" } : p >= 50 ? { bg: "#FBEFB8", bd: "#E3C232", tx: "#7A6408" } : { bg: "#F9D5BC", bd: "#E8955A", tx: "#8A4513" };
 function scoreHTML(r, compact = false) {
   const sv = sideVals(r); if (!sv || !sv.length || sv.some(x => !isFinite(x.val))) return "";
-  const score = Math.round(sv.reduce((a, x) => a + pct(x.val, x.norm), 0) / sv.length), b = band(score);
+  const score = Math.round(sv.reduce((a, x) => a + pctX(x), 0) / sv.length), b = band(score);
   if (compact) return `<span style="background:${b.bg};color:${b.tx};border:1px solid ${b.bd};border-radius:999px;padding:2px 10px;font-weight:700;font-size:13px">${score}%</span>`;
   const R = 54, C = 2 * Math.PI * R;
   const ring = `<svg viewBox="0 0 140 140" width="140" height="140" style="display:block;margin:4px auto 10px"><circle cx="70" cy="70" r="${R}" fill="none" stroke="#E6EEE9" stroke-width="12"/>
     <circle cx="70" cy="70" r="${R}" fill="none" stroke="${b.bd}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C * score / 100} ${C}" transform="rotate(-90 70 70)"/>
     <text x="70" y="80" text-anchor="middle" font-family="Barlow, sans-serif" font-weight="700" font-size="30" fill="#34495E">${score}%</text></svg>`;
-  const pills = `<div style="display:grid;grid-template-columns:repeat(${sv.length},1fr);gap:10px">${sv.map(x => { const q = pct(x.val, x.norm), c = band(q);
+  const pills = `<div style="display:grid;grid-template-columns:repeat(${sv.length > 3 ? 2 : sv.length},1fr);gap:10px">${sv.map(x => { const q = pctX(x), c = lvlBand(x);
     return `<div style="text-align:center"><div style="font-size:13px;color:#6B7B8A;margin-bottom:4px">${x.label}</div>
       <div style="background:${c.bg};border:1.5px solid ${c.bd};color:${c.tx};border-radius:999px;padding:6px 0;font:700 18px Barlow,sans-serif">${Math.round(x.val)}°</div>
-      <div style="font-size:12px;color:#7A8896;margin-top:3px">normal ≈ ${x.norm}° · ${Math.round(q)}%</div></div>`; }).join("")}</div>`;
-  return ring + pills + `<p style="font-size:12px;color:#7A8896;margin:10px 0 0;text-align:center">Puntaje = rango alcanzado respecto del valor normal de referencia. 🟢 ≥90% · 🟡 50–75% · 🟠 &lt;50%</p>`;
+      <div style="font-size:12px;color:${c.tx};margin-top:3px;font-weight:700">${lvlX(x)} · ${Math.round(q)}%</div>
+      <div style="font-size:11px;color:#7A8896">${refX(x)}</div></div>`; }).join("")}</div>`;
+  return ring + pills + `<p style="font-size:12px;color:#7A8896;margin:10px 0 0;text-align:center">${sv.some(x => x.sc) ? "Puntaje lineal entre el umbral de «pobre» (0%) y el de «excelente» (100%)." : "Puntaje = rango alcanzado respecto del valor normal de referencia."} 🟢 Excelente/Bueno · 🟡 Regular · 🟠 Pobre</p>`;
 }
 
 
@@ -2722,11 +3087,11 @@ function conclusions(r) {
   const out = [], p = PR[r.proto], M = r.metrics || {};
   const sv = sideVals(r);
   if (sv && sv.length && sv.every(x => isFinite(x.val))) {
-    const score = Math.round(sv.reduce((a, x) => a + pct(x.val, x.norm), 0) / sv.length);
-    out.push(`${r.name.replace(" (foto)", "")}: ${score}% del rango normal de referencia (${sv.map(x => `${x.label.toLowerCase()} ${Math.round(x.val)}°`).join(", ")}).`);
-    sv.forEach(x => { const q = pct(x.val, x.norm);
-      if (q < 50) out.push(`Rango marcadamente reducido en ${x.label.toLowerCase()}: ${Math.round(x.val)}° frente a ≈${x.norm}° esperados.`);
-      else if (q < 75) out.push(`Rango moderadamente reducido en ${x.label.toLowerCase()} (${Math.round(x.val)}° de ≈${x.norm}°).`); });
+    const score = Math.round(sv.reduce((a, x) => a + pctX(x), 0) / sv.length);
+    out.push(`${r.name.replace(" (foto)", "")}: puntaje ${score}% (${sv.map(x => `${x.label.toLowerCase()} ${Math.round(x.val)}° · ${lvlX(x).toLowerCase()}`).join(", ")}).`);
+    sv.forEach(x => { const lv = lvlX(x);
+      if (lv === "Pobre") out.push(`Rango marcadamente reducido en ${x.label.toLowerCase()}: ${Math.round(x.val)}° (${refX(x)}).`);
+      else if (lv === "Regular") out.push(`Rango moderadamente reducido en ${x.label.toLowerCase()}: ${Math.round(x.val)}° (${refX(x)}).`); });
     if (sv.length === 2) {
       const a = Math.abs(sv[0].val - sv[1].val) / Math.max(sv[0].val, sv[1].val, 1) * 100;
       const hi = sv[0].val > sv[1].val ? sv[0].label : sv[1].label;
@@ -2735,12 +3100,17 @@ function conclusions(r) {
   }
   // funcionales
   const mx = k => M[k] ? M[k].mx : NaN;
-  if (["ohs", "squat", "lunge", "sls"].includes(r.proto) || r.proto === "libre") {
+  if ((["ohs", "squat", "lunge", "sls"].includes(r.proto) || r.proto === "libre") && !r.fscore) {
     const kL = mx("kneeL"), kR = mx("kneeR");
     if (isFinite(kL) || isFinite(kR)) out.push(`Profundidad: flexión máxima de rodilla ${f1(kL)}° izq / ${f1(kR)}° der.`);
     for (const [k, lado] of [["valgusL", "izquierda"], ["valgusR", "derecha"]]) { const v = mx(k); if (v >= 10) out.push(`Valgo dinámico marcado en rodilla ${lado} (${v.toFixed(0)}°).`); else if (v >= 5) out.push(`Valgo dinámico leve en rodilla ${lado} (${v.toFixed(0)}°).`); }
     if (M.pelTilt && M.pelTilt.rom >= 6) out.push(`Variación de la línea de pelvis de ${M.pelTilt.rom.toFixed(0)}° durante el movimiento (posible caída o compensación de cadera).`);
     if (M.trkLat && Math.max(Math.abs(M.trkLat.mn), Math.abs(M.trkLat.mx)) >= 6) out.push(`Inclinación lateral del tronco de hasta ${Math.max(Math.abs(M.trkLat.mn), Math.abs(M.trkLat.mx)).toFixed(0)}°.`);
+  }
+  if (r.fscore) {
+    out.push(`Puntaje funcional: ${r.fscore.global}/3 (${r.fscore.pct}% del máximo).`);
+    r.fscore.comps.filter(c => c.s < 3).forEach(c => out.push(`${c.n}: ${c.s}/3 — ${c.why}.`));
+    funcHints(r.fscore).forEach(h => out.push("Posible causa a revisar: " + h));
   }
   if (r.reps && r.reps.length) out.push(`${r.reps.length} repeticiones registradas.`);
   if (r.jumps && r.jumps.length) {
@@ -2803,7 +3173,7 @@ async function makeReport(r) {
     let y = 0;
     const ensure = h => { if (y + h > 280) { doc.addPage(); y = 18; } };
     const h2 = t => { ensure(12); doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(52, 73, 94); doc.text(t, M, y); doc.setDrawColor(91, 191, 138); doc.setLineWidth(0.6); doc.line(M, y + 1.6, M + 22, y + 1.6); y += 7; };
-    const san = t => String(t).replace(/≈/g, "~").replace(/•/g, "-").replace(/→/g, "->").replace(/[^\x00-\xFF]/g, "");   // la fuente del PDF no tiene esos símbolos
+    const san = t => String(t).replace(/[—–]/g, "-").replace(/≈/g, "~").replace(/•/g, "-").replace(/→/g, "->").replace(/[^\x00-\xFF]/g, "");   // la fuente del PDF no tiene esos símbolos
     const para = (t, size = 10, col = [60, 72, 84]) => { doc.setFont("helvetica", "normal"); doc.setFontSize(size); doc.setTextColor(...col); for (const ln of doc.splitTextToSize(san(t), CW)) { ensure(5); doc.text(ln, M, y); y += size * 0.45; } y += 2; };
     // encabezado
     doc.setFillColor(52, 73, 94); doc.rect(0, 0, W, 22, "F");
@@ -2821,19 +3191,33 @@ async function makeReport(r) {
     const sv = sideVals(r), xR = img ? M + 98 : M;
     let rightH = 0;
     if (sv && sv.length && sv.every(x => isFinite(x.val))) {
-      const score = Math.round(sv.reduce((s2, x) => s2 + pct(x.val, x.norm), 0) / sv.length), bd = band(score);
+      const score = Math.round(sv.reduce((s2, x) => s2 + pctX(x), 0) / sv.length), bd = band(score);
       doc.addImage(ringPNG(score, bd.bd), "PNG", xR, y, 34, 34);
       doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(52, 73, 94); doc.text("Puntuación", xR + 38, y + 10);
       doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(107, 123, 138); doc.text(doc.splitTextToSize("Rango alcanzado respecto del valor normal de referencia en adultos.", W - M - xR - 38), xR + 38, y + 15);
       let py = y + 40; const pw = (W - M - xR - 4 * (sv.length - 1)) / sv.length;
       sv.forEach((x, i) => {
-        const q = pct(x.val, x.norm), c = band(q), px = xR + i * (pw + 4);
+        const q = pctX(x), c = lvlBand(x), px = xR + i * (pw + 4);
         doc.setFontSize(9); doc.setTextColor(107, 123, 138); doc.text(x.label, px + pw / 2, py, { align: "center" });
         doc.setFillColor(...hexRGB(c.bg)); doc.setDrawColor(...hexRGB(c.bd)); doc.setLineWidth(0.5); doc.roundedRect(px, py + 2, pw, 10, 5, 5, "FD");
         doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(...hexRGB(c.tx)); doc.text(`${Math.round(x.val)}°`, px + pw / 2, py + 9, { align: "center" });
-        doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(122, 136, 150); doc.text(`normal ~${x.norm}° · ${Math.round(q)}%`, px + pw / 2, py + 17, { align: "center" });
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(122, 136, 150); doc.text(`${lvlX(x)} · ${Math.round(q)}%`, px + pw / 2, py + 17, { align: "center" }); doc.setFontSize(7); doc.text(refX(x).replace(/≈/g, "~"), px + pw / 2, py + 20.5, { align: "center" });
       });
       rightH = 40 + 20;
+    } else if (r.fscore) {
+      const fs = r.fscore, bd = band(fs.pct);
+      doc.addImage(ringPNG(fs.pct, bd.bd), "PNG", xR, y, 30, 30);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(52, 73, 94); doc.text(`Puntaje global ${fs.global}/3`, xR + 34, y + 12);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(107, 123, 138); doc.text("(el componente más bajo)", xR + 34, y + 17);
+      let py = y + 36;
+      fs.comps.forEach(c => {
+        const cb = sBand(c.s); doc.setFillColor(...hexRGB(cb.bg)); doc.setDrawColor(...hexRGB(cb.bd)); doc.roundedRect(xR, py - 4, 12, 6, 2, 2, "FD");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...hexRGB(cb.tx)); doc.text(`${c.s}/3`, xR + 6, py, { align: "center" });
+        doc.setTextColor(52, 73, 94); doc.text(c.n, xR + 15, py);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(107, 123, 138);
+        const ln = doc.splitTextToSize(c.why.replace(/≈/g, "~"), W - M - xR - 15); doc.text(ln, xR + 15, py + 3.6); py += 6 + ln.length * 3.2;
+      });
+      rightH = py - y;
     } else if (r.jumps) {
       const hs = r.jumps.map(j => j.altura).filter(isFinite);
       doc.setFont("helvetica", "bold"); doc.setFontSize(26); doc.setTextColor(52, 73, 94); doc.text(`${f1(Math.max(...hs), 1)} cm`, xR, y + 12);
@@ -2858,7 +3242,7 @@ async function makeReport(r) {
       doc.text("Métrica", M, y); doc.text("Mín", M + 110, y, { align: "right" }); doc.text("Máx", M + 135, y, { align: "right" }); if (!r.photo) doc.text("Rango", M + 165, y, { align: "right" }); y += 2;
       doc.setDrawColor(225, 230, 234); doc.setLineWidth(0.2); doc.line(M, y, W - M, y); y += 4.5;
       doc.setFont("helvetica", "normal"); doc.setTextColor(60, 72, 84);
-      for (const [k, x] of Object.entries(r.metrics)) { ensure(5); doc.text(keyName(k), M, y); doc.text(`${f1(x.mn)}°`, M + 110, y, { align: "right" }); doc.text(`${f1(x.mx)}°`, M + 135, y, { align: "right" }); if (!r.photo) doc.text(`${f1(x.rom)}°`, M + 165, y, { align: "right" }); y += 5; }
+      for (const [k, x] of Object.entries(r.metrics)) { ensure(5); doc.text(keyName(k), M, y); doc.text(`${f1(x.mn, 1)}${U(k)}`, M + 110, y, { align: "right" }); doc.text(`${f1(x.mx, 1)}${U(k)}`, M + 135, y, { align: "right" }); if (!r.photo) doc.text(`${f1(x.rom, 1)}${U(k)}`, M + 165, y, { align: "right" }); y += 5; }
       y += 3;
     }
     // conclusiones y notas
@@ -2866,6 +3250,17 @@ async function makeReport(r) {
     if (concl) { h2("Conclusiones"); para(concl.replace(/•/g, "-"), 10.5); }
     const note = (r.note || "").trim();
     if (note) { h2("Observaciones del profesional"); para(note, 10.5); }
+    const cx = correctives(r).filter(c => !r.exSel || r.exSel.includes(c.k));
+    if (cx.length) {
+      h2("Ejercicios correctivos sugeridos");
+      for (const c of cx) {
+        ensure(22); doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(52, 73, 94); doc.text(san(c.n), M, y);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(122, 136, 150); doc.text(san(`${c.tipo} · por ${c.why}`), M + doc.getTextWidth(san(c.n)) * 10.5 / 8.5 * 0 + 0, y + 4.2); y += 9;
+        c.ej.forEach((e, i) => { ensure(5); doc.setFontSize(9.5); doc.setTextColor(122, 136, 150); doc.text(LVL[i] + ":", M + 3, y); doc.setTextColor(60, 72, 84); doc.text(san(e), M + 26, y); y += 4.8; });
+        y += 2.5;
+      }
+      para("Sugerencias orientativas: la selección, dosis y progresión quedan a criterio del profesional.", 8.5, [122, 136, 150]);
+    }
     // pie
     const pages = doc.getNumberOfPages();
     for (let i = 1; i <= pages; i++) {
@@ -2880,8 +3275,266 @@ async function makeReport(r) {
   btn.textContent = old; btn.disabled = false;
 }
 
+
+// =====================================================================
+// Puntaje de evaluaciones funcionales (0 a 3 por componente, estilo screening) con explicación
+// =====================================================================
+const FUNC = ["ohs", "squat", "sls", "lunge", "posture", "postureP"];
+function postureScore(pid, fr) {
+  const med = fn => { const v = fr.map(fn).filter(isFinite).sort((x, y) => x - y); return v.length ? v[Math.floor(v.length / 2)] : NaN; };
+  const lo = (v, t) => !isFinite(v) ? null : v < t[0] ? 3 : v < t[1] ? 2 : v < t[2] ? 1 : 0;
+  const lr = (v, a2, b2) => !isFinite(v) || Math.abs(v) < 1 ? "" : `, ${v >= 0 ? a2 : b2}`;
+  const comps = [];
+  if (pid === "postureP") {
+    const ap = med(f => f.headPitch), fh = med(f => f.fhAng), tr = med(f => f.trkFlex), kn = med(f => f.kneeAlign), hcm = med(f => f.headFwd);
+    comps.push({ k: "aphead", n: "Inclinación de cabeza adelante/atrás", s: lo(Math.abs(ap), [5, 15, 25]), why: `${f1(Math.abs(ap))}°${lr(ap, "mentón arriba", "mentón abajo")} (excelente <5°, pobre >25°)` });
+    comps.push({ k: "head", n: "Cabeza adelantada", s: lo(Math.max(0, fh), [5, 15, 25]), why: `${f1(Math.abs(fh))}° respecto de la vertical${isFinite(hcm) ? ` (oreja ${f1(Math.abs(hcm), 1)} cm ${hcm >= 0 ? "delante" : "detrás"} del hombro)` : ""} · excelente <5°, pobre >25°` });
+    comps.push({ k: "trs", n: "Tronco (adelante/atrás)", s: lo(Math.abs(tr), [5, 10, 15]), why: `${f1(Math.abs(tr))}°${lr(tr, "hacia adelante", "hacia atrás")} (excelente <5°, pobre >15°)` });
+    comps.push({ k: "kneeh", n: "Alineación de rodillas", s: lo(Math.abs(kn), [2, 5, 8]), why: isFinite(kn) ? `${Math.abs(kn).toFixed(0)}° de ${kn >= 0 ? "flexión" : "hiperextensión"} (excelente <2°, pobre >8°)` : "" });
+  } else {
+    const ht = med(f => f.neckInc), nr = med(f => f.neckRot), sh = med(f => f.shTilt), tr = med(f => f.trkLat), pe = med(f => f.pelTilt);
+    const kn = Math.max(Math.abs(med(f => f.valgusL)), Math.abs(med(f => f.valgusR))), ftL = med(f => f.footRotL), ftR = med(f => f.footRotR);
+    const ft = Math.max(isFinite(ftL) ? Math.abs(ftL) : 0, isFinite(ftR) ? Math.abs(ftR) : 0);
+    comps.push({ k: "headt", n: "Inclinación lateral de cabeza", s: lo(Math.abs(ht), [5, 10, 15]), why: `${f1(Math.abs(ht))}°${lr(ht, "hacia la izquierda", "hacia la derecha")} (excelente <5°, pobre >15°)` });
+    comps.push({ k: "nrot", n: "Rotación de cuello", s: lo(Math.abs(nr), [5, 10, 15]), why: `${f1(Math.abs(nr))}°${lr(nr, "hacia la izquierda", "hacia la derecha")} (excelente <5°, pobre >15°)` });
+    comps.push({ k: "shl", n: "Alineación de hombros", s: lo(Math.abs(sh), [2, 5, 8]), why: `${f1(Math.abs(sh), 1)}° de desnivel${lr(sh, "más bajo el izquierdo", "más bajo el derecho")} (excelente <2°, pobre >8°)` });
+    comps.push({ k: "trl", n: "Tronco (lateral)", s: lo(Math.abs(tr), [5, 10, 15]), why: `${f1(Math.abs(tr), 1)}°${lr(tr, "hacia la izquierda", "hacia la derecha")} (excelente <5°, pobre >15°)` });
+    comps.push({ k: "pel", n: "Alineación de cadera", s: lo(Math.abs(pe), [2, 5, 8]), why: `${f1(Math.abs(pe), 1)}° de desnivel${lr(pe, "más baja la izquierda", "más baja la derecha")} (excelente <2°, pobre >8°)` });
+    comps.push({ k: "kneea", n: "Alineación de rodillas", s: lo(kn, [2, 5, 8]), why: `valgo/varo de hasta ${f1(kn, 1)}° (excelente <2°, pobre >8°)` });
+    if (isFinite(ftL) || isFinite(ftR)) comps.push({ k: "feet", n: "Alineación de pies", s: lo(ft, [5, 15, 25]), why: `rotación izq ${f1(ftL)}° / der ${f1(ftR)}° (excelente <5°, pobre >25°; estimado)` });
+  }
+  const valid = comps.filter(x => x.s != null);
+  if (!valid.length) return null;
+  return { comps: valid, pct: Math.round(valid.reduce((s2, x) => s2 + x.s, 0) / (3 * valid.length) * 100), global: Math.min(...valid.map(x => x.s)) };
+}
+// Sentadilla overhead (y sentadilla): 4 componentes con umbrales de referencia + 2 complementarios que no suman al puntaje
+function ohsScore(pid, fr) {
+  const rows = fr.filter(f => isFinite(f.kneeL) && isFinite(f.kneeR));
+  if (rows.length < 10) return null;
+  const dep = f => (f.kneeL + f.kneeR) / 2;
+  const deep = [...rows].sort((a, b) => dep(b) - dep(a)).slice(0, Math.max(3, Math.round(rows.length * 0.12)));
+  const avg = fn => { const v = deep.map(fn).filter(isFinite); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : NaN; };
+  const p95 = fn => { const v = rows.map(fn).filter(isFinite).sort((a, b) => a - b); return v.length ? v[Math.min(v.length - 1, Math.floor(v.length * 0.95))] : NaN; };
+  const lo = (v, t) => !isFinite(v) ? null : v < t[0] ? 3 : v < t[1] ? 2 : v < t[2] ? 1 : 0;
+  const hi = (v, t) => !isFinite(v) ? null : v >= t[0] ? 3 : v >= t[1] ? 2 : v >= t[2] ? 1 : 0;
+  const stab = p95(f => Math.abs(f.trkLat));
+  const trunk = avg(f => f.trkFlex), shin = avg(f => (f.shinL + f.shinR) / 2), post = Math.abs(trunk - shin);
+  const depth = avg(dep);
+  const comps = [
+    { k: "level", n: "Estabilidad", s: lo(stab, [5, 10, 15]), why: `desvío lateral de la línea media hasta ${f1(stab)}° (excelente <5°, pobre >15°)` },
+    { k: "post", n: "Postura (tronco paralelo a la tibia)", s: lo(post, [5, 10, 15]), why: `diferencia tronco–tibia en el punto más bajo: ${f1(post)}° (tronco ${f1(trunk)}°, tibia ${f1(shin)}°; excelente <5°, pobre >15°)` },
+    { k: "depth", n: "Profundidad", s: hi(depth, [120, 105, 90]), why: `flexión de rodilla en el punto más bajo: ${f1(depth)}° (excelente >120°, pobre <90°)` }
+  ];
+  if (pid === "ohs") {
+    const arms = Math.min(avg(f => f.shElevL), avg(f => f.shElevR));
+    comps.push({ k: "arms", n: "Movilidad de hombros", s: hi(arms, [178, 165, 150]), why: `flexión de hombros en el punto más bajo: ${f1(arms)}° (excelente ≥180°, pobre <150°)` });
+  }
+  const vL = p95(f => f.valgusL), vR = p95(f => f.valgusR), asym = avg(f => Math.abs(f.kneeL - f.kneeR));
+  comps.push({ k: "knee", n: "Alineación de rodillas", extra: true, s: lo(Math.max(isFinite(vL) ? vL : 0, isFinite(vR) ? vR : 0), [5, 10, 15]), why: `valgo máx ${f1(vL)}° izq / ${f1(vR)}° der` });
+  comps.push({ k: "sym", n: "Simetría izquierda/derecha", extra: true, s: lo(asym, [5, 10, 15]), why: `diferencia de flexión entre rodillas abajo: ${f1(asym)}°` });
+  const valid = comps.filter(c => c.s != null), main = valid.filter(c => !c.extra);
+  if (!main.length) return null;
+  return { comps: valid, pct: Math.round(main.reduce((a, c) => a + c.s, 0) / (3 * main.length) * 100), global: Math.min(...main.map(c => c.s)) };
+}
+function slsScore(fr) {
+  const lo = (v, t) => !isFinite(v) ? null : v < t[0] ? 3 : v < t[1] ? 2 : v < t[2] ? 1 : 0;
+  const hi = (v, t) => !isFinite(v) ? null : v >= t[0] ? 3 : v >= t[1] ? 2 : v >= t[2] ? 1 : 0;
+  const q = (arr, p) => { const v = arr.filter(isFinite).sort((a, b) => a - b); return v.length ? v[Math.min(v.length - 1, Math.floor(v.length * p))] : NaN; };
+  const legs = {};
+  for (const [sd, o] of [["L", "R"], ["R", "L"]]) {
+    const st = fr.filter(f => f["knee" + sd] > 30 && f["knee" + sd] > (f["knee" + o] || 0) + 15);
+    if (st.length < 5) continue;
+    const deep = [...st].sort((a, b) => b["knee" + sd] - a["knee" + sd]).slice(0, Math.max(3, Math.round(st.length * 0.15)));
+    legs[sd] = {
+      valg: q(st.map(f => f["valgus" + sd]), 0.95), lat: q(st.map(f => Math.abs(f.trkLat)), 0.95), pel: q(st.map(f => Math.abs(f.pelTilt)), 0.95),
+      flex: q(st.map(f => Math.abs(f.trkFlex)), 0.95), knee: deep.reduce((a, f) => a + f["knee" + sd], 0) / deep.length
+    };
+  }
+  const sides = Object.keys(legs); if (!sides.length) return null;
+  const nm = { L: "izq", R: "der" };
+  const both = (k, d = 0) => sides.map(sd => `${nm[sd]} ${f1(legs[sd][k], d)}°`).join(" / ");
+  const worst = (k, fn) => Math.min(...sides.map(sd => fn(legs[sd][k])).filter(x => x != null));
+  const comps = [
+    { k: "knee", n: "Valgo de rodilla", s: worst("valg", v => lo(Math.max(0, v), [5, 7, 10])), why: `pierna de apoyo: ${both("valg", 1)} (excelente <5°, pobre >10°)` },
+    { k: "level", n: "Flexión lateral de tronco", s: worst("lat", v => lo(v, [5, 10, 15])), why: `${both("lat")} (excelente <5°, pobre >15°)` },
+    { k: "pel", n: "Inclinación de pelvis", s: worst("pel", v => lo(v, [5, 10, 15])), why: `${both("pel")} (excelente <5°, pobre >15°)` },
+    { k: "tflex", n: "Flexión de tronco (adelante/atrás)", s: worst("flex", v => lo(v, [5, 10, 15])), why: `${both("flex")} respecto de la posición calibrada (excelente <5°, pobre >15°)` },
+    { k: "depth", n: "Flexión de rodilla", s: worst("knee", v => hi(v, [90, 75, 60])), why: `${both("knee")} en el punto más bajo (excelente >90°, pobre <60°)` }
+  ].filter(c => isFinite(c.s));
+  if (!comps.length) return null;
+  return { comps, pct: Math.round(comps.reduce((a, c) => a + c.s, 0) / (3 * comps.length) * 100), global: Math.min(...comps.map(c => c.s)), sides };
+}
+// Estocada: 6 componentes con umbrales de referencia, evaluados con cada pierna adelante (se informa la peor)
+function lungeScore(fr) {
+  const lo = (v, t) => !isFinite(v) ? null : v < t[0] ? 3 : v < t[1] ? 2 : v < t[2] ? 1 : 0;
+  const hi = (v, t) => !isFinite(v) ? null : v >= t[0] ? 3 : v >= t[1] ? 2 : v >= t[2] ? 1 : 0;
+  const q = (arr, p) => { const v = arr.filter(isFinite).sort((a, b) => a - b); return v.length ? v[Math.min(v.length - 1, Math.floor(v.length * p))] : NaN; };
+  const legs = {};
+  for (const [sd, o] of [["L", "R"], ["R", "L"]]) {
+    // pierna adelante = la de mayor flexión de cadera, con la rodilla flexionada
+    const st = fr.filter(f => f["knee" + sd] > 30 && f["hipFlex" + sd] > (f["hipFlex" + o] || 0) + 20);
+    if (st.length < 5) continue;
+    const deep = [...st].sort((a, b) => b["knee" + sd] - a["knee" + sd]).slice(0, Math.max(3, Math.round(st.length * 0.15)));
+    const avg = k => deep.reduce((a, f) => a + (isFinite(f[k]) ? f[k] : 0), 0) / deep.length;
+    legs[sd] = { valg: q(st.map(f => f["valgus" + sd]), 0.95), stab: q(st.map(f => Math.abs(f.trkLat)), 0.95), post: q(st.map(f => Math.abs(f.trkFlex)), 0.95),
+      depth: avg("knee" + sd), hip: avg("hipFlex" + sd), ank: avg("ankle" + sd) };
+  }
+  const sides = Object.keys(legs); if (!sides.length) return null;
+  const nm = { L: "izq", R: "der" };
+  const both = (k, d = 0) => sides.map(sd => `${nm[sd]} adelante ${f1(legs[sd][k], d)}°`).join(" / ");
+  const worst = (k, fn) => Math.min(...sides.map(sd => fn(legs[sd][k])).filter(x => x != null));
+  const comps = [
+    { k: "knee", n: "Valgo de rodilla", s: worst("valg", v => lo(Math.max(0, v), [5, 10, 15])), why: `rodilla de adelante: ${both("valg", 1)} (excelente <5°, pobre >15°)` },
+    { k: "level", n: "Estabilidad", s: worst("stab", v => lo(v, [5, 10, 15])), why: `desvío de la línea media respecto de la vertical: ${both("stab")} (excelente <5°, pobre >15°)` },
+    { k: "tflex", n: "Postura", s: worst("post", v => lo(v, [5, 10, 15])), why: `inclinación del tronco respecto de la vertical: ${both("post")} (excelente <5°, pobre >15°)` },
+    { k: "depth", n: "Profundidad", s: worst("depth", v => hi(v, [90, 75, 60])), why: `flexión de la rodilla de adelante: ${both("depth")} (excelente >90°, pobre <60°)` },
+    { k: "hipm", n: "Movilidad de cadera", s: worst("hip", v => hi(v, [90, 75, 60])), why: `flexión de la cadera de adelante: ${both("hip")} (excelente >90°, pobre <60°)` },
+    { k: "ankm", n: "Movilidad de tobillo", s: worst("ank", v => lo(Math.abs(v), [10, 20, 30])), why: `dorsiflexión con talón apoyado: ${both("ank")} (criterio de referencia: excelente <10°, pobre >30°)` }
+  ].filter(c => isFinite(c.s));
+  if (!comps.length) return null;
+  return { comps, pct: Math.round(comps.reduce((a, c) => a + c.s, 0) / (3 * comps.length) * 100), global: Math.min(...comps.map(c => c.s)), sides };
+}
+function funcScore(pid, fr) {
+  if (!FUNC.includes(pid)) return null;
+  if (pid === "posture" || pid === "postureP") return postureScore(pid, fr);
+  if (pid === "sls") return slsScore(fr);
+  if (pid === "ohs" || pid === "squat") return ohsScore(pid, fr);
+  if (pid === "lunge") return lungeScore(fr);
+  const rows = fr.filter(f => isFinite(f.kneeL) || isFinite(f.kneeR));
+  if (rows.length < 10) return null;
+  const dep = f => pid === "ohs" || pid === "squat" ? (f.kneeL + f.kneeR) / 2 : Math.max(f.kneeL || 0, f.kneeR || 0);
+  const deep = [...rows].filter(f => isFinite(dep(f))).sort((a, b) => dep(b) - dep(a)).slice(0, Math.max(3, Math.round(rows.length * 0.12)));
+  const avg = (arr, fn) => { const v = arr.map(fn).filter(isFinite); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : NaN; };
+  const p95 = fn => { const v = rows.map(fn).filter(isFinite).sort((a, b) => a - b); return v.length ? v[Math.min(v.length - 1, Math.floor(v.length * 0.95))] : NaN; };
+  const hi = (v, t) => !isFinite(v) ? null : v >= t[0] ? 3 : v >= t[1] ? 2 : v >= t[2] ? 1 : 0;   // más es mejor
+  const lo = (v, t) => !isFinite(v) ? null : v < t[0] ? 3 : v < t[1] ? 2 : v < t[2] ? 1 : 0;      // menos es mejor
+  const comps = [];
+  const depth = avg(deep, dep);
+  comps.push({ k: "depth", n: "Profundidad", s: hi(depth, pid === "sls" ? [80, 60, 40] : [110, 90, 60]), why: `flexión de rodilla en el punto más bajo: ${f1(depth)}°${depth >= 110 ? " (muslo por debajo de la horizontal)" : depth >= 90 ? " (muslo cerca de la horizontal)" : ""}` });
+  const vL = p95(f => f.valgusL), vR = p95(f => f.valgusR), vMax = Math.max(isFinite(vL) ? vL : -99, isFinite(vR) ? vR : -99);
+  const vrMin = Math.min(...rows.map(f => Math.min(f.valgusL, f.valgusR)).filter(isFinite));
+  const knee = Math.max(vMax, isFinite(vrMin) ? -vrMin : 0);
+  comps.push({ k: "knee", n: "Alineación de rodillas", s: lo(knee, [5, 10, 15]), why: `valgo máx ${f1(vL)}° izq / ${f1(vR)}° der${vrMin < -8 ? ` · varo hasta ${f1(-vrMin)}°` : ""}` });
+  const lat = p95(f => Math.abs(f.trkLat)), pel = p95(f => Math.abs(f.pelTilt));
+  comps.push({ k: "level", n: pid === "sls" ? "Control de pelvis y tronco" : "Tronco y pelvis nivelados", s: lo(Math.max(isFinite(lat) ? lat : 0, isFinite(pel) ? pel : 0), [3, 6, 10]), why: `inclinación de tronco hasta ${f1(lat)}° · desnivel de pelvis hasta ${f1(pel)}°` });
+  if (pid === "ohs" || pid === "squat") {
+    const asym = avg(deep, f => Math.abs(f.kneeL - f.kneeR));
+    comps.push({ k: "sym", n: "Simetría izquierda/derecha", s: lo(asym, [5, 10, 15]), why: `diferencia de flexión entre rodillas abajo: ${f1(asym)}°` });
+  }
+  if (pid === "ohs") {
+    const arms = Math.min(avg(deep, f => f.shElevL), avg(deep, f => f.shElevR));
+    comps.push({ k: "arms", n: "Brazos arriba", s: hi(arms, [160, 145, 120]), why: `elevación de brazos en el punto más bajo: ${f1(arms)}° (lo ideal es cerca de 170–180°)` });
+  }
+  const valid = comps.filter(c => c.s != null);
+  if (!valid.length) return null;
+  const pctv = Math.round(valid.reduce((a, c) => a + c.s, 0) / (3 * valid.length) * 100);
+  return { comps: valid, pct: pctv, global: Math.min(...valid.map(c => c.s)) };
+}
+function funcHints(fs) {
+  const g = k => (fs.comps.find(c => c.k === k) || {}).s;
+  const out = [];
+  if (g("head") != null && g("head") <= 1) out.push("Cabeza adelantada: frecuente con muchas horas de pantalla; revisar flexores profundos de cuello y movilidad torácica.");
+  if (g("shf") != null && g("shf") <= 1) out.push("Hombros adelantados: revisar movilidad torácica, pectoral menor y fuerza de la musculatura escapular.");
+  if (g("hipf") != null && g("hipf") <= 1) out.push("Cadera desplazada respecto del tobillo: revisar el control postural de cadera y tronco.");
+  if (g("kneeh") != null && g("kneeh") <= 1) out.push("Rodillas en flexión o hiperextensión de pie: revisar control de cuádriceps e isquiotibiales.");
+  if ((g("shl") != null && g("shl") <= 1) || (g("pel") != null && g("pel") <= 1)) out.push("Desnivel de hombros o pelvis en reposo: conviene repetir la toma y, si se mantiene, evaluar cadena posterior y apoyo de pies.");
+  if (g("depth") != null && g("depth") <= 1 && g("arms") != null && g("arms") <= 1) out.push("Profundidad y brazos limitados a la vez: revisar dorsiflexión de tobillo y movilidad de columna torácica y hombros.");
+  else if (g("depth") != null && g("depth") <= 1) out.push("Poca profundidad: puede deberse a movilidad de tobillo o cadera, falta de fuerza o falta de control/confianza en el movimiento.");
+  if (g("knee") != null && g("knee") <= 1) out.push("Rodillas que se van hacia adentro: revisar fuerza y control de cadera (glúteo medio y rotadores). Un tronco muy erguido carga más el cuádriceps y suele empeorarlo.");
+  if (g("level") != null && g("level") <= 1) out.push("Tronco o pelvis que se desnivelan: posible déficit de fuerza o control de un miembro inferior; conviene comparar con sentadilla a una pierna de cada lado.");
+  if (g("sym") != null && g("sym") <= 1) out.push("Diferencia de flexión entre rodillas: el peso se carga más sobre un lado.");
+  if (g("pel") != null && g("pel") <= 1 && !(g("level") <= 1)) out.push("Caída de pelvis en apoyo unipodal: revisar fuerza de abductores de cadera (glúteo medio).");
+  if (g("post") != null && g("post") <= 1) out.push("Tronco que no acompaña a la tibia: si se inclina mucho más que la tibia, revisar dorsiflexión de tobillo y control de core; si queda muy erguido, la carga recae en el cuádriceps.");
+  if (g("hipm") != null && g("hipm") <= 1) out.push("Movilidad de cadera limitada en la estocada: revisar flexores y extensores de cadera.");
+  if (g("tflex") != null && g("tflex") <= 1) out.push("Mucha inclinación del tronco hacia adelante o atrás: revisar fuerza y estabilidad del core y la zona lumbar.");
+  if (g("arms") != null && g("arms") <= 1 && !(g("depth") <= 1)) out.push("Brazos que caen hacia adelante: revisar movilidad de hombros y columna torácica.");
+  return out;
+}
+const sBand = n => n >= 3 ? band(95) : n === 2 ? band(80) : n === 1 ? band(60) : band(20);
+function funcScoreHTML(fs, compact = false) {
+  if (!fs) return "";
+  const b = band(fs.pct);
+  if (compact) return `<span style="background:${b.bg};color:${b.tx};border:1px solid ${b.bd};border-radius:999px;padding:2px 10px;font-weight:700;font-size:13px">${fs.global}/3 · ${fs.pct}%</span>`;
+  const R = 54, C = 2 * Math.PI * R;
+  return `<svg viewBox="0 0 140 140" width="140" height="140" style="display:block;margin:4px auto 6px"><circle cx="70" cy="70" r="${R}" fill="none" stroke="#E6EEE9" stroke-width="12"/>
+    <circle cx="70" cy="70" r="${R}" fill="none" stroke="${b.bd}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C * fs.pct / 100} ${C}" transform="rotate(-90 70 70)"/>
+    <text x="70" y="78" text-anchor="middle" font-family="Barlow, sans-serif" font-weight="700" font-size="28" fill="#34495E">${fs.pct}%</text></svg>
+    <p style="text-align:center;margin:0 0 10px;color:#34495E;font-weight:700">Puntaje global ${fs.global}/3 <span style="font-weight:400;color:#7A8896">(el componente más bajo)</span></p>` +
+    fs.comps.map(c => { const cb = sBand(c.s); return `<div style="display:flex;gap:10px;align-items:flex-start;border-top:1px solid #EEF1F4;padding:8px 0">
+      <span style="flex:0 0 auto;background:${cb.bg};border:1.5px solid ${cb.bd};color:${cb.tx};border-radius:10px;padding:2px 9px;font:700 16px Barlow,sans-serif">${c.s}/3</span>
+      <div><b style="color:#34495E">${c.n}</b> <span style="color:${cb.tx};font-size:13px;font-weight:700">${["Pobre", "Regular", "Bueno", "Excelente"][c.s]}</span>${c.extra ? ' <span style="font-size:11px;color:#7A8896">(complementario, no suma al puntaje)</span>' : ""}<div style="font-size:13px;color:#6B7B8A">${c.why}</div></div></div>`; }).join("") +
+    `<p style="font-size:12px;color:#7A8896;margin:8px 0 0">3 Excelente · 2 Bueno · 1 Regular · 0 Pobre. Criterios de screening funcional, medidos por cámara.</p>`;
+}
+
+
+// =====================================================================
+// Ejercicios correctivos sugeridos según lo encontrado (con regresión / base / progresión)
+// =====================================================================
+const CORR = {
+  ankle: { n: "Movilidad de tobillo (dorsiflexión)", tipo: "Movilidad", ej: ["Rodilla a la pared, sin carga", "Movilización de tobillo con banda (rodilla a la pared)", "Sentadilla goblet con talones apoyados y pausa abajo"] },
+  hip: { n: "Control de cadera / rodilla", tipo: "Activación y estabilidad", ej: ["Abducción de cadera en lateral (clamshell) con banda", "Caminata lateral con banda / sentadilla con banda en las rodillas", "Step-down lateral controlado y sentadilla búlgara cuidando la rodilla"] },
+  thoracic: { n: "Movilidad torácica y de hombros", tipo: "Movilidad", ej: ["Extensión torácica sobre foam roller", "Deslizamientos en la pared (wall slides)", "Sentadilla overhead con bastón y pausa abajo"] },
+  depth: { n: "Profundidad de sentadilla", tipo: "Movilidad y fuerza", ej: ["Sentadilla a cajón alto", "Sentadilla goblet con pausa", "Sentadilla con barra bajando la altura del cajón progresivamente"] },
+  pelvis: { n: "Estabilidad de pelvis y tronco", tipo: "Estabilidad", ej: ["Puente de glúteo a una pierna", "Plancha lateral con abducción de cadera", "Sentadilla a una pierna a cajón"] },
+  sym: { n: "Fuerza unilateral (lado más débil)", tipo: "Fuerza", ej: ["Split squat isométrico", "Estocada inversa con carga", "Sentadilla búlgara, con más volumen del lado débil"] },
+  neck: { n: "Movilidad cervical", tipo: "Movilidad", ej: ["Movilidad activa cervical dentro del rango sin dolor", "Estiramiento de trapecio superior y elevador de la escápula", "Retracción cervical (chin tuck) progresando a resistencia con banda"] },
+  shoulder: { n: "Movilidad de hombro", tipo: "Movilidad", ej: ["Flexión de hombro asistida con bastón", "Estiramiento de dorsal ancho y pectoral menor", "Press overhead liviano en rango completo"] },
+  trunk: { n: "Movilidad de tronco", tipo: "Movilidad", ej: ["Open books (rotación torácica en lateral)", "Rotaciones torácicas en cuadrupedia", "Pallof press con rotación"] },
+  hipflex: { n: "Movilidad de cadera", tipo: "Movilidad", ej: ["Rodilla al pecho en supino", "Movilidad 90/90", "Elevación de rodilla de pie con pausa arriba"] },
+  knee: { n: "Movilidad de rodilla", tipo: "Movilidad", ej: ["Deslizamiento de talón en supino", "Estiramiento de cuádriceps", "Sentadilla con progresión de profundidad"] },
+  post: { n: "Flexibilidad de cadena posterior", tipo: "Movilidad", ej: ["Estiramiento de isquiotibiales en supino con banda", "Bisagra de cadera con bastón (hip hinge)", "Peso muerto rumano liviano con rango controlado"] },
+  hiprot: { n: "Movilidad de rotación de cadera", tipo: "Movilidad", ej: ["Rotaciones de cadera 90/90 en el suelo, con apoyo de manos", "Transiciones 90/90 sin manos", "Rotaciones controladas de cadera de pie (CARs) y con banda"] },
+  landing: { n: "Técnica de aterrizaje", tipo: "Reeducación neuromuscular", ej: ["Aterrizaje desde cajón bajo, sosteniendo 2 s (stick landing)", "Saltos al frente con caída controlada en dos piernas", "Saltos con caída a una pierna controlando la rodilla"] },
+};
+const LVL = ["Regresión", "Base", "Progresión"];
+function correctives(r) {
+  const out = [], add = (k, why) => { if (!out.some(o => o.k === k)) out.push({ k, why, ...CORR[k] }); };
+  if (r.fscore) {
+    const g = k => (r.fscore.comps.find(c => c.k === k) || {}).s;
+    if (g("depth") != null && g("depth") <= 1 && g("arms") != null && g("arms") <= 1) { add("ankle", "profundidad y brazos limitados"); add("thoracic", "brazos que caen hacia adelante"); }
+    else if (g("depth") != null && g("depth") <= 1) { add("depth", "poca profundidad"); add("ankle", "poca profundidad"); }
+    if (g("arms") != null && g("arms") <= 1) add("thoracic", "brazos que no quedan arriba");
+    if (g("knee") != null && g("knee") <= 1) add("hip", "rodillas que se van hacia adentro");
+    if (g("level") != null && g("level") <= 1) add("pelvis", "desnivel de tronco o pelvis");
+    if (g("sym") != null && g("sym") <= 1) add("sym", "asimetría entre lados");
+    if (g("head") != null && g("head") <= 1) add("neck", "cabeza adelantada");
+    if (g("headt") != null && g("headt") <= 1) add("neck", "cabeza inclinada");
+    if (g("aphead") != null && g("aphead") <= 1) add("neck", "cabeza inclinada adelante/atrás");
+    if (g("nrot") != null && g("nrot") <= 1) add("neck", "cabeza rotada en reposo");
+    if (g("trs") != null && g("trs") <= 1) add("pelvis", "tronco inclinado en reposo");
+    if (g("kneea") != null && g("kneea") <= 1) add("hip", "rodillas desalineadas");
+    if (g("feet") != null && g("feet") <= 1) add("hiprot", "pies rotados");
+    if (g("shf") != null && g("shf") <= 1) add("thoracic", "hombros adelantados");
+    if ([g("hipf"), g("pel"), g("trl"), g("shl")].some(x => x != null && x <= 1)) add("pelvis", "desnivel o desplazamiento postural");
+    if (g("kneeh") != null && g("kneeh") <= 1) add("hip", "rodillas en flexión o hiperextensión de pie");
+    if (g("tflex") != null && g("tflex") <= 1) add("pelvis", "inclinación excesiva del tronco");
+    if (g("post") != null && g("post") <= 1) { add("ankle", "tronco y tibia no paralelos"); add("pelvis", "control de tronco en la sentadilla"); }
+    if (g("hipm") != null && g("hipm") <= 1) add("hipflex", "movilidad de cadera limitada");
+    if (g("ankm") != null && g("ankm") <= 1) add("ankle", "movilidad de tobillo");
+  }
+  const sv = sideVals(r);
+  if (sv && sv.some(x => isFinite(x.val) && pctX(x) < 75)) {
+    const low = sv.filter(x => pctX(x) < 75).map(x => x.label.toLowerCase()).join(" y ");
+    const map = { neckLat: "neck", neckRot: "neck", cervFlex: "neck", shFlex: "shoulder", shAbd: "shoulder", shRot: "shoulder", trkFE: "post", trkLat: "trunk", trkRot: "trunk", thorRot: "trunk", hipRotS: "hiprot", hipFlex: "hipflex", kneeFlex: "knee", ankle: "ankle" };
+    if (map[r.proto]) add(map[r.proto], `rango reducido (${low})`);
+  }
+  if (r.jumps) { const v = Math.max(...r.jumps.flatMap(j => [j.valCaiL, j.valCaiR]).filter(isFinite)); if (v >= 10) add("landing", `valgo de ${v.toFixed(0)}° en la caída`); }
+  return out;
+}
+function renderCorrectives(r) {
+  const cx = correctives(r);
+  if (!cx.length) { $("rEx").innerHTML = '<p class="note2">Sin ejercicios sugeridos: no se encontraron limitaciones marcadas.</p>'; return; }
+  const selSet = new Set(r.exSel || cx.map(c => c.k));
+  $("rEx").innerHTML = cx.map(c => `<label style="display:block;border-top:1px solid #EEF1F4;padding:8px 0;cursor:pointer">
+    <input type="checkbox" data-ex="${c.k}" ${selSet.has(c.k) ? "checked" : ""} style="margin-right:8px">
+    <b>${c.n}</b> <span class="note2">· ${c.tipo} · por ${c.why}</span>
+    <div style="font-size:14px;color:#4D5E6E;margin:4px 0 0 26px">${c.ej.map((e, i) => `<div><span style="color:#7A8896">${LVL[i]}:</span> ${e}</div>`).join("")}</div></label>`).join("") +
+    '<p class="note2" style="margin-top:6px">Sugerencias orientativas: ajustá ejercicios, dosis y progresión según tu criterio profesional. Los tildados se incluyen en el PDF.</p>';
+  $("rEx").onchange = () => { r.exSel = [...$("rEx").querySelectorAll("[data-ex]:checked")].map(x => x.dataset.ex); saveDB(); };
+}
+
 // ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
-const APP_VERSION = "3 oct 2026 (r)";
+const APP_VERSION = "4 oct 2026 (k)";
 $("verTxt").textContent = APP_VERSION;
 async function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
@@ -2941,7 +3594,7 @@ async function openResult(id, scrollToReport = false) {
   curRes = r; freeUrls();
   const a = athObj(r.ath), d = new Date(r.date);
   $("rTitle").textContent = r.name;
-  const scH = scoreHTML(r); $("rScore").innerHTML = scH; $("rScoreCard").classList.toggle("hidden", !scH);
+  const scH = scoreHTML(r) || funcScoreHTML(r.fscore); $("rScore").innerHTML = scH; $("rScoreCard").classList.toggle("hidden", !scH);
   $("rSub").textContent = `${a ? a.n : ""} · ${d.toLocaleDateString("es-AR")} ${d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })} · ${({ front: "Frente", back: "Espalda", L: "Perfil izq", R: "Perfil der" }[r.view] || "")}${r.photo ? "" : r.calib ? " · calibrado" : " · sin calibrar"}`;
   show("scrResult");
   const m = await idbGet(id);
@@ -2971,7 +3624,7 @@ async function openResult(id, scrollToReport = false) {
     setTimeout(() => drawResChart(ser, $("rChartSel").value), 30);
   }
   // tabla de mediciones
-  $("rTable").innerHTML = r.metrics ? `<tr><th>Métrica</th><th>Mín</th><th>Máx</th><th>Rango</th></tr>` + Object.entries(r.metrics).map(([k, x]) => `<tr><td>${keyName(k)}</td><td>${f1(x.mn)}°</td><td>${f1(x.mx)}°</td><td>${r.photo ? "–" : f1(x.rom) + "°"}</td></tr>`).join("") : "<tr><td>Sin mediciones de ángulos</td></tr>";
+  $("rTable").innerHTML = r.metrics ? `<tr><th>Métrica</th><th>Mín</th><th>Máx</th><th>Rango</th></tr>` + Object.entries(r.metrics).map(([k, x]) => `<tr><td>${keyName(k)}</td><td>${f1(x.mn, MK[k] && MK[k].u ? 1 : 0)}${U(k)}</td><td>${f1(x.mx, MK[k] && MK[k].u ? 1 : 0)}${U(k)}</td><td>${r.photo ? "–" : f1(x.rom, MK[k] && MK[k].u ? 1 : 0) + U(k)}</td></tr>`).join("") : "<tr><td>Sin mediciones de ángulos</td></tr>";
   // notas
   $("rNote").value = r.note || "";
   $("rNote").oninput = () => { r.note = $("rNote").value; saveDB(); };
@@ -2979,6 +3632,7 @@ async function openResult(id, scrollToReport = false) {
   $("rConcl").oninput = () => { r.concl = $("rConcl").value; saveDB(); };
   $("rReConcl").onclick = () => { if (!r.concl || confirm("¿Reemplazar las conclusiones por las automáticas?")) { r.concl = null; $("rConcl").value = conclusions(r); saveDB(); } };
   $("rPdf").onclick = () => makeReport(r);
+  renderCorrectives(r);
   if (scrollToReport) setTimeout(() => $("rReportCard").scrollIntoView({ behavior: "smooth", block: "start" }), 250);
   // comparar
   const others = db.res.filter(x => x.ath === r.ath && x.proto === r.proto && !!x.photo === !!r.photo && x.id !== r.id).sort((x, y) => y.date.localeCompare(x.date));
