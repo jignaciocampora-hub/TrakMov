@@ -3,14 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Artio · Análisis de movimiento</title>
+<title>TrakMov · Análisis biomecánico</title>
+<link rel="icon" type="image/png" href="favicon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#1C232B">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Artio">
+<meta name="apple-mobile-web-app-title" content="TrakMov">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Barlow:wght@400;600&display=swap" rel="stylesheet">
 <style>
@@ -186,7 +187,7 @@
 <body class="light">
 <div id="shell">
   <section id="scrHome" class="scr">
-    <div style="font:800 15px Barlow,sans-serif;letter-spacing:3px;color:#5BBF8A">ARTIO</div>
+    <div style="display:flex;align-items:center;gap:10px"><img src="icon-192.png" alt="" style="width:40px;height:40px;border-radius:10px"><span style="font:800 22px Barlow,sans-serif;letter-spacing:.5px;color:#34495E">Trak<span style="color:#5BBF8A">Mov</span></span></div>
     <h1 class="lt">¡Hola!</h1>
     <p class="sub">¿Cómo querés empezar?</p>
     <button class="bigcard" id="goVideo"><span class="ill" data-fig="squatF"></span><span style="flex:1"><h2>Analizar un video</h2><p>Cargá cualquier video, medí ángulos de todo el cuerpo, recorrelo cuadro a cuadro y miralo en 3D.</p></span><span class="chev">›</span></button>
@@ -2716,7 +2717,7 @@ function scoreHTML(r, compact = false) {
 // =====================================================================
 // Conclusiones automáticas + informe PDF
 // =====================================================================
-const APP_NAME = "Artio";
+const APP_NAME = "TrakMov";
 function conclusions(r) {
   const out = [], p = PR[r.proto], M = r.metrics || {};
   const sv = sideVals(r);
@@ -2880,7 +2881,7 @@ async function makeReport(r) {
 }
 
 // ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
-const APP_VERSION = "3 oct 2026 (p)";
+const APP_VERSION = "3 oct 2026 (q)";
 $("verTxt").textContent = APP_VERSION;
 async function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
