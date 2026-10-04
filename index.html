@@ -3023,6 +3023,33 @@ const lvlX = x => { if (lowBetter(x)) return x.val <= x.sc.full ? "Excelente" : 
   if (x.sc) return x.val >= x.sc.full ? "Excelente" : x.val >= x.sc.mid ? "Bueno" : x.val >= x.sc.zero ? "Regular" : "Pobre";
   const q = pct(x.val, x.norm); return q >= 90 ? "Excelente" : q >= 75 ? "Bueno" : q >= 50 ? "Regular" : "Pobre"; };
 const lvlBand = x => ({ Excelente: band(95), Bueno: band(80), Regular: band(60), Pobre: band(20) })[lvlX(x)];
+const LVL4 = ["Excelente", "Bueno", "Regular", "Pobre"];
+const lvlC = l => ({ Excelente: band(95), Bueno: band(80), Regular: band(60), Pobre: band(20) })[l];
+function refTable(sv) {
+  // agrupa componentes con el mismo criterio (por ejemplo izquierda y derecha) en una sola columna
+  const cols = [];
+  for (const x of sv) {
+    const key = x.sc ? JSON.stringify(x.sc) : "n" + x.norm;
+    const name = x.label.replace(/ (izq|der)$/, "").replace(/^(Izquierda|Derecha)$/, "Ambos lados");
+    let c = cols.find(c2 => c2.key === key);
+    if (!c) { c = { key, name, x }; cols.push(c); } else if (!c.name.includes(name) && name !== "Ambos lados") c.name += " / " + name;
+  }
+  const rng = x => {
+    if (x.sc) {
+      const { zero: z, mid: m, full: f } = x.sc;
+      return x.sc.full < x.sc.zero ? [`<${f}°`, `${f}–${m}°`, `${m}–${z}°`, `>${z}°`] : [`≥${f}°`, `${m}–${f}°`, `${z}–${m}°`, `<${z}°`];
+    }
+    const n = x.norm; return [`≥${Math.round(n * 0.9)}°`, `${Math.round(n * 0.75)}–${Math.round(n * 0.9)}°`, `${Math.round(n * 0.5)}–${Math.round(n * 0.75)}°`, `<${Math.round(n * 0.5)}°`];
+  };
+  return { cols: cols.map(c => c.name), rows: LVL4.map((l, i) => [l, ...cols.map(c => rng(c.x)[i])]) };
+}
+function refTableHTML(sv) {
+  const t = refTable(sv);
+  return `<div style="overflow-x:auto;margin-top:12px"><table style="width:100%;border-collapse:collapse;font-size:13px;text-align:center">
+    <tr><th style="text-align:left;padding:5px 8px;color:#7A8896">Nivel</th>${t.cols.map(c => `<th style="padding:5px 8px;color:#7A8896">${c}</th>`).join("")}</tr>
+    ${t.rows.map(r => { const c = lvlC(r[0]); return `<tr><td style="text-align:left;padding:5px 8px;background:${c.bg};color:${c.tx};font-weight:700;border-left:4px solid ${c.bd}">${r[0]}</td>${r.slice(1).map(v => `<td style="padding:5px 8px;background:${c.bg}66;color:#34495E">${v}</td>`).join("")}</tr>`; }).join("")}
+  </table></div>`;
+}
 const refX = x => lowBetter(x) ? `excelente <${x.sc.full}° · pobre >${x.sc.zero}°` : x.sc ? `excelente ≥${x.sc.full}° · pobre <${x.sc.zero}°` : `normal ≈ ${x.norm}°`;
 function sideVals0(r) {
   const p = PR[r.proto], n = NORMS[r.proto]; if (!p || !n || !r.metrics) return null;
@@ -3080,7 +3107,7 @@ function scoreHTML(r, compact = false) {
       <div style="background:${c.bg};border:1.5px solid ${c.bd};color:${c.tx};border-radius:999px;padding:6px 0;font:700 18px Barlow,sans-serif">${Math.round(x.val)}°</div>
       <div style="font-size:12px;color:${c.tx};margin-top:3px;font-weight:700">${lvlX(x)} · ${Math.round(q)}%</div>
       <div style="font-size:11px;color:#7A8896">${refX(x)}</div></div>`; }).join("")}</div>`;
-  return ring + pills + `<p style="font-size:12px;color:#7A8896;margin:10px 0 0;text-align:center">${sv.some(x => x.sc) ? "Puntaje lineal entre el umbral de «pobre» (0%) y el de «excelente» (100%)." : "Puntaje = rango alcanzado respecto del valor normal de referencia."} 🟢 Excelente/Bueno · 🟡 Regular · 🟠 Pobre</p>`;
+  return ring + pills + refTableHTML(sv) + `<p style="font-size:12px;color:#7A8896;margin:10px 0 0;text-align:center">${sv.some(x => x.sc) ? "Puntaje lineal entre el umbral de «pobre» (0%) y el de «excelente» (100%)." : "Puntaje = rango alcanzado respecto del valor normal de referencia."} 🟢 Excelente/Bueno · 🟡 Regular · 🟠 Pobre</p>`;
 }
 
 
@@ -3211,14 +3238,14 @@ async function makeReport(r, share = false) {
       const score = Math.round(sv.reduce((s2, x) => s2 + pctX(x), 0) / sv.length), bd = band(score);
       doc.addImage(ringPNG(score, bd.bd), "PNG", xR, y, 34, 34);
       doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(52, 73, 94); doc.text("Puntuación", xR + 38, y + 10);
-      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(107, 123, 138); doc.text(doc.splitTextToSize("Rango alcanzado respecto del valor normal de referencia en adultos.", W - M - xR - 38), xR + 38, y + 15);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(107, 123, 138); doc.text(doc.splitTextToSize(sv.some(x => x.sc) ? "Puntaje lineal entre los umbrales de referencia de cada componente (ver tabla)." : "Rango alcanzado respecto del valor normal de referencia en adultos.", W - M - xR - 38), xR + 38, y + 15);
       let py = y + 40; const pw = (W - M - xR - 4 * (sv.length - 1)) / sv.length;
       sv.forEach((x, i) => {
         const q = pctX(x), c = lvlBand(x), px = xR + i * (pw + 4);
         doc.setFontSize(9); doc.setTextColor(107, 123, 138); doc.text(x.label, px + pw / 2, py, { align: "center" });
         doc.setFillColor(...hexRGB(c.bg)); doc.setDrawColor(...hexRGB(c.bd)); doc.setLineWidth(0.5); doc.roundedRect(px, py + 2, pw, 10, 5, 5, "FD");
         doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(...hexRGB(c.tx)); doc.text(`${Math.round(x.val)}°`, px + pw / 2, py + 9, { align: "center" });
-        doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(122, 136, 150); doc.text(`${lvlX(x)} · ${Math.round(q)}%`, px + pw / 2, py + 17, { align: "center" }); doc.setFontSize(7); doc.text(refX(x).replace(/≈/g, "~"), px + pw / 2, py + 20.5, { align: "center" });
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(122, 136, 150); doc.text(`${lvlX(x)} · ${Math.round(q)}%`, px + pw / 2, py + 17, { align: "center" }); 
       });
       rightH = 40 + 20;
     } else if (r.fscore) {
@@ -3242,6 +3269,31 @@ async function makeReport(r, share = false) {
       rightH = 24;
     }
     y = top + Math.max(leftH, rightH) + 8;
+    // Tabla de referencia con colores
+    if (sv && sv.length && sv.every(x => isFinite(x.val))) {
+      const t = refTable(sv), pdfTxt = v => String(v).replace(/≥/g, ">=").replace(/≤/g, "<=").replace(/–/g, "-");
+      ensure(8 + 6.5 * 5); h2("Valores de referencia");
+      const c0 = 26, cw = Math.min(45, (CW - c0) / t.cols.length), rh = 6.2;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(122, 136, 150);
+      doc.text("Nivel", M + 2, y); t.cols.forEach((c, i) => doc.text(doc.splitTextToSize(pdfTxt(c), cw - 2)[0], M + c0 + cw * i + cw / 2, y, { align: "center" }));
+      y += 2;
+      t.rows.forEach(row => {
+        const c = lvlC(row[0]);
+        doc.setFillColor(...hexRGB(c.bg)); doc.rect(M, y, c0 + cw * t.cols.length, rh, "F");
+        doc.setFillColor(...hexRGB(c.bd)); doc.rect(M, y, 1.4, rh, "F");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...hexRGB(c.tx)); doc.text(row[0], M + 3.5, y + 4.3);
+        doc.setFont("helvetica", "normal"); doc.setTextColor(52, 73, 94);
+        row.slice(1).forEach((v, i) => doc.text(pdfTxt(v), M + c0 + cw * i + cw / 2, y + 4.3, { align: "center" }));
+        y += rh;
+      });
+      y += 8;
+    } else if (r.fscore) {
+      ensure(14); h2("Escala de niveles");
+      const bw = CW / 4;
+      LVL4.forEach((l, i) => { const c = lvlC(l); doc.setFillColor(...hexRGB(c.bg)); doc.rect(M + bw * i, y, bw - 1, 7, "F"); doc.setFillColor(...hexRGB(c.bd)); doc.rect(M + bw * i, y, 1.4, 7, "F");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...hexRGB(c.tx)); doc.text(`${3 - i}/3 ${l}`, M + bw * i + bw / 2, y + 4.8, { align: "center" }); });
+      y += 12;
+    }
     // repeticiones
     if (r.guided) { h2("Repeticiones válidas"); r.guided.labels.forEach((l, k) => para(`${l}: ${r.guided.peaks[k].map(x => x + "°").join("  ·  ") || "-"}`)); }
     if (r.jumps) {
@@ -3551,7 +3603,7 @@ function renderCorrectives(r) {
 }
 
 // ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
-const APP_VERSION = "5 oct 2026 (a)";
+const APP_VERSION = "5 oct 2026 (b)";
 $("verTxt").textContent = APP_VERSION;
 async function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
