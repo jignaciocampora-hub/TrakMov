@@ -435,9 +435,9 @@
     <label>Altura (cm)<input id="afAltura" type="number" inputmode="decimal" step="0.5"></label>
     <label class="full">Observaciones<textarea id="afNotas" rows="3" placeholder="Antecedentes, lesiones previas, objetivos…"></textarea></label>
   </div>
-  <datalist id="dlDeporte"><option>Rugby</option><option>Fútbol</option><option>Hockey</option><option>Básquet</option><option>Atletismo</option></datalist>
+  <datalist id="dlDeporte"><option>Rugby</option><option>Fútbol</option><option>Hockey</option><option>Básquet</option><option>Vóley</option><option>Handball</option><option>Atletismo</option><option>Tenis</option><option>Pádel</option><option>Natación</option><option>Running</option><option>Crossfit</option></datalist>
   <datalist id="dlGrupo"></datalist>
-  <datalist id="dlPos"><option>Pilar</option><option>Hooker</option><option>Segunda línea</option><option>Ala</option><option>Octavo</option><option>Medio scrum</option><option>Apertura</option><option>Centro</option><option>Wing</option><option>Fullback</option></datalist>
+  <datalist id="dlPos"></datalist>
   <div class="row2" style="margin-top:14px"><button class="btn-o" id="afCancel">Cancelar</button><button class="btn-d" id="afSave">Guardar</button></div>
 </div></div>
 <div id="snapModal" class="hidden">
@@ -2434,6 +2434,25 @@ const athAge = a => { if (!a || !a.nac) return null; const b = new Date(a.nac), 
 const athInit = a => ((a.nombre || a.n || "?")[0] + (a.apellido ? a.apellido[0] : "")).toUpperCase();
 const athMeta = a => [athAge(a) != null ? `${athAge(a)} años` : "", a.grupo, a.pos].filter(Boolean).join(" · ");
 let afEditing = null;
+// Posiciones sugeridas según el deporte (si el deporte no está en la lista, se escribe libre)
+const POS_BY_SPORT = {
+  rugby: ["Pilar", "Hooker", "Segunda línea", "Ala", "Octavo", "Medio scrum", "Apertura", "Centro", "Wing", "Fullback"],
+  futbol: ["Arquero", "Defensor central", "Lateral derecho", "Lateral izquierdo", "Mediocampista central", "Volante", "Mediapunta", "Extremo", "Delantero centro"],
+  hockey: ["Arquero/a", "Defensor/a", "Volante", "Delantero/a"],
+  basquet: ["Base", "Escolta", "Alero", "Ala-pívot", "Pívot"],
+  voley: ["Armador/a", "Opuesto/a", "Central", "Punta receptor/a", "Líbero"],
+  handball: ["Arquero/a", "Extremo", "Lateral", "Central", "Pivote"],
+  atletismo: ["Velocidad", "Vallas", "Medio fondo", "Fondo", "Saltos", "Lanzamientos", "Pruebas combinadas"],
+  tenis: ["Singles", "Dobles"], padel: ["Drive", "Revés"],
+  natacion: ["Crol", "Espalda", "Pecho", "Mariposa", "Combinado"]
+};
+const normSport = t => (t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+function fillPositions() {
+  const list = POS_BY_SPORT[normSport($("afDeporte").value)] || [];
+  $("dlPos").innerHTML = list.map(p2 => `<option>${p2}</option>`).join("");
+  $("afPos").placeholder = list.length ? `Ej.: ${list.slice(0, 2).join(", ")}` : "Escribí la posición o especialidad";
+}
+$("afDeporte").addEventListener("input", fillPositions);
 function openAthForm(a) {
   afEditing = a;
   const parts = a && !a.nombre ? a.n.split(" ") : null;
@@ -2443,6 +2462,7 @@ function openAthForm(a) {
   $("afGrupo").value = a && a.grupo || ""; $("afPos").value = a && a.pos || ""; $("afDom").value = a && a.dom || "";
   $("afPeso").value = a && a.peso || ""; $("afAltura").value = a && a.altura || ""; $("afNotas").value = a && a.notas || "";
   $("dlGrupo").innerHTML = [...new Set(db.ath.map(x => x.grupo).filter(Boolean))].map(g => `<option>${esc(g)}</option>`).join("");
+  fillPositions();
   $("athModal").classList.remove("hidden"); setTimeout(() => $("afNombre").focus(), 50);
 }
 $("afCancel").onclick = () => $("athModal").classList.add("hidden");
@@ -3731,7 +3751,7 @@ function renderCorrectives(r) {
 }
 
 // ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
-const APP_VERSION = "5 oct 2026 (c)";
+const APP_VERSION = "5 oct 2026 (d)";
 $("verTxt").textContent = APP_VERSION;
 async function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
