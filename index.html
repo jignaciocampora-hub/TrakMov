@@ -249,7 +249,7 @@
       <textarea class="rnote" id="rNote" placeholder="Observaciones, dolor, compensaciones, indicaciones, contexto…"></textarea>
       <h3 style="margin-top:14px">Ejercicios correctivos sugeridos</h3>
       <div id="rEx"></div>
-      <button class="btn-d wide" id="rPdf">📄 Generar informe PDF</button>
+      <div class="row2" style="margin-top:12px"><button class="btn-d" id="rPdf">📄 Descargar PDF</button><button class="btn-o" id="rPdfShare">📤 Compartir PDF</button></div>
     </div>
     <div class="card"><h3>Comparar</h3><p>Elegí otra evaluación del mismo tipo para ver la evolución, con los videos lado a lado.</p>
       <select class="rsel" id="rCmpSel"></select><div id="rCmp"></div></div>
@@ -2530,7 +2530,12 @@ $("pCsv").onclick = () => {
 
 
 // ---- iOS: compartir archivos y pantalla siempre encendida ----
-async function saveFile(blob, name) {
+async function saveFile(blob, name, forceShare = false) {
+  if (!isMobile && !forceShare) {
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    return;
+  }
   try {
     const file = new File([blob], name, { type: blob.type || "application/octet-stream" });
     if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); return; }
@@ -3131,6 +3136,12 @@ function conclusions(r) {
   if (!out.length) out.push("Sin observaciones automáticas para esta evaluación.");
   return out.map(x => "• " + x).join("\n");
 }
+let logoCache = null;
+async function logoURL() {
+  if (logoCache) return logoCache;
+  try { const b = await (await fetch("tm-icon-192.png?v=3")).blob(); logoCache = await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b); }); } catch { logoCache = null; }
+  return logoCache;
+}
 async function loadJsPDF() {
   if (window.jspdf) return window.jspdf.jsPDF;
   await new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"; sc.onload = res; sc.onerror = () => rej(new Error("no se pudo cargar el generador de PDF (revisá la conexión)")); document.head.appendChild(sc); });
@@ -3165,8 +3176,8 @@ function ringPNG(score, color) {
   g.fillStyle = "#34495E"; g.font = "bold 56px Helvetica, Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(score + "%", 120, 124);
   return c.toDataURL("image/png");
 }
-async function makeReport(r) {
-  const btn = $("rPdf"), old = btn.textContent; btn.textContent = "Generando informe…"; btn.disabled = true;
+async function makeReport(r, share = false) {
+  const btn = $(share ? "rPdfShare" : "rPdf"), old = btn.textContent; btn.textContent = "Generando…"; btn.disabled = true;
   try {
     const jsPDF = await loadJsPDF(), m = await idbGet(r.id), a = athObj(r.ath), d = new Date(r.date);
     const doc = new jsPDF({ unit: "mm", format: "a4" }), W = 210, M = 14, CW = W - 2 * M;
@@ -3176,8 +3187,14 @@ async function makeReport(r) {
     const san = t => String(t).replace(/[—–]/g, "-").replace(/≈/g, "~").replace(/•/g, "-").replace(/→/g, "->").replace(/[^\x00-\xFF]/g, "");   // la fuente del PDF no tiene esos símbolos
     const para = (t, size = 10, col = [60, 72, 84]) => { doc.setFont("helvetica", "normal"); doc.setFontSize(size); doc.setTextColor(...col); for (const ln of doc.splitTextToSize(san(t), CW)) { ensure(5); doc.text(ln, M, y); y += size * 0.45; } y += 2; };
     // encabezado
-    doc.setFillColor(52, 73, 94); doc.rect(0, 0, W, 22, "F");
-    doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.text(APP_NAME.toUpperCase(), M, 14);
+    doc.setFillColor(15, 34, 51); doc.rect(0, 0, W, 22, "F");
+    const logo = await logoURL();
+    let lx = M;
+    if (logo) { doc.addImage(logo, "PNG", M, 3.5, 15, 15); lx = M + 19; }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(18);
+    doc.setTextColor(255, 255, 255); doc.text("Trak", lx, 14.2);
+    doc.setTextColor(91, 191, 138); doc.text("Mov", lx + doc.getTextWidth("Trak"), 14.2);
+    doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.text("Informe de evaluación de movimiento", W - M, 14, { align: "right" });
     y = 32;
     doc.setTextColor(52, 73, 94); doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text(r.name, M, y); y += 6.5;
@@ -3270,7 +3287,7 @@ async function makeReport(r) {
       doc.text(`${i}/${pages}`, W - M, 287, { align: "right" });
     }
     const fname = `Informe_${(a ? a.n : "atleta").replace(/\s+/g, "_")}_${r.name.replace(/[^\wáéíóúñÁÉÍÓÚÑ]+/g, "_")}_${d.toISOString().slice(0, 10)}.pdf`;
-    await saveFile(doc.output("blob"), fname);
+    await saveFile(doc.output("blob"), fname, share);
   } catch (e) { alert("No se pudo generar el informe: " + (e.message || e)); }
   btn.textContent = old; btn.disabled = false;
 }
@@ -3534,7 +3551,7 @@ function renderCorrectives(r) {
 }
 
 // ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
-const APP_VERSION = "4 oct 2026 (k)";
+const APP_VERSION = "5 oct 2026 (a)";
 $("verTxt").textContent = APP_VERSION;
 async function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
@@ -3631,7 +3648,8 @@ async function openResult(id, scrollToReport = false) {
   $("rConcl").value = r.concl != null ? r.concl : conclusions(r);
   $("rConcl").oninput = () => { r.concl = $("rConcl").value; saveDB(); };
   $("rReConcl").onclick = () => { if (!r.concl || confirm("¿Reemplazar las conclusiones por las automáticas?")) { r.concl = null; $("rConcl").value = conclusions(r); saveDB(); } };
-  $("rPdf").onclick = () => makeReport(r);
+  $("rPdf").onclick = () => makeReport(r, false);
+  $("rPdfShare").onclick = () => makeReport(r, true);
   renderCorrectives(r);
   if (scrollToReport) setTimeout(() => $("rReportCard").scrollIntoView({ behavior: "smooth", block: "start" }), 250);
   // comparar
