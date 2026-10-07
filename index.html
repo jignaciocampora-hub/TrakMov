@@ -51,6 +51,8 @@
   .tablewrap{overflow-x:auto}
   #chart{width:100%;height:240px;display:block;background:var(--panel);border-radius:6px;margin-top:10px}
   .hidden{display:none !important}
+  #calibChip{position:absolute;right:10px;bottom:10px;z-index:3;pointer-events:none;border-radius:999px;padding:6px 12px;font:700 14px Barlow,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+  #calibChip.ok{background:rgba(46,160,120,.92);color:#fff}#calibChip.warn{background:rgba(232,150,40,.94);color:#1C232B}#calibChip.bad{background:rgba(214,58,64,.94);color:#fff}#calibChip.none{background:rgba(28,35,43,.85);color:#E6EBF0}
   .asearch{width:100%;box-sizing:border-box;border:1px solid #D5DCE2;border-radius:14px;padding:12px 14px;font:16px Barlow,sans-serif;color:#34495E;background:#fff;margin-bottom:10px}
   .athrow{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #E1E6EA;border-radius:16px;padding:12px;margin-bottom:10px;cursor:pointer;width:100%;text-align:left}
   .athrow .av{flex:0 0 46px;height:46px;border-radius:50%;background:#E8CF8A;color:#fff;display:grid;place-items:center;font:700 19px Barlow,sans-serif}
@@ -337,7 +339,7 @@
 <main>
   <div>
     <div class="stage"><video id="video" playsinline muted></video><canvas id="canvas" width="1280" height="720"></canvas>
-      <div id="assist" class="hidden"></div><div id="guide" class="hidden"></div><div id="flash"></div><div id="levelBox" class="hidden"><div class="cross"></div><div class="bub" id="bub"></div></div></div>
+      <div id="assist" class="hidden"></div><div id="guide" class="hidden"></div><div id="calibChip" class="hidden"></div><div id="flash"></div><div id="levelBox" class="hidden"><div class="cross"></div><div class="bub" id="bub"></div></div></div>
     <section id="snapList" class="hidden"><h2>Mediciones en foto</h2><div id="snapItems"></div></section>
     <div id="vbar" class="vbar hidden">
       <button id="vplay" aria-label="Reproducir o pausar">❚❚</button>
@@ -537,7 +539,7 @@ const keyShown = k => shown(MK[k].id) && (!MK[k].b || both() || k.endsWith(view)
 function setView(vw) {
   if (!activeProto) { viewUser = vw; try { localStorage.setItem("am_view", vw); } catch {} }
   view = vw;
-  neutral = {}; calib = null; resetSmooth();
+  neutral = {}; calib = null; resetSmooth(); if (typeof calibChipUpdate === "function") calibChipUpdate();
   document.querySelectorAll("[data-v]").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === view));
   buildLive(); lastT = -1; planeHint();
   if (!$("results").classList.contains("hidden")) showResults(true);
@@ -796,6 +798,7 @@ let forceCPU = false, detectFails = 0;
 function stopStream() { if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; } }
 function resetAll() { reps = []; phase = "up"; cur = null; resetSmooth(); renderReps(); }
 function beginLoop(msg) {
+  setTimeout(() => { if (!calib) calibChipUpdate(); }, 50);
   canvas.width = video.videoWidth; canvas.height = video.videoHeight;
   $("status").textContent = msg;
   if (!running) { running = true; requestAnimationFrame(loop); }
@@ -881,21 +884,32 @@ function badKeys(wl) {
 $("neutral").onclick = () => {
   if (!running) { $("status").textContent = "Primero iniciá la cámara o cargá un video."; return; }
   if (!assistGate("calibrar")) return;
+  unlockAudio();
   calibRun = { t0: performance.now() / 1000, samples: [], segs: [] };
 };
 function calibFrame(raw, wl) {
   if (!calibRun) return;
   const el = (performance.now() / 1000) - calibRun.t0;
   const pose = view === "L" || view === "R" ? "de perfil" : view === "back" ? "de espaldas" : "mirando a la cámara";
-  if (el < 3) { $("status").textContent = `Calibración: postura derecha y quieta ${pose} (parado o sentado)… ${Math.ceil(3 - el)}`; return; }
+  if (el < 3) {
+    const n = Math.ceil(3 - el);
+    $("status").textContent = `Calibración: postura derecha y quieta ${pose} (parado o sentado)… ${n}`;
+    if (calibRun.lastN !== n) { calibRun.lastN = n; flash("warn", `${n}`, "Calibración: postura derecha y quieta", 0); if (typeof actx !== "undefined") beep("ok"); }
+    return;
+  }
   if (el < 5) {
+    if (!calibRun.holding) { calibRun.holding = true; flash("warn", "Quieto…", "Calibrando, no te muevas", 0); }
     calibRun.samples.push(raw);
     calibRun.segs.push(Object.fromEntries(Object.entries(SEGS).map(([k, sg]) => [k, segLen(wl, sg)])));
     $("status").textContent = "Calibrando… no te muevas";
     return;
   }
   const run = calibRun; calibRun = null;
-  if (run.samples.length < 10) { $("status").textContent = "No se pudo calibrar: muy pocos cuadros. Probá de nuevo con la persona entera en cuadro."; return; }
+  if (run.samples.length < 10) {
+    $("status").textContent = "No se pudo calibrar: muy pocos cuadros. Probá de nuevo con la persona entera en cuadro.";
+    flash("bad", "✗ Calibración fallida", "No se vio a la persona entera. Revisá el encuadre y tocá Calibrar de nuevo.", 3500); beep("bad");
+    return;
+  }
   const noise = {}, nn = {};
   for (const k of KEYS) {
     const xs = run.samples.map(r => r[k]).filter(isFinite);
@@ -912,6 +926,27 @@ function calibFrame(raw, wl) {
   const worst = shownK.filter(k => noise[k] > 1.5).sort((a, b) => noise[b] - noise[a]).slice(0, 3)
     .map(k => `${MK[k].n.toLowerCase()}${MK[k].b ? (k.endsWith("L") ? " izq" : " der") : ""} ±${(2 * noise[k]).toFixed(1)}°`);
   $("status").textContent = `Calibrado. Margen típico ±${(2 * avg).toFixed(1)}°` + (worst.length ? `. Menos estables: ${worst.join(", ")}. Mejorá luz, contraste o encuadre para esas.` : ". Buena estabilidad en todas las métricas.");
+  // Verificación: estabilidad (ruido) y que la posición de partida haya sido realmente neutra
+  const off = Object.entries(nn).filter(([k]) => keyShown(k) && !["ankleL", "ankleR"].includes(k) && Math.abs(nn[k]) > 20)
+    .map(([k]) => MK[k].n.toLowerCase() + (MK[k].b ? (k.endsWith("L") ? " izq" : " der") : ""));
+  const margin = 2 * avg, missing = run.samples.length < 25;
+  if (margin <= 3 && !off.length && !missing) { flash("ok", "✓ Calibración correcta", `Margen típico ±${margin.toFixed(1)}° · listo para medir`, 2600); beep("done"); calib.ok = true; }
+  else if (margin <= 6 && !missing) {
+    flash("warn", "⚠ Calibración aceptable", (off.length ? `Postura de partida poco neutra en: ${off.join(", ")}. ` : "") + `Margen ±${margin.toFixed(1)}°. Si podés, mejorá luz o encuadre y repetí.`, 4000); beep("ok"); calib.ok = false;
+  } else {
+    flash("bad", "✗ Calibración poco confiable", `Margen ±${margin.toFixed(1)}°${off.length ? ` y postura poco neutra en: ${off.join(", ")}` : ""}${missing ? " y se perdieron cuadros" : ""}. Repetí la calibración.`, 4500); beep("bad"); calib.ok = false;
+  }
+  if (GR) guideDraw();
+  calibChipUpdate(margin, missing);
+}
+// Indicador permanente del estado de la calibración (abajo a la derecha de la imagen)
+function calibChipUpdate(margin, missing) {
+  const c = $("calibChip");
+  if (!running) { c.classList.add("hidden"); return; }
+  c.classList.remove("hidden");
+  if (!calib) { c.className = "none"; c.textContent = "Sin calibrar"; return; }
+  c.className = calib.ok ? "ok" : (margin <= 6 && !missing ? "warn" : "bad");
+  c.textContent = calib.ok ? `✓ Calibrado · ±${margin.toFixed(1)}°` : `⚠ Calibración ±${isFinite(margin) ? margin.toFixed(1) : "?"}° · repetir`;
 }
 
 let recording = false, recStart = 0, frames = [];
@@ -3143,7 +3178,7 @@ function jumpComplete() {
 function guideDraw(nowTxt) {
   const r = GR.r, cal = calib || !activeProto.m || !activeProto.m.some(id => MI[id].neu);
   let h = `<div class="head">${esc(activeProto.n)}</div>`;
-  if (r.type !== "hold" && r.type !== "jump") h += `<div>${cal ? "✓ Calibrado" : "⚠ Sin calibrar: los valores pueden tener error"}</div>`;
+  if (r.type !== "hold" && r.type !== "jump") h += `<div>${calib ? (calib.ok ? "✓ Calibración verificada" : "⚠ Calibración con poca estabilidad") : cal ? "✓ Calibrado" : "⚠ Sin calibrar: los valores pueden tener error"}</div>`;
   r.labels.forEach((l, k) => {
     const okN = GR.reps[k].filter(q => q.ok).length, cells = GR.reps[k].map(q => `<span class="r ${q.ok ? "ok" : "bad"}">${q.ok ? "✓" : "✗"} ${isFinite(q.peak) ? (r.type === "jump" ? q.peak.toFixed(1).replace(".", ",") + " cm" : q.peak.toFixed(0) + "°") : ""}</span>`).join("");
     const todo = Array.from({ length: Math.max(0, r.n - okN) }, () => `<span class="r todo">◻</span>`).join("");
@@ -3793,7 +3828,7 @@ function renderCorrectives(r) {
 }
 
 // ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
-const APP_VERSION = "5 oct 2026 (f)";
+const APP_VERSION = "5 oct 2026 (h)";
 $("verTxt").textContent = APP_VERSION;
 async function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
