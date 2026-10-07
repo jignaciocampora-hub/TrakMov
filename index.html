@@ -2599,13 +2599,15 @@ function afterSave(name) {
   lastSavedId = null;
 }
 let lastSavedId = null;
-$("saveRes").onclick = () => {
+$("saveRes").onclick = async () => {
   if (!athObj(curAth) && !addAthlete()) return;
   const metrics = {};
   for (const k of KEYS.filter(keyShown)) { const st = stats(k); if (st) metrics[k] = { mn: +st.mn.toFixed(1), mx: +st.mx.toFixed(1), rom: +st.rom.toFixed(1) }; }
   if (!Object.keys(metrics).length) { $("status").textContent = "No hay datos para guardar."; return; }
   const extra = mode === "squat" && reps.length ? { reps: reps.map(r => ({ kL: +r.kL.toFixed(1), kR: +r.kR.toFixed(1), vL: +r.vL.toFixed(1), vR: +r.vR.toFixed(1) })) } : {};
-  const rid = "r" + Date.now(), clip = currentClip();
+  const rid = "r" + Date.now();
+  if (!lastClip && mediaRec && mediaRec.state === "inactive" && clipChunks.length) await new Promise(r => setTimeout(r, 700));
+  const clip = currentClip();
   const ks = KEYS.filter(keyShown);
   const series = { keys: ks, t: frames.map(f => +(f.t - frames[0].t).toFixed(3)), v: ks.map(k => frames.map(f => isFinite(f[k]) ? Math.round(f[k] * 10) / 10 : null)) };
   db.res.push({ id: rid, ath: curAth, proto: activeProto ? activeProto.id : "libre", name: activeProto ? activeProto.n : "Análisis libre", date: new Date().toISOString(), view, calib: !!calib, metrics, ...extra, ...(lastGuided ? { guided: lastGuided } : {}), media: !!clip, ...(activeProto && activeProto.sidePick ? { side: protoSide } : {}), ...(activeProto && FUNC.includes(activeProto.id) ? { fscore: funcScore(activeProto.id, frames) } : {}) });
@@ -3751,7 +3753,7 @@ function renderCorrectives(r) {
 }
 
 // ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
-const APP_VERSION = "5 oct 2026 (d)";
+const APP_VERSION = "5 oct 2026 (e)";
 $("verTxt").textContent = APP_VERSION;
 async function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
@@ -3774,14 +3776,29 @@ function clipStart() {
   lastClip = null; clipChunks = [];
   try {
     if (!canvas.captureStream || typeof MediaRecorder === "undefined") return;
-    const types = ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm"];
+    // MP4 (H.264) primero: es el que abre cualquier reproductor (Windows, Mac, iPhone, WhatsApp). WebM solo si el navegador no graba MP4.
+    const types = ["video/mp4;codecs=avc1.42E01E", "video/mp4;codecs=avc1.640028", "video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp8", "video/webm;codecs=vp9", "video/webm"];
     const mime = types.find(t => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || "";
     const longSide = Math.max(canvas.width, canvas.height);
     mediaRec = new MediaRecorder(canvas.captureStream(30), { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: longSide > 1300 ? 4e6 : 2.5e6 });
     mediaRec.ondataavailable = e => { if (e.data && e.data.size) clipChunks.push(e.data); };
-    mediaRec.onstop = () => { if (clipChunks.length) lastClip = new Blob(clipChunks, { type: mediaRec.mimeType || mime || "video/mp4" }); };
-    mediaRec.start(1000);
+    const t0 = performance.now();
+    mediaRec.onstop = async () => {
+      if (!clipChunks.length) return;
+      const type = (mediaRec.mimeType || mime || "video/mp4").split(";")[0];
+      let blob = new Blob(clipChunks, { type });
+      // Los WebM grabados en el navegador no traen la duración: sin ella muchos reproductores no los abren o no dejan adelantar
+      if (type.includes("webm")) blob = await fixWebm(blob, performance.now() - t0);
+      lastClip = blob;
+    };
+    mediaRec.start();
   } catch { mediaRec = null; }
+}
+async function fixWebm(blob, ms) {
+  try {
+    if (!window.ysFixWebmDuration) await new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/fix-webm-duration@1.0.5/fix-webm-duration.js"; sc.onload = res; sc.onerror = rej; document.head.appendChild(sc); });
+    return await new Promise(res => { const r = window.ysFixWebmDuration(blob, ms, fixed => res(fixed)); if (r && r.then) r.then(res); });
+  } catch { return blob; }
 }
 function currentClip() { return lastClip || (clipChunks.length ? new Blob(clipChunks, { type: (mediaRec && mediaRec.mimeType) || "video/mp4" }) : null); }
 function clipStop() { try { if (mediaRec && mediaRec.state !== "inactive") mediaRec.stop(); } catch {} }
@@ -3819,7 +3836,8 @@ async function openResult(id, scrollToReport = false) {
   $("rMediaCard").classList.toggle("hidden", !(m && (m.video || m.image)) && !r.thumb);
   if (m && m.video) {
     const ext = (m.video.type || "").includes("mp4") ? "mp4" : "webm";
-    $("rMedia").innerHTML = `<video class="rvid" id="rVid" controls playsinline src="${mkUrl(m.video)}"></video><button class="btn-o wide" id="rDl">Descargar / compartir video</button>`;
+    $("rMedia").innerHTML = `<video class="rvid" id="rVid" controls playsinline src="${mkUrl(m.video)}"></video><button class="btn-o wide" id="rDl">Descargar / compartir video</button>
+      <p class="note2" style="margin-top:6px">Formato ${ext.toUpperCase()}.${ext === "webm" ? " Si tu reproductor no lo abre, abrilo arrastrándolo a Chrome o con VLC." : ""}</p>`;
     $("rDl").onclick = () => saveFile(m.video, `${(a ? a.n : "atleta").replace(/\s+/g, "_")}_${r.name.replace(/\s+/g, "_")}_${d.toISOString().slice(0, 10)}.${ext}`);
   } else if (m && m.image) $("rMedia").innerHTML = `<img class="rvid" src="${mkUrl(m.image)}" alt="Foto de la medición">`;
   else if (r.thumb) $("rMedia").innerHTML = `<img class="rvid" src="${r.thumb}" alt="Foto de la medición">`;
