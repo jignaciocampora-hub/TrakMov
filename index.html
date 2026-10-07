@@ -2226,8 +2226,10 @@ function finalizeJump() {
     marks: { bot: bot.t - off, land: land - off }
   };
   if (jt === "SJ") j.tContr = NaN;
-  jumps.push(j); renderJumps(); drawJump(j);
+  jumps.push(j);
   setJState(`Salto ${j.n}: ${j.altura.toFixed(1).replace(".", ",")} cm`, "ok");
+  guideJump(j);
+  renderJumps(); drawJump(jumps[jumps.length - 1] || null);
 }
 
 const f1 = (x, d = 0, u = "") => isFinite(x) ? x.toFixed(d).replace(".", ",") + u : "–";
@@ -3010,6 +3012,9 @@ const RULES = {
   sls:      { type: "alt", key: "knee", hi: 45, lo: 15, n: 5, labels: ["Pierna izq", "Pierna der"], comp: [["pelTilt", 10, "cayó la pelvis"]], dir: ["bajá en una pierna"] },
   posture:  { type: "hold", secs: 10, labels: ["Postura"], comp: [] },
   postureP: { type: "hold", secs: 10, labels: ["Postura"], comp: [] },
+  sj:       { type: "jump", n: 3, labels: ["Saltos"] },
+  cmj:      { type: "jump", n: 3, labels: ["Saltos"] },
+  sjcm:     { type: "jump", n: 3, labels: ["Saltos"] },
 };
 
 // ---------- Aviso en pantalla y sonido por cada repetición ----------
@@ -3058,6 +3063,7 @@ function gVal(v) {
 function guideFrame(v, bad) {
   if (!GR || GR.done) return;
   const r = GR.r;
+  if (r.type === "jump") return;   // los saltos se validan al detectar cada aterrizaje
   if (r.type === "hold") {
     const el = (performance.now() - GR.t0) / 1000;
     if (el >= r.secs) { GR.reps[0].push({ ok: true, peak: NaN }); guideComplete(); } else guideDraw(`Quieto… ${Math.ceil(r.secs - el)} s`);
@@ -3096,18 +3102,50 @@ function guideFrame(v, bad) {
   guideDraw();
 }
 function guideNext() {
+  if (GR.r.type === "jump") return "Ahora: saltá (manos en la cintura)";
   const r = GR.r;
   if (GR.phase === "out") return /^sym/.test(r.type) ? "Volvé al centro" : "Volvé a la posición inicial";
   const k = GR.reps.findIndex(l => l.filter(q => q.ok).length < r.n);
   if (k < 0) return "";
   return "Ahora: " + (r.dir[k] || r.dir[0]);
 }
+// ---------- Saltos: validación de cada salto con aviso en pantalla ----------
+function guideJump(j) {
+  if (!GR && activeProto && RULES[activeProto.id] && RULES[activeProto.id].type === "jump") guideReset();
+  if (!GR || GR.r.type !== "jump" || GR.done) return;
+  const why = [];
+  if (j.tipo === "SJ" && j.descenso > 2) why.push(`hizo contramovimiento (bajó ${f1(j.descenso, 1)} cm antes de impulsar)`);
+  if (j.tipo === "CMJ" && !(j.prof >= 5)) why.push("no hizo contramovimiento (bajada menor a 5 cm)");
+  if (j.tipo === "SJ+CM" && !(j.descenso >= 1)) why.push("no se detectó el contramovimiento desde la posición sostenida");
+  if (!(j.vuelo > 150 && j.vuelo < 1100)) why.push("tiempo de vuelo fuera de rango");
+  const ok = !why.length;
+  GR.reps[0].push({ ok, peak: j.altura, why: why.join(", ") });
+  if (!ok) { jumps.pop(); jumps.forEach((x, i) => x.n = i + 1); }   // el salto no válido no se guarda
+  const okN = GR.reps[0].filter(q => q.ok).length;
+  if (ok) { flash("ok", `✓ Salto válido · ${f1(j.altura, 1)} cm`, `${okN} de ${GR.r.n}${j.fps < 50 ? " · pocos cuadros por segundo: altura aproximada" : ""}`); beep("ok"); }
+  else { flash("bad", "✗ Salto no válido", cap(why.join(", ")) + " · repetilo", 2600); beep("bad"); }
+  if (okN >= GR.r.n) { jumpComplete(); return; }
+  guideDraw(ok ? "Ahora: siguiente salto" : "Ahora: repetí el salto");
+}
+function jumpComplete() {
+  GR.done = true;
+  const hs = jumps.map(x => x.altura).filter(isFinite), best = Math.max(...hs), avg = hs.reduce((a, b) => a + b, 0) / hs.length;
+  const sd = Math.sqrt(hs.reduce((a, b) => a + (b - avg) ** 2, 0) / hs.length), cv = sd / avg * 100, inv = GR.reps[0].filter(q => !q.ok).length;
+  lastGuided = { labels: ["Saltos"], peaks: [hs.map(x => +x.toFixed(1))], invalid: inv };
+  if (recording) stopRec();
+  flash("done", "✅ Evaluación completada", "", 1800); beep("done");
+  $("doneTitle").textContent = "✅ Evaluación completada";
+  $("doneBody").innerHTML = `<p style="margin:4px 0"><b>Mejor salto:</b> ${f1(best, 1)} cm</p><p style="margin:4px 0"><b>Promedio:</b> ${f1(avg, 1)} cm</p>
+    <p style="margin:4px 0"><b>Variabilidad (CV):</b> <span class="${cv <= 5 ? "ok" : cv <= 10 ? "warn" : "bad"}">${f1(cv, 1)}%</span> ${cv <= 5 ? "· saltos consistentes" : cv <= 10 ? "· algo de variación" : "· mucha variación entre saltos"}</p>
+    <p class="note">${inv ? `${inv} salto(s) no válido(s) descartado(s).` : "Todos los saltos fueron válidos."}</p>`;
+  $("doneModal").classList.remove("hidden");
+}
 function guideDraw(nowTxt) {
   const r = GR.r, cal = calib || !activeProto.m || !activeProto.m.some(id => MI[id].neu);
   let h = `<div class="head">${esc(activeProto.n)}</div>`;
-  if (r.type !== "hold") h += `<div>${cal ? "✓ Calibrado" : "⚠ Sin calibrar: los valores pueden tener error"}</div>`;
+  if (r.type !== "hold" && r.type !== "jump") h += `<div>${cal ? "✓ Calibrado" : "⚠ Sin calibrar: los valores pueden tener error"}</div>`;
   r.labels.forEach((l, k) => {
-    const okN = GR.reps[k].filter(q => q.ok).length, cells = GR.reps[k].map(q => `<span class="r ${q.ok ? "ok" : "bad"}">${q.ok ? "✓" : "✗"} ${isFinite(q.peak) ? q.peak.toFixed(0) + "°" : ""}</span>`).join("");
+    const okN = GR.reps[k].filter(q => q.ok).length, cells = GR.reps[k].map(q => `<span class="r ${q.ok ? "ok" : "bad"}">${q.ok ? "✓" : "✗"} ${isFinite(q.peak) ? (r.type === "jump" ? q.peak.toFixed(1).replace(".", ",") + " cm" : q.peak.toFixed(0) + "°") : ""}</span>`).join("");
     const todo = Array.from({ length: Math.max(0, r.n - okN) }, () => `<span class="r todo">◻</span>`).join("");
     h += `<div>${l}: ${cells}${todo}</div>`;
   });
@@ -3136,8 +3174,10 @@ function guideComplete() {
   $("doneBody").innerHTML = body;
   $("doneModal").classList.remove("hidden");
 }
-$("doneSave").onclick = () => { $("doneModal").classList.add("hidden"); $("saveRes").click(); };
-$("doneRepeat").onclick = () => { $("doneModal").classList.add("hidden"); $("results").classList.add("hidden"); startRec(); $("status").textContent = "Repetimos: seguí las indicaciones del recuadro."; };
+$("doneSave").onclick = () => { $("doneModal").classList.add("hidden"); $(mode === "jump" ? "saveJ" : "saveRes").click(); };
+$("doneRepeat").onclick = () => { $("doneModal").classList.add("hidden"); $("results").classList.add("hidden");
+  if (mode === "jump") { jumps = []; renderJumps(); drawJump(null); resetJumpState(); }
+  startRec(); $("status").textContent = "Repetimos: seguí las indicaciones del recuadro."; };
 $("doneClose").onclick = () => { $("doneModal").classList.add("hidden"); };
 
 
@@ -3753,7 +3793,7 @@ function renderCorrectives(r) {
 }
 
 // ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
-const APP_VERSION = "5 oct 2026 (e)";
+const APP_VERSION = "5 oct 2026 (f)";
 $("verTxt").textContent = APP_VERSION;
 async function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
