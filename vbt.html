@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TrakMov · VBT</title>
+<link rel="icon" type="image/png" href="tm-favicon.png?v=3">
+<link rel="manifest" href="manifest.webmanifest?v=3">
+<link rel="apple-touch-icon" sizes="180x180" href="tm-icon-180.png?v=3">
+<meta name="theme-color" content="#1C232B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TrakMov">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Barlow:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#1C232B;--panel:#252E38;--line:#36414D;--text:#E6EBF0;--muted:#93A1AF;--amber:#F2A33A;--ok:#3FB8A0;--warn:#E8C547;--bad:#E5484D}
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 Barlow,system-ui,sans-serif}
+  header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:14px 20px;padding-top:calc(14px + env(safe-area-inset-top));padding-left:calc(20px + env(safe-area-inset-left));padding-right:calc(20px + env(safe-area-inset-right));border-bottom:1px solid var(--line)}
+  h1{font:700 26px/1 "Barlow Condensed",sans-serif;margin:0 auto 0 0;letter-spacing:.5px}
+  h2{font:700 18px/1.2 "Barlow Condensed",sans-serif;margin:20px 0 8px;letter-spacing:.3px}
+  button,select,input,label.btn,a.btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+  button,label.btn,select,a.btn,input[type=number]{font:600 14px Barlow,sans-serif;padding:8px 14px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer;text-decoration:none}
+  input[type=number]{width:110px;cursor:text;font-size:16px}
+  button.primary,label.btn.primary{background:var(--amber);border-color:var(--amber);color:#1C232B}
+  button:disabled{opacity:.45;cursor:default}
+  button:focus-visible,select:focus-visible,a.btn:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  label.btn{position:relative}
+  label.btn:focus-within{outline:2px solid var(--amber);outline-offset:2px}
+  label.btn input{position:absolute;opacity:0;width:1px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .seg button{border:0;border-radius:0}
+  .seg button[aria-pressed="true"]{background:var(--text);color:var(--bg)}
+  #status{color:var(--muted);font-size:14px;width:100%}
+  #status b{color:var(--amber)}
+  main{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:20px;padding:20px;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+  @media (max-width:900px){main{grid-template-columns:1fr}}
+  @media (max-width:600px){header{padding:12px}main{padding:12px;gap:14px}h1{font-size:22px;width:100%}header>select,header>label.btn,header>input,header>button{flex:1 1 40%;text-align:center}}
+  .stage{position:relative;background:#000;border-radius:8px;overflow:hidden;display:flex;justify-content:center;min-height:180px}
+  #cv{width:100%;height:auto;max-height:70vh;display:block;object-fit:contain}
+  #cv.picking{touch-action:none;cursor:crosshair}
+  video{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+  #empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);text-align:center;padding:20px;font-size:14px}
+  #loupe{position:absolute;left:10px;top:10px;width:150px;height:150px;border-radius:50%;border:3px solid var(--amber);box-shadow:0 4px 18px rgba(0,0,0,.5);z-index:4;pointer-events:none}
+  #chip{position:absolute;right:10px;bottom:10px;z-index:3;pointer-events:none;border-radius:999px;padding:6px 12px;font:700 15px Barlow,sans-serif;background:rgba(28,35,43,.88);color:#E6EBF0;font-variant-numeric:tabular-nums}
+  .tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
+  .tools .lbl{color:var(--muted);font-size:13px}
+  #scrub{flex:1 1 100%;accent-color:var(--amber)}
+  .bar{height:6px;background:var(--panel);border-radius:3px;overflow:hidden;flex:1 1 100%}
+  .bar i{display:block;height:100%;width:0;background:var(--amber);transition:width .1s}
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .kpi{background:var(--panel);border-radius:8px;padding:10px 12px}
+  .kpi>span{display:block;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+  .kpi b{font:700 34px/1.05 "Barlow Condensed",sans-serif;font-variant-numeric:tabular-nums}
+  .kpi b small{font-size:16px;color:var(--muted);margin-left:3px}
+  .kpi.main b{color:var(--amber);font-size:44px}
+  .zone{display:inline-block;margin-top:4px;border-radius:999px;padding:2px 10px;font:700 12px Barlow,sans-serif;color:#1C232B}
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  th,td{padding:6px 4px;text-align:right;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--muted);font-weight:600;font-size:13px}
+  tr.best td{color:var(--amber);font-weight:600}
+  .ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+  .note{color:var(--muted);font-size:13px}
+  .tablewrap{overflow-x:auto}
+  #chart{width:100%;height:240px;display:block;background:var(--panel);border-radius:6px;margin-top:10px}
+  .hidden{display:none !important}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .row>*{flex:1 1 auto}
+  .hist li{display:flex;justify-content:space-between;gap:8px;align-items:center;border-bottom:1px solid var(--line);padding:6px 0;font-variant-numeric:tabular-nums}
+  .hist ul{list-style:none;margin:0;padding:0}
+  .hist button{padding:2px 9px;font-size:13px}
+  .rm{background:var(--panel);border-radius:8px;padding:10px 12px;margin-top:10px}
+  .rm b{font:700 28px "Barlow Condensed",sans-serif;color:var(--ok)}
+  details{background:var(--panel);border-radius:8px;padding:10px 12px;margin-top:14px}
+  summary{cursor:pointer;font-weight:600}
+  details ol{margin:8px 0 0;padding-left:20px;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<header>
+  <a class="btn" href="index.html" aria-label="Volver a TrakMov">‹ Volver</a>
+  <h1>VBT · Velocidad de barra</h1>
+  <select id="ex" aria-label="Ejercicio">
+    <option value="squat">Sentadilla</option>
+    <option value="bench">Press de banca</option>
+    <option value="dead">Peso muerto</option>
+    <option value="hip">Hip thrust</option>
+    <option value="other">Otro (concéntrica hacia arriba)</option>
+  </select>
+  <input id="load" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Carga kg" aria-label="Carga en kg">
+  <select id="ath" aria-label="Atleta"></select>
+  <select id="slow" aria-label="Velocidad del video">
+    <option value="1">Video a velocidad real</option>
+    <option value="4">Cámara lenta ×4 (120 fps)</option>
+    <option value="8">Cámara lenta ×8 (240 fps)</option>
+  </select>
+  <label class="btn primary">Cargar video<input id="file" type="file" accept="video/*"></label>
+  <div id="status">Filmá de perfil, con el teléfono fijo y a la altura del disco, el disco entero en cuadro. Mejor en cámara lenta.</div>
+</header>
+
+<main>
+  <section>
+    <div class="stage">
+      <canvas id="cv" width="640" height="360"></canvas>
+      <canvas id="loupe" width="150" height="150" class="hidden"></canvas>
+      <div id="empty">Cargá un video de la serie para empezar.</div>
+      <div id="chip" class="hidden"></div>
+      <video id="vid" playsinline muted preload="auto"></video>
+    </div>
+    <div class="tools">
+      <input id="scrub" type="range" min="0" max="1" step="0.001" value="0" disabled aria-label="Posición en el video">
+      <button id="calBtn" disabled>1 · Marcar disco</button>
+      <span class="lbl">Ø disco</span>
+      <input id="diam" type="number" inputmode="decimal" value="45" min="10" max="60" step="0.5" aria-label="Diámetro del disco en cm" style="width:84px">
+      <span class="lbl">cm</span>
+      <div class="seg" role="group" aria-label="Modo de seguimiento">
+        <button id="mPat" aria-pressed="true">Disco</button>
+        <button id="mCol" aria-pressed="false">Marcador color</button>
+      </div>
+      <button id="goBtn" class="primary" disabled>2 · Analizar</button>
+      <button id="stopBtn" class="hidden">Detener</button>
+      <div class="bar hidden" id="prog"><i></i></div>
+    </div>
+
+    <h2>Velocidad de la barra</h2>
+    <canvas id="chart"></canvas>
+    <p class="note">Línea naranja: velocidad vertical (m/s). Línea gris: altura de la barra. Zonas verdes: fases concéntricas detectadas.</p>
+  </section>
+
+  <aside>
+    <div id="results" class="hidden">
+      <div class="kpis">
+        <div class="kpi main"><span>Mejor VMC</span><b id="kBest">–</b><div id="kZone"></div></div>
+        <div class="kpi"><span>Pico máximo</span><b id="kPeak">–</b></div>
+        <div class="kpi"><span>Pérdida de velocidad</span><b id="kLoss">–</b></div>
+        <div class="kpi"><span>Repeticiones</span><b id="kReps">–</b></div>
+      </div>
+      <h2>Por repetición</h2>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Rep</th><th>VMC</th><th>VMP</th><th>Pico</th><th>ROM</th><th>Pérd.</th></tr></thead>
+        <tbody id="tb"></tbody>
+      </table></div>
+      <p class="note">VMC: velocidad media concéntrica · VMP: velocidad media propulsiva · m/s · ROM en cm · Pérdida respecto de la mejor rep.</p>
+      <p class="note" id="quality"></p>
+      <div class="row">
+        <button id="saveBtn" class="primary">Guardar serie</button>
+        <button id="csvBtn">Exportar CSV</button>
+      </div>
+    </div>
+
+    <div class="hist">
+      <h2>Series guardadas</h2>
+      <p class="note" id="histNote">Del atleta y ejercicio elegidos.</p>
+      <ul id="histList"></ul>
+      <div id="rmBox" class="rm hidden"></div>
+    </div>
+
+    <details>
+      <summary>Cómo filmar para que mida bien</summary>
+      <ol>
+        <li>Teléfono en trípode, de perfil, perpendicular a la barra y a la altura del disco. No mover la cámara.</li>
+        <li>El disco del lado de la cámara entero en cuadro durante toda la serie.</li>
+        <li>Grabar en cámara lenta (120 o 240 fps) y elegir el factor arriba. A velocidad real la VMC sirve, el pico es menos fiable.</li>
+        <li>Si el disco no se distingue del fondo, pegá un círculo de cinta de color en el centro y usá "Marcador color".</li>
+        <li>Pausá el video en un cuadro previo a la primera rep, tocá "Marcar disco" y marcá el borde superior e inferior del disco.</li>
+      </ol>
+    </details>
+  </aside>
+</main>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const EX = {
+  squat: { n: "Sentadilla", minRom: .15, mvt: .30 },
+  bench: { n: "Press de banca", minRom: .10, mvt: .17 },
+  dead:  { n: "Peso muerto", minRom: .15, mvt: .15 },
+  hip:   { n: "Hip thrust", minRom: .06, mvt: null },
+  other: { n: "Otro", minRom: .06, mvt: null },
+};
+const ZONES = [
+  [1.3, "Velocidad", "#7CC4F2"], [1.0, "Velocidad-fuerza", "#3FB8A0"], [0.75, "Fuerza-velocidad", "#E8C547"],
+  [0.5, "Fuerza acelerativa", "#F2A33A"], [-1, "Fuerza máxima", "#E5484D"],
+];
+const zoneOf = v => ZONES.find(z => v >= z[0]);
+
+const vid = $("vid"), cv = $("cv"), ctx = cv.getContext("2d"), loupe = $("loupe"), lctx = loupe.getContext("2d");
+const pc = document.createElement("canvas"), pctx = pc.getContext("2d", { willReadFrequently: true });
+const S = { url: null, cal: null, pick: 0, pts: [], mode: "pattern", res: null, frames: [], k: 1, t0: 0, running: false, stop: false };
+
+// ---------- Preferencias y atletas (comparte almacenamiento con TrakMov) ----------
+const ls = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+             set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } } };
+let athletes = [];
+try { const d = JSON.parse(localStorage.getItem("am_db")); if (d && Array.isArray(d.ath)) athletes = d.ath; } catch {}
+let curAth = ""; try { curAth = localStorage.getItem("am_ath") || ""; } catch {}
+$("ath").innerHTML = `<option value="">Sin atleta</option>` + athletes.map(a => `<option value="${a.id}">${esc(a.n || [a.nombre, a.apellido].filter(Boolean).join(" ") || "Atleta")}</option>`).join("");
+if (athletes.some(a => a.id === curAth)) $("ath").value = curAth;
+const pref = ls.get("tm_vbt_pref", {});
+if (pref.ex) $("ex").value = pref.ex;
+if (pref.slow) $("slow").value = pref.slow;
+if (pref.diam) $("diam").value = pref.diam;
+function savePref() { ls.set("tm_vbt_pref", { ex: $("ex").value, slow: $("slow").value, diam: $("diam").value }); }
+["ex", "slow", "diam"].forEach(id => $(id).addEventListener("change", () => { savePref(); if (id === "ex") renderHist(); if (S.frames.length > 5 && !S.running) finish(); }));
+$("ath").onchange = () => { try { localStorage.setItem("am_ath", $("ath").value); } catch {} renderHist(); };
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+const status = html => $("status").innerHTML = html;
+
+// ---------- Video ----------
+$("file").onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  if (S.url) URL.revokeObjectURL(S.url);
+  S.url = URL.createObjectURL(f); S.cal = null; S.res = null; S.frames = [];
+  $("results").classList.add("hidden"); drawChart();
+  vid.src = S.url; vid.load();
+  status("Cargando video…");
+};
+vid.addEventListener("loadedmetadata", () => {
+  const sc = Math.min(1, 1280 / Math.max(vid.videoWidth, vid.videoHeight));
+  cv.width = Math.round(vid.videoWidth * sc); cv.height = Math.round(vid.videoHeight * sc);
+  $("scrub").max = vid.duration; $("scrub").value = 0; $("scrub").disabled = false;
+  $("calBtn").disabled = false; $("goBtn").disabled = true; $("empty").classList.add("hidden");
+  seek(Math.min(0.05, vid.duration / 2));
+  status("Mové la barra de tiempo hasta un cuadro <b>antes de la primera rep</b> y tocá <b>1 · Marcar disco</b>.");
+});
+vid.addEventListener("error", () => status('<span class="bad">No se pudo abrir el video. Probá exportarlo desde Fotos como "Más compatible".</span>'));
+function seek(t) { return new Promise(r => { const done = () => { vid.removeEventListener("seeked", done); render(); r(); }; vid.addEventListener("seeked", done); vid.currentTime = t; }); }
+$("scrub").addEventListener("input", () => { if (!S.running) vid.currentTime = +$("scrub").value; });
+vid.addEventListener("seeked", () => { if (!S.running) render(); });
+
+// ---------- Dibujo del cuadro + overlays ----------
+function render() {
+  if (!vid.videoWidth) return;
+  ctx.drawImage(vid, 0, 0, cv.width, cv.height);
+  const lw = Math.max(2, cv.width / 320);
+  if (S.res && S.res.path.length) {
+    ctx.lineWidth = lw; ctx.lineJoin = "round";
+    for (const r of S.res.reps) {          // trayectoria de cada concéntrica
+      ctx.strokeStyle = "rgba(242,163,58,.95)"; ctx.beginPath();
+      for (let i = r.i0; i <= r.i1; i++) { const p = S.res.path[i]; i === r.i0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); }
+      ctx.stroke();
+    }
+    ctx.strokeStyle = "rgba(230,235,240,.35)"; ctx.lineWidth = lw / 2; ctx.beginPath();
+    S.res.path.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke();
+    const tr = vid.currentTime / S.res.slow, i = nearestIdx(S.res.t, tr);
+    if (i >= 0) {
+      const p = S.res.path[i]; dot(p.x, p.y, lw * 3, "#F2A33A");
+      $("chip").textContent = `${S.res.v[i] >= 0 ? "↑" : "↓"} ${Math.abs(S.res.v[i]).toFixed(2)} m/s`; $("chip").classList.remove("hidden");
+      drawChart(S.res.t[i]);
+    }
+  } else $("chip").classList.add("hidden");
+  if (S.cal && !S.running) {
+    const c = S.cal; ctx.strokeStyle = "#3FB8A0"; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.arc(c.x, c.y, c.d / 2, 0, Math.PI * 2); ctx.stroke(); dot(c.x, c.y, lw * 1.6, "#3FB8A0");
+  }
+  S.pts.forEach(p => dot(p.x, p.y, lw * 2, "#3FB8A0"));
+}
+function dot(x, y, r, c) { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "#1C232B"; ctx.lineWidth = 1.5; ctx.stroke(); }
+function nearestIdx(arr, x) { if (!arr || !arr.length) return -1; let lo = 0, hi = arr.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; arr[m] < x ? lo = m : hi = m; } return Math.abs(arr[lo] - x) < Math.abs(arr[hi] - x) ? lo : hi; }
+
+// ---------- Marcado del disco (con lupa) ----------
+function toCanvas(e) {
+  const r = cv.getBoundingClientRect(), s = Math.min(r.width / cv.width, r.height / cv.height);
+  const ox = r.left + (r.width - cv.width * s) / 2, oy = r.top + (r.height - cv.height * s) / 2;
+  return { x: Math.max(0, Math.min(cv.width, (e.clientX - ox) / s)), y: Math.max(0, Math.min(cv.height, (e.clientY - oy) / s)) };
+}
+$("calBtn").onclick = () => {
+  if (S.running) return;
+  S.pick = 1; S.pts = []; S.cal = null; S.res = null; $("goBtn").disabled = true; cv.classList.add("picking"); render();
+  status("Tocá el <b>borde superior</b> del disco (podés deslizar el dedo y usar la lupa para afinar).");
+};
+function showLoupe(p) {
+  const z = 4, sx = vid.videoWidth / cv.width, w = 150 / z;
+  lctx.fillStyle = "#000"; lctx.fillRect(0, 0, 150, 150);
+  lctx.drawImage(vid, (p.x - w / 2) * sx, (p.y - w / 2) * sx, w * sx, w * sx, 0, 0, 150, 150);
+  lctx.strokeStyle = "#F2A33A"; lctx.lineWidth = 1.5;
+  lctx.beginPath(); lctx.moveTo(75, 0); lctx.lineTo(75, 150); lctx.moveTo(0, 75); lctx.lineTo(150, 75); lctx.stroke();
+  loupe.classList.remove("hidden");
+}
+let dragging = false;
+cv.addEventListener("pointerdown", e => { if (!S.pick) return; dragging = true; cv.setPointerCapture(e.pointerId); showLoupe(toCanvas(e)); e.preventDefault(); });
+cv.addEventListener("pointermove", e => { if (S.pick && dragging) showLoupe(toCanvas(e)); });
+cv.addEventListener("pointerup", e => {
+  if (!S.pick || !dragging) return; dragging = false; loupe.classList.add("hidden");
+  S.pts.push(toCanvas(e));
+  if (S.pick === 1) { S.pick = 2; status("Ahora tocá el <b>borde inferior</b> del disco."); render(); return; }
+  const [a, b] = S.pts; S.pick = 0; S.pts = []; cv.classList.remove("picking");
+  const d = Math.hypot(a.x - b.x, a.y - b.y);
+  if (d < 12) { render(); status('<span class="warn">Los dos puntos quedaron muy cerca. Volvé a marcar el disco.</span>'); return; }
+  S.cal = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, d }; S.t0 = vid.currentTime;
+  $("goBtn").disabled = false; render();
+  status(`Disco marcado (${Math.round(d)} px). Tocá <b>2 · Analizar</b>. Se analiza desde este cuadro hasta el final.`);
+});
+cv.addEventListener("pointercancel", () => { dragging = false; loupe.classList.add("hidden"); });
+
+$("mPat").onclick = () => setMode("pattern");
+$("mCol").onclick = () => setMode("color");
+function setMode(m) { S.mode = m; $("mPat").setAttribute("aria-pressed", m === "pattern"); $("mCol").setAttribute("aria-pressed", m === "color"); }
+
+// ---------- Seguimiento ----------
+// Se trabaja sobre una copia reducida del cuadro donde el disco mide ~120 px.
+function makeTracker(cx, cy, d, mode) {
+  const W = pc.width, H = pc.height;
+  // Modo "Disco": correlación cruzada normalizada con un patrón del centro del disco
+  let s = Math.round(d * 0.34); s = Math.max(11, Math.min(45, s | 1)); const h = s >> 1, n = s * s;
+  const grayAt = (x0, y0, w, hgt) => { const im = pctx.getImageData(x0, y0, w, hgt).data, g = new Float32Array(w * hgt);
+    for (let i = 0, j = 0; j < g.length; i += 4, j++) g[j] = 0.299 * im[i] + 0.587 * im[i + 1] + 0.114 * im[i + 2]; return g; };
+  const mk = g => { let m = 0; for (const v of g) m += v; m /= g.length; const t = new Float32Array(g.length); let nn = 0;
+    for (let i = 0; i < g.length; i++) { t[i] = g[i] - m; nn += t[i] * t[i]; } return { t, nn: Math.sqrt(nn) || 1 }; };
+  const T0 = mk(grayAt(Math.round(cx) - h, Math.round(cy) - h, s, s)); let T = { t: T0.t.slice(), nn: T0.nn };
+  const patt = (px, py, rad) => {
+    const R = Math.round(rad), x0 = Math.max(0, Math.round(px) - R - h), y0 = Math.max(0, Math.round(py) - R - h);
+    const x1 = Math.min(W - 1, Math.round(px) + R + h), y1 = Math.min(H - 1, Math.round(py) + R + h);
+    const w = x1 - x0 + 1, hh = y1 - y0 + 1; if (w <= s || hh <= s) return null;
+    const g = grayAt(x0, y0, w, hh);
+    const ncc = (cx2, cy2) => {           // cx2, cy2: centro del patrón en coordenadas de la ventana
+      const ox = cx2 - h, oy = cy2 - h; if (ox < 0 || oy < 0 || ox + s > w || oy + s > hh) return -2;
+      let si = 0, si2 = 0, sit = 0;
+      for (let y = 0; y < s; y++) { const row = (oy + y) * w + ox, tr = y * s;
+        for (let x = 0; x < s; x++) { const v = g[row + x]; si += v; si2 += v * v; sit += v * T.t[tr + x]; } }
+      const den = Math.sqrt(Math.max(1e-6, si2 - si * si / n)) * T.nn; return sit / den;
+    };
+    let best = -2, bx = 0, by = 0;
+    for (let y = h; y < hh - h; y += 2) for (let x = h; x < w - h; x += 2) { const c = ncc(x, y); if (c > best) { best = c; bx = x; by = y; } }
+    for (let y = by - 2; y <= by + 2; y++) for (let x = bx - 2; x <= bx + 2; x++) { const c = ncc(x, y); if (c > best) { best = c; bx = x; by = y; } }
+    if (best < 0.5) return null;
+    const sub = (m, c, p) => { const den = m - 2 * c + p; return den < 0 ? Math.max(-.5, Math.min(.5, 0.5 * (m - p) / den)) : 0; };
+    const dx = sub(ncc(bx - 1, by), best, ncc(bx + 1, by)), dy = sub(ncc(bx, by - 1), best, ncc(bx, by + 1));
+    if (best > 0.85) {                     // actualiza el patrón de a poco (cambios de luz, giro del disco)
+      const cur = mk(grayAt(x0 + bx - h, y0 + by - h, s, s));
+      for (let i = 0; i < n; i++) T.t[i] = 0.85 * T.t[i] + 0.1 * cur.t[i] + 0.05 * T0.t[i];
+      let nn = 0; for (let i = 0; i < n; i++) nn += T.t[i] * T.t[i]; T.nn = Math.sqrt(nn) || 1;
+    }
+    return { x: x0 + bx + dx, y: y0 + by + dy, q: best };
+  };
+  if (mode === "color") {
+    const rr = Math.max(3, Math.round(d * 0.07));
+    const img = pctx.getImageData(Math.round(cx - rr), Math.round(cy - rr), 2 * rr + 1, 2 * rr + 1).data;
+    // color de referencia: mediana del 40 % de píxeles más saturados alrededor del centro
+    // (el promedio de toda la zona se mezclaba con el gris del buje y el negro del disco)
+    const px = []; for (let i = 0; i < img.length; i += 4) px.push([img[i], img[i + 1], img[i + 2], Math.max(img[i], img[i + 1], img[i + 2]) - Math.min(img[i], img[i + 1], img[i + 2])]);
+    px.sort((p, q) => q[3] - p[3]); const top = px.slice(0, Math.max(3, Math.round(px.length * 0.4)));
+    const med = c => { const v = top.map(p => p[c]).sort((p, q) => p - q); return v[v.length >> 1]; };
+    const R = med(0), G = med(1), B = med(2);
+    const s0 = R + G + B + 1, cr = R / s0, cg = G / s0, L0 = s0 / 3;
+    const match = (r, g, b) => { const s = r + g + b + 1, L = s / 3; return Math.abs(r / s - cr) + Math.abs(g / s - cg) < 0.07 && L > L0 * 0.45 && L < L0 * 2.2; };
+    const win = (px, py, rad) => {
+      const x0 = Math.max(0, Math.round(px - rad)), y0 = Math.max(0, Math.round(py - rad));
+      const x1 = Math.min(W - 1, Math.round(px + rad)), y1 = Math.min(H - 1, Math.round(py + rad));
+      if (x1 <= x0 || y1 <= y0) return null;
+      const w = x1 - x0 + 1, hh = y1 - y0 + 1, data = pctx.getImageData(x0, y0, w, hh).data, m = new Uint8Array(w * hh);
+      for (let j = 0, i = 0; j < m.length; j++, i += 4) m[j] = match(data[i], data[i + 1], data[i + 2]) ? 1 : 0;
+      return { x0, y0, w, hh, m };
+    };
+    const centroid = (px, py, rad) => {
+      const g = win(px, py, rad); if (!g) return null; let sx = 0, sy = 0, c = 0;
+      for (let y = 0; y < g.hh; y++) for (let x = 0; x < g.w; x++) if (g.m[y * g.w + x]) { sx += x; sy += y; c++; }
+      return c ? { x: g.x0 + sx / c, y: g.y0 + sy / c, c } : { c: 0 };
+    };
+    const ref = centroid(cx, cy, d * 0.25), N0 = Math.max(6, ref ? ref.c : 6);
+    const bh = Math.max(2, Math.round(Math.sqrt(N0) / 2));   // medio lado de un cuadrado del tamaño del marcador
+    // busca la zona con más píxeles del color (no el promedio de todos): así las manchas sueltas del
+    // mismo tono en el fondo o la ropa no arrastran la posición
+    const scan = (px, py, rad) => {
+      const g = win(px, py, rad); if (!g) return null;
+      const { w, hh, m } = g, I = new Int32Array((w + 1) * (hh + 1));
+      for (let y = 0; y < hh; y++) { let row = 0; for (let x = 0; x < w; x++) { row += m[y * w + x]; I[(y + 1) * (w + 1) + x + 1] = I[y * (w + 1) + x + 1] + row; } }
+      const box = (x, y) => { const xa = Math.max(0, x - bh), ya = Math.max(0, y - bh), xb = Math.min(w, x + bh + 1), yb = Math.min(hh, y + bh + 1);
+        return I[yb * (w + 1) + xb] - I[ya * (w + 1) + xb] - I[yb * (w + 1) + xa] + I[ya * (w + 1) + xa]; };
+      let best = 0, bx = 0, by = 0, bd = Infinity; const qx = px - g.x0, qy = py - g.y0;
+      for (let y = 0; y < hh; y++) for (let x = 0; x < w; x++) {
+        const c = box(x, y); if (c < best) continue; const dd = (x - qx) ** 2 + (y - qy) ** 2;
+        if (c > best || dd < bd) { best = c; bx = x; by = y; bd = dd; }
+      }
+      return best ? { x: g.x0 + bx, y: g.y0 + by, c: best } : { c: 0 };
+    };
+    // el color ubica la mancha (aguanta saltos grandes); la posición fina sale de la correlación,
+    // porque el color del video viene comprimido a media resolución y el centroide "tiembla"
+    return (px, py, rad) => {
+      const a = scan(px, py, rad); if (!a || a.c < N0 * 0.25) return null;
+      const b = centroid(a.x, a.y, bh * 1.6); if (!b || b.c < N0 * 0.25) return null;
+      const f = patt(b.x, b.y, Math.max(4, d * 0.1));
+      return f && f.q > 0.6 ? f : { x: b.x, y: b.y, q: Math.min(1, b.c / N0) * 0.5 };
+    };
+  }
+  return patt;
+}
+
+// ---------- Análisis ----------
+$("stopBtn").onclick = () => { S.stop = true; };
+$("goBtn").onclick = async () => {
+  if (!S.cal || S.running) return;
+  S.running = true; S.stop = false; S.res = null; S.frames = [];
+  ["goBtn", "calBtn", "scrub"].forEach(id => $(id).disabled = true);
+  $("stopBtn").classList.remove("hidden"); $("prog").classList.remove("hidden"); $("results").classList.add("hidden");
+  status("Analizando… dejá la pantalla encendida.");
+  // tamaño de trabajo: el disco queda en ~120 px
+  S.k = Math.min(1, 120 / S.cal.d);
+  pc.width = Math.max(32, Math.round(cv.width * S.k)); pc.height = Math.max(32, Math.round(cv.height * S.k));
+  await seek(S.t0);
+  pctx.drawImage(vid, 0, 0, pc.width, pc.height);
+  const d = S.cal.d * S.k, base = Math.max(10, d * 0.45);
+  const track = makeTracker(S.cal.x * S.k, S.cal.y * S.k, d, S.mode);
+  let p = { x: S.cal.x * S.k, y: S.cal.y * S.k }, prev = null, lost = 0, lastT = S.t0, prevT = S.t0;
+  S.frames.push({ t: S.t0, x: p.x, y: p.y, ok: true });
+  const step = t => {
+    if (t <= lastT + 1e-6) return;
+    pctx.drawImage(vid, 0, 0, pc.width, pc.height);
+    let pred = p;
+    if (prev && lastT > prevT) { const f = Math.min(3, (t - lastT) / (lastT - prevT)); pred = { x: p.x + (p.x - prev.x) * f, y: p.y + (p.y - prev.y) * f }; }
+    const r = track(pred.x, pred.y, base * (1 + Math.min(lost, 4) * 0.5));
+    if (r) { prev = p; prevT = lastT; p = { x: r.x, y: r.y }; lost = 0; S.frames.push({ t, x: r.x, y: r.y, ok: true }); }
+    else { lost++; S.frames.push({ t, x: pred.x, y: pred.y, ok: false }); }
+    lastT = t;
+    const fr = (t - S.t0) / Math.max(1e-3, vid.duration - S.t0); $("prog").firstElementChild.style.width = (100 * fr).toFixed(1) + "%";
+    if (S.frames.length % 3 === 0) { ctx.drawImage(vid, 0, 0, cv.width, cv.height); dot(p.x / S.k, p.y / S.k, Math.max(4, cv.width / 110), lost ? "#E5484D" : "#F2A33A"); }
+  };
+  try {
+    if ("requestVideoFrameCallback" in HTMLVideoElement.prototype) {
+      await new Promise(resolve => {
+        let ended = false;
+        const end = () => { if (ended) return; ended = true; vid.pause(); vid.removeEventListener("ended", end); resolve(); };
+        // Ajusta la velocidad de reproducción: si se saltean cuadros baja, si no, sube de a poco
+        let lastPF = -1, clean = 0;
+        const cb = (now, meta) => {
+          if (S.stop) return end();
+          if (lastPF >= 0) {
+            const gap = meta.presentedFrames - lastPF;
+            if (gap > 1) { vid.playbackRate = Math.max(0.1, vid.playbackRate * 0.7); clean = 0; }
+            else if (++clean > 45 && vid.playbackRate < 2) { vid.playbackRate = Math.min(2, vid.playbackRate * 1.15); clean = 0; }
+          }
+          lastPF = meta.presentedFrames;
+          step(meta.mediaTime); if (vid.ended) return end(); vid.requestVideoFrameCallback(cb);
+        };
+        vid.addEventListener("ended", end);
+        vid.requestVideoFrameCallback(cb);
+        vid.playbackRate = 0.5;
+        vid.play().catch(() => fallback().then(end));
+      });
+    } else await fallback();
+  } finally {
+    vid.playbackRate = 1; S.running = false;
+    $("stopBtn").classList.add("hidden"); $("prog").classList.add("hidden");
+    ["goBtn", "calBtn", "scrub"].forEach(id => $(id).disabled = false);
+  }
+  finish();
+  async function fallback() { for (let t = S.t0 + 1 / 30; t < vid.duration && !S.stop; t += 1 / 30) { await seek(t); step(vid.currentTime); } }
+};
+
+// ---------- Procesamiento de señal ----------
+function butterLow(x, fc, fs) {           // Butterworth 2.º orden, ida y vuelta (sin desfase)
+  const wc = Math.tan(Math.PI * Math.min(fc, fs * 0.45) / fs), k1 = Math.SQRT2 * wc, k2 = wc * wc, a0 = 1 + k1 + k2;
+  const b0 = k2 / a0, b1 = 2 * b0, b2 = b0, a1 = 2 * (k2 - 1) / a0, a2 = (1 - k1 + k2) / a0;
+  const pass = s => { const y = new Float64Array(s.length); let x1 = s[0], x2 = s[0], y1 = s[0], y2 = s[0];
+    for (let i = 0; i < s.length; i++) { const v = b0 * s[i] + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = s[i]; y2 = y1; y1 = v; y[i] = v; } return y; };
+  const pad = Math.min(x.length - 1, 15), ext = new Float64Array(x.length + 2 * pad);
+  for (let i = 0; i < pad; i++) { ext[i] = 2 * x[0] - x[pad - i]; ext[ext.length - 1 - i] = 2 * x[x.length - 1] - x[x.length - 1 - pad + i]; }
+  ext.set(x, pad);
+  const y = pass(pass(ext).reverse()).reverse(); return y.slice(pad, pad + x.length);
+}
+const deriv = (y, dt) => y.map((_, i) => i === 0 ? (y[1] - y[0]) / dt : i === y.length - 1 ? (y[i] - y[i - 1]) / dt : (y[i + 1] - y[i - 1]) / (2 * dt));
+
+function analyze(frames, opts) {
+  const { slow, metersPerPx, ex } = opts;
+  const good = frames.filter(f => f.ok);
+  if (good.length < 8) return { err: "Se perdió el disco en casi todo el video." };
+  const tr = frames.map(f => f.t / slow), T = tr[tr.length - 1] - tr[0];
+  const dts = []; for (let i = 1; i < tr.length; i++) dts.push(tr[i] - tr[i - 1]);
+  // período de cuadro: si el navegador salteó cuadros, el intervalo más corto frecuente es el real
+  dts.sort((a, b) => a - b); const med = dts[dts.length >> 1] || 1 / 30;
+  const dt = Math.max(1 / 1000, med / 4, dts[Math.floor(dts.length * 0.1)] || med), fs = 1 / dt;
+  const N = Math.max(8, Math.floor(T / dt) + 1);
+  // interpolación lineal sobre los cuadros con seguimiento válido → grilla uniforme
+  const gt = good.map(f => f.t / slow), gx = good.map(f => f.x), gy = good.map(f => f.y);
+  const t = new Float64Array(N), X = new Float64Array(N), Y = new Float64Array(N);
+  for (let i = 0, j = 0; i < N; i++) {
+    const ti = tr[0] + i * dt; t[i] = ti;
+    while (j < gt.length - 2 && gt[j + 1] < ti) j++;
+    const u = gt[j + 1] === gt[j] ? 0 : Math.max(0, Math.min(1, (ti - gt[j]) / (gt[j + 1] - gt[j])));
+    X[i] = gx[j] + (gx[j + 1] - gx[j]) * u; Y[i] = gy[j] + (gy[j + 1] - gy[j]) * u;
+  }
+  // dos filtros: uno suave para la curva y el pico, otro más fino para ubicar inicio y fin de cada concéntrica
+  const fc = Math.min(8, fs * 0.2), fcB = Math.min(12, fs * 0.2), rawY = Y.map(y => -(y - Y[0]) * metersPerPx);
+  const posY = butterLow(rawY, fc, fs);     // altura (m), arriba positivo
+  const pB = butterLow(rawY, fcB, fs), vB = deriv(pB, dt);
+  const posX = butterLow(X.map(x => (x - X[0]) * metersPerPx), fc, fs);
+  const v = deriv(posY, dt), a = deriv(v, dt);
+  // ruido de la velocidad, medido en los momentos quietos (pausas arriba y abajo); define los umbrales
+  const median = arr => { const q = arr.slice().sort((p, r) => p - r); return q[q.length >> 1] || 0; };
+  const still = Array.from(v, (x, i) => [Math.abs(x), i]).sort((p, r) => p[0] - r[0]).slice(0, Math.max(5, Math.floor(N * 0.3)));
+  const sv = 1.4826 * median(still.map(([, i]) => Math.abs(vB[i])));
+  const vth = Math.min(0.25, Math.max(0.08, 5 * sv)), vb = Math.min(0.15, Math.max(0.03, 3 * sv));
+  // detección de fases concéntricas
+  const cfg = EX[ex] || EX.other, segs = [];
+  for (let i = 0; i < N;) {
+    if (v[i] > vth) { let j = i; while (j + 1 < N && v[j + 1] > vth) j++; segs.push([i, j]); i = j + 1; } else i++;
+  }
+  const merged = [];
+  for (const sg of segs) {                 // une tramos cortados por un punto de estancamiento sin bajada real
+    const last = merged[merged.length - 1];
+    if (last) { let minv = Infinity; for (let k = last[1]; k <= sg[0]; k++) minv = Math.min(minv, v[k]);
+      if ((t[sg[0]] - t[last[1]]) < 0.25 && minv > -vth) { last[1] = sg[1]; continue; } }
+    merged.push(sg.slice());
+  }
+  const reps = [];
+  const at = (arr, f) => { const i = Math.max(0, Math.min(arr.length - 1, Math.floor(f))), u = f - i; return i + 1 < arr.length ? arr[i] + (arr[i + 1] - arr[i]) * u : arr[i]; };
+  for (const [s0, s1] of merged) {
+    let ip = s0; for (let k = s0; k <= s1; k++) if (v[k] > v[ip]) ip = k;
+    const vp = v[ip];
+    // índice fraccionario donde vB cruza un umbral, buscando hacia atrás o hacia adelante desde el pico
+    const back = thr => { let k = ip; while (k > 0 && vB[k - 1] > thr) k--; return k > 0 ? k - 1 + (thr - vB[k - 1]) / (vB[k] - vB[k - 1]) : k; };
+    const fwd = thr => { let k = ip; while (k < N - 1 && vB[k + 1] > thr) k++; return k < N - 1 ? k + (vB[k] - thr) / (vB[k] - vB[k + 1]) : k; };
+    // el flanco de subida y el de bajada se extrapolan en línea recta hasta velocidad cero
+    // usando los cruces al 10 % y 30 % del pico (por encima del ruido); así no influye el suavizado
+    const lo = Math.max(0.1 * vp, 3 * sv, 0.03), hi = Math.max(0.3 * vp, lo + 0.15 * vp);
+    if (hi >= vp * 0.95) continue;
+    const tLo0 = at(t, back(lo)), tHi0 = at(t, back(hi)), tLo1 = at(t, fwd(lo)), tHi1 = at(t, fwd(hi));
+    const ts = Math.max(at(t, back(0)), tLo0 - (tHi0 - tLo0) * lo / (hi - lo));
+    const te = Math.min(at(t, fwd(0)), tLo1 + (tLo1 - tHi1) * lo / (hi - lo));
+    const fi = tt => (tt - t[0]) / dt, ps = at(pB, fi(ts)), pe = at(pB, fi(te));
+    const i0 = Math.max(0, Math.floor(fi(ts))), i1 = Math.min(N - 1, Math.ceil(fi(te)));
+    const rom = pe - ps, dur = te - ts;
+    if (rom < cfg.minRom || dur < 0.12) continue;
+    let fe = -1; for (let k = ip; k <= i1 && t[k] < te; k++) if (a[k] < -9.81) { fe = k; break; }
+    const mcv = rom / dur, mpv = fe > 0 ? (pB[fe] - ps) / (t[fe] - ts) : mcv;
+    let e0 = i0; while (e0 > 0 && v[e0 - 1] < 0) e0--;
+    const eRom = posY[e0] - posY[i0], eDur = t[i0] - t[e0];
+    let dxMax = 0; for (let k = i0; k <= i1; k++) dxMax = Math.max(dxMax, Math.abs(posX[k] - posX[i0]));
+    reps.push({ i0, i1, ip, ts, te, mcv, mpv, pv: v[ip], rom, dur, tpv: t[ip] - ts, ecc: eDur > 0.1 && eRom > 0.03 ? eRom / eDur : null, dx: dxMax });
+  }
+  const best = reps.reduce((m, r) => Math.max(m, r.mcv), 0);
+  reps.forEach(r => r.loss = best ? (best - r.mcv) / best * 100 : 0);
+  const okPct = 100 * good.length / frames.length;
+  const path = Array.from(t, (_, i) => ({ x: X[0] + posX[i] / metersPerPx, y: Y[0] - posY[i] / metersPerPx }));
+  return { t, posY, posX, v, a, fs, fsEff: (frames.length - 1) / Math.max(1e-6, T), reps, best, okPct, path, slow };
+}
+
+function finish() {
+  if (S.frames.length < 3) { status('<span class="warn">No se analizaron cuadros.</span>'); return; }
+  const metersPerPx = (+$("diam").value || 45) / 100 / (S.cal.d * S.k);
+  const r = analyze(S.frames, { slow: +$("slow").value || 1, metersPerPx, ex: $("ex").value });
+  if (r.err) { S.res = null; status(`<span class="bad">${r.err}</span> Probá con "Marcador color" o volvé a marcar el disco.`); drawChart(); return; }
+  r.path = r.path.map(p => ({ x: p.x / S.k, y: p.y / S.k }));
+  S.res = r; showResults(); render();
+}
+
+function showResults() {
+  const r = S.res, reps = r.reps;
+  $("results").classList.remove("hidden");
+  if (!reps.length) {
+    $("kBest").textContent = "–"; $("kPeak").textContent = "–"; $("kLoss").textContent = "–"; $("kReps").textContent = "0"; $("kZone").innerHTML = "";
+    $("tb").innerHTML = `<tr><td colspan="6" class="note">No se detectaron repeticiones. Revisá el ejercicio elegido y que el video incluya la subida completa.</td></tr>`;
+  } else {
+    const bi = reps.findIndex(x => x.mcv === r.best), z = zoneOf(r.best), last = reps[reps.length - 1];
+    $("kBest").innerHTML = `${r.best.toFixed(2)}<small>m/s</small>`;
+    $("kZone").innerHTML = `<span class="zone" style="background:${z[2]}">${z[1]}</span>`;
+    $("kPeak").innerHTML = `${Math.max(...reps.map(x => x.pv)).toFixed(2)}<small>m/s</small>`;
+    const loss = last.loss, cls = loss < 10 ? "ok" : loss < 25 ? "warn" : "bad";
+    $("kLoss").innerHTML = `<span class="${cls}">${loss.toFixed(0)}<small>%</small></span>`;
+    $("kReps").textContent = reps.length;
+    $("tb").innerHTML = reps.map((x, i) => `<tr class="${i === bi ? "best" : ""}"><td>${i + 1}</td><td>${x.mcv.toFixed(2)}</td><td>${x.mpv.toFixed(2)}</td><td>${x.pv.toFixed(2)}</td><td>${(x.rom * 100).toFixed(0)}</td><td>${x.loss.toFixed(0)}%</td></tr>`).join("");
+  }
+  const q = r.okPct, fsTxt = `${Math.round(r.fsEff)} cuadros/s analizados`;
+  $("quality").innerHTML = `Seguimiento: <span class="${q > 95 ? "ok" : q > 80 ? "warn" : "bad"}">${q.toFixed(0)}% de los cuadros</span> · ${fsTxt}` +
+    (r.fsEff < 50 ? ' · <span class="warn">a menos de 50 cuadros/s el pico es poco fiable; usá cámara lenta.</span>' : "") +
+    (q <= 80 ? ' · <span class="warn">se perdió el disco seguido; probá el modo "Marcador color".</span>' : "");
+  status(reps.length ? `Listo: ${reps.length} rep${reps.length > 1 ? "s" : ""}. Mové la barra de tiempo para ver la velocidad en cada cuadro.` : "Análisis terminado sin repeticiones detectadas.");
+  drawChart();
+}
+
+// ---------- Gráfico ----------
+function drawChart(cursorT) {
+  const c = $("chart"), dpr = window.devicePixelRatio || 1, W = c.clientWidth, H = c.clientHeight;
+  if (!W) return;
+  c.width = W * dpr; c.height = H * dpr; const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const r = S.res; g.font = "12px Barlow, sans-serif";
+  if (!r) { g.fillStyle = "#93A1AF"; g.fillText("El gráfico aparece después de analizar.", 14, 24); return; }
+  const L = 38, Rm = 12, Tp = 12, B = 22, pw = W - L - Rm, ph = H - Tp - B, t0 = r.t[0], t1 = r.t[r.t.length - 1];
+  const vmax = Math.max(1, Math.ceil(Math.max(...r.v) * 2) / 2), vmin = Math.min(-0.5, Math.floor(Math.min(...r.v) * 2) / 2);
+  const X = t => L + (t - t0) / Math.max(1e-6, t1 - t0) * pw, Yv = v => Tp + (vmax - v) / (vmax - vmin) * ph;
+  const pmin = Math.min(...r.posY), pmax = Math.max(...r.posY), Yp = p => Tp + ph - (p - pmin) / Math.max(1e-6, pmax - pmin) * ph * 0.9 - ph * 0.05;
+  g.fillStyle = "rgba(63,184,160,.16)";
+  r.reps.forEach((x, i) => { g.fillRect(X(r.t[x.i0]), Tp, X(r.t[x.i1]) - X(r.t[x.i0]), ph); });
+  g.strokeStyle = "#36414D"; g.lineWidth = 1; g.fillStyle = "#93A1AF";
+  for (let v = vmin; v <= vmax + 1e-9; v += 0.5) { g.beginPath(); g.moveTo(L, Yv(v)); g.lineTo(W - Rm, Yv(v)); g.stroke(); g.fillText(v.toFixed(1), 4, Yv(v) + 4); }
+  const step = Math.max(1, Math.ceil((t1 - t0) / 8));
+  for (let s = Math.ceil(t0); s <= t1; s += step) g.fillText(`${Math.round(s - t0)} s`, X(s) - 8, H - 6);
+  g.strokeStyle = "#E6EBF0"; g.lineWidth = 1.2; g.beginPath(); g.moveTo(L, Yv(0)); g.lineTo(W - Rm, Yv(0)); g.stroke();
+  const line = (arr, Y, col, w) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); arr.forEach((y, i) => i ? g.lineTo(X(r.t[i]), Y(y)) : g.moveTo(X(r.t[i]), Y(y))); g.stroke(); };
+  line(r.posY, Yp, "rgba(147,161,175,.6)", 1.2);
+  line(r.v, Yv, "#F2A33A", 2);
+  g.fillStyle = "#E6EBF0"; g.font = "600 12px Barlow, sans-serif";
+  r.reps.forEach((x, i) => { const xm = (X(r.t[x.i0]) + X(r.t[x.i1])) / 2; g.fillText(`${i + 1}`, xm - 3, Tp + 13); g.fillText(x.mcv.toFixed(2), xm - 12, Tp + 27); });
+  if (cursorT != null) { g.strokeStyle = "#7CC4F2"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(cursorT), Tp); g.lineTo(X(cursorT), Tp + ph); g.stroke(); }
+}
+window.addEventListener("resize", () => drawChart());
+drawChart();
+
+// ---------- Guardar, historial y 1RM ----------
+const loadHist = () => ls.get("tm_vbt", []);
+$("saveBtn").onclick = () => {
+  const r = S.res; if (!r || !r.reps.length) return;
+  const load = parseFloat(String($("load").value).replace(",", "."));
+  if (!(load > 0)) { status('<span class="warn">Cargá la carga en kg antes de guardar la serie.</span>'); $("load").focus(); return; }
+  const a = athletes.find(x => x.id === $("ath").value);
+  const h = loadHist();
+  h.push({ id: Date.now().toString(36), date: new Date().toISOString(), ath: $("ath").value, athN: a ? (a.n || "") : "", ex: $("ex").value, load,
+    reps: r.reps.map(x => ({ mcv: +x.mcv.toFixed(3), mpv: +x.mpv.toFixed(3), pv: +x.pv.toFixed(3), rom: +x.rom.toFixed(3) })),
+    best: +r.best.toFixed(3), loss: +r.reps[r.reps.length - 1].loss.toFixed(1) });
+  if (!ls.set("tm_vbt", h)) { status('<span class="bad">No se pudo guardar (almacenamiento lleno).</span>'); return; }
+  status(`Serie guardada: ${EX[$("ex").value].n}, ${load} kg, mejor VMC ${r.best.toFixed(2)} m/s.`); renderHist();
+};
+function renderHist() {
+  const ath = $("ath").value, ex = $("ex").value;
+  const list = loadHist().filter(h => h.ath === ath && h.ex === ex).sort((a, b) => b.date.localeCompare(a.date));
+  $("histNote").textContent = `${EX[ex].n} · ${ath ? ($("ath").selectedOptions[0] || {}).textContent : "sin atleta"}`;
+  $("histList").innerHTML = list.length ? list.slice(0, 30).map(h => {
+    const d = new Date(h.date);
+    return `<li><span>${d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })} · <b>${h.load} kg</b> · ${h.best.toFixed(2)} m/s · ${h.reps.length} reps · −${h.loss.toFixed(0)}%</span><button data-del="${h.id}" aria-label="Borrar serie">✕</button></li>`;
+  }).join("") : `<li class="note">Todavía no hay series guardadas.</li>`;
+  // perfil carga-velocidad con las series del último día con ≥2 cargas distintas
+  const box = $("rmBox"), mvt = EX[ex].mvt; box.classList.add("hidden");
+  if (!mvt || list.length < 2) return;
+  const day = list[0].date.slice(0, 10), pts = list.filter(h => h.date.slice(0, 10) === day).map(h => [h.best, h.load]);
+  if (new Set(pts.map(p => p[1])).size < 2) { box.innerHTML = `<span class="note">Guardá series con 2 o más cargas distintas el mismo día para estimar el 1RM.</span>`; box.classList.remove("hidden"); return; }
+  const n = pts.length, mx = pts.reduce((s, p) => s + p[0], 0) / n, my = pts.reduce((s, p) => s + p[1], 0) / n;
+  let sxy = 0, sxx = 0, syy = 0; pts.forEach(([x, y]) => { sxy += (x - mx) * (y - my); sxx += (x - mx) ** 2; syy += (y - my) ** 2; });
+  const b = sxy / (sxx || 1e-9), a0 = my - b * mx, rm = a0 + b * mvt, r2 = sxx && syy ? (sxy * sxy) / (sxx * syy) : 0;
+  if (!(b < 0) || !(rm > 0)) { box.innerHTML = `<span class="note">Las velocidades no bajan con la carga; revisá las series de hoy.</span>`; box.classList.remove("hidden"); return; }
+  box.innerHTML = `<div class="note">1RM estimado (${day.split("-").reverse().slice(0, 2).join("/")}, ${n} series, velocidad en 1RM ${mvt.toFixed(2)} m/s)</div><b>${rm.toFixed(1)} kg</b>
+    <div class="note">Perfil: carga = ${a0.toFixed(1)} ${b < 0 ? "−" : "+"} ${Math.abs(b).toFixed(1)} × VMC · R² ${r2.toFixed(2)}${r2 < 0.9 ? ' · <span class="warn">ajuste flojo</span>' : ""}</div>`;
+  box.classList.remove("hidden");
+}
+$("histList").onclick = e => {
+  const id = e.target.dataset && e.target.dataset.del; if (!id) return;
+  if (!confirm("¿Borrar esta serie?")) return;
+  ls.set("tm_vbt", loadHist().filter(h => h.id !== id)); renderHist();
+};
+renderHist();
+
+// ---------- CSV ----------
+$("csvBtn").onclick = () => {
+  const r = S.res; if (!r) return;
+  const a = $("ath").selectedOptions[0], q = s => `"${String(s).replace(/"/g, '""')}"`;
+  const lines = [`Atleta;${q(a ? a.textContent : "")}`, `Ejercicio;${q(EX[$("ex").value].n)}`, `Carga kg;${$("load").value}`, "",
+    "Rep;VMC m/s;VMP m/s;Pico m/s;Tiempo al pico s;ROM cm;Concéntrica s;Excéntrica m/s;Desvío horizontal cm;Pérdida %",
+    ...r.reps.map((x, i) => [i + 1, x.mcv.toFixed(3), x.mpv.toFixed(3), x.pv.toFixed(3), x.tpv.toFixed(3), (x.rom * 100).toFixed(1), x.dur.toFixed(3), x.ecc ? x.ecc.toFixed(3) : "", (x.dx * 100).toFixed(1), x.loss.toFixed(1)].join(";")),
+    "", "t s;altura m;horizontal m;velocidad m/s;aceleración m/s2",
+    ...Array.from(r.t, (t, i) => [(t - r.t[0]).toFixed(4), r.posY[i].toFixed(4), r.posX[i].toFixed(4), r.v[i].toFixed(4), r.a[i].toFixed(3)].join(";"))];
+  const blob = new Blob(["﻿" + lines.join("\n").replace(/(\d)\.(\d)/g, "$1,$2")], { type: "text/csv" });
+  const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
+  link.download = `VBT_${EX[$("ex").value].n.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link); link.click(); setTimeout(() => { URL.revokeObjectURL(link.href); link.remove(); }, 1000);
+};
+</script>
+</body>
+</html>

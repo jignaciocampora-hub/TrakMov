@@ -2442,6 +2442,13 @@ const FLOWS = [
 ];
 const PR = Object.fromEntries(PROTOS.map(p => [p.id, p]));
 let romFilter = "Todos";
+// Ícono del módulo VBT (vbt.html): barra con disco y flecha de velocidad
+const VBT_SVG = `<svg viewBox="0 0 100 120" aria-hidden="true"><rect width="100" height="120" rx="14" fill="#F1F7F3"/>
+  <line x1="10" y1="74" x2="90" y2="74" stroke="#34495E" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="50" cy="74" r="22" fill="#34495E"/><circle cx="50" cy="74" r="7" fill="#F1F7F3"/><circle cx="50" cy="74" r="3" fill="#5BBF8A"/>
+  <path d="M78 46 V16" stroke="#5BBF8A" stroke-width="3" stroke-dasharray="4 4" marker-end="url(#vbtah)"/>
+  <defs><marker id="vbtah" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="#5BBF8A"/></marker></defs>
+  <text x="50" y="112" text-anchor="middle" font-family="Barlow,sans-serif" font-weight="700" font-size="13" fill="#2F7D55">m/s</text></svg>`;
 function tile(id, n, fig, flow) { return `<button class="tile" data-${flow ? "flow" : "proto"}="${id}">${figSVG(fig)}${n}</button>`; }
 function buildCatalog() {
   const regs = ["Todos", ...new Set(PROTOS.filter(p => p.cat === "rom").map(p => p.reg))];
@@ -2449,6 +2456,7 @@ function buildCatalog() {
     <h3>Flujos de evaluación</h3><div class="hscroll">${FLOWS.map(f => tile(f.id, f.n, f.fig, true)).join("")}</div>
     <h3>Movimientos funcionales</h3><div class="hscroll">${PROTOS.filter(p => p.cat === "func").map(p => tile(p.id, p.n, p.fig)).join("")}</div>
     <h3>Rendimiento</h3><div class="hscroll">${PROTOS.filter(p => p.cat === "perf").map(p => tile(p.id, p.n, p.fig)).join("")}</div>
+    <h3>Velocidad de ejecución (VBT)</h3><div class="hscroll"><a class="tile" href="vbt.html" style="text-decoration:none">${VBT_SVG}Velocidad de barra</a></div>
     <h3>Rango de movimiento</h3><div class="chips">${regs.map(r => `<button class="chip ${r === romFilter ? "on" : ""}" data-reg="${r}">${r}</button>`).join("")}</div>
     <div class="grid2">${PROTOS.filter(p => p.cat === "rom" && (romFilter === "Todos" || p.reg === romFilter)).map(p => tile(p.id, p.n, p.fig)).join("")}</div>`;
 }
