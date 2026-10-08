@@ -47,6 +47,10 @@
   #loupe{position:absolute;left:10px;top:10px;width:150px;height:150px;border-radius:50%;border:3px solid var(--amber);box-shadow:0 4px 18px rgba(0,0,0,.5);z-index:4;pointer-events:none}
   #hint{margin-top:10px;padding:10px 12px;border-radius:8px;background:var(--panel);border-left:4px solid var(--amber);font-size:15px}
   #hint b{color:var(--amber)}
+  #fchip{position:absolute;left:10px;top:10px;z-index:3;pointer-events:none;border-radius:6px;padding:4px 10px;font:600 13px Barlow,sans-serif;background:rgba(28,35,43,.88);color:#E6EBF0;font-variant-numeric:tabular-nums}
+  #fchip .bad{color:#FF8A8D}
+  .stepper{display:flex;gap:6px;align-items:center}
+  .stepper button{min-width:46px}
   #chip{position:absolute;right:10px;bottom:10px;z-index:3;pointer-events:none;border-radius:999px;padding:6px 12px;font:700 15px Barlow,sans-serif;background:rgba(28,35,43,.88);color:#E6EBF0;font-variant-numeric:tabular-nums}
   .tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
   .tools .lbl{color:var(--muted);font-size:13px}
@@ -111,11 +115,17 @@
       <canvas id="loupe" width="150" height="150" class="hidden"></canvas>
       <div id="empty">Cargá un video de la serie para empezar.</div>
       <div id="chip" class="hidden"></div>
+      <div id="fchip" class="hidden"></div>
       <video id="vid" playsinline muted preload="auto"></video>
     </div>
     <div id="hint" class="hidden"></div>
     <div class="tools">
       <input id="scrub" type="range" min="0" max="1" step="0.001" value="0" disabled aria-label="Posición en el video">
+      <div class="stepper" role="group" aria-label="Cuadro por cuadro">
+        <button id="prevF" disabled aria-label="Cuadro anterior">◀</button>
+        <button id="nextF" disabled aria-label="Cuadro siguiente">▶</button>
+        <span class="lbl">Cuadro a cuadro (también ruedita del mouse o flechas ← →)</span>
+      </div>
       <button id="calBtn" disabled>1 · Marcar disco (2 toques)</button>
       <span style="display:inline-flex;align-items:center;gap:8px;white-space:nowrap"><span class="lbl">Ø disco</span>
       <input id="diam" type="number" inputmode="decimal" value="45" min="10" max="60" step="0.5" aria-label="Diámetro del disco en cm" style="width:84px">
@@ -173,7 +183,7 @@
         <li>Al cargar el video, dejalo en un cuadro previo a la primera rep y tocá en la imagen el borde superior y después el inferior del disco. Recién ahí se puede analizar.</li>
       </ol>
     </details>
-    <p class="note" style="text-align:center;margin-top:16px">Módulo VBT · versión 8 oct 2026 (b)</p>
+    <p class="note" style="text-align:center;margin-top:16px">Módulo VBT · versión 8 oct 2026 (c)</p>
   </aside>
 </main>
 
@@ -228,7 +238,7 @@ vid.addEventListener("loadedmetadata", () => {
   const sc = Math.min(1, 1280 / Math.max(vid.videoWidth, vid.videoHeight));
   cv.width = Math.round(vid.videoWidth * sc); cv.height = Math.round(vid.videoHeight * sc);
   $("scrub").max = vid.duration; $("scrub").value = 0; $("scrub").disabled = false;
-  $("calBtn").disabled = false; $("goBtn").disabled = false; $("empty").classList.add("hidden");
+  $("calBtn").disabled = false; $("goBtn").disabled = false; $("prevF").disabled = false; $("nextF").disabled = false; $("empty").classList.add("hidden");
   // en iPhone el primer cuadro a veces no se dibuja hasta reproducir: play/pause silencioso
   const p0 = vid.play(); if (p0 && p0.then) p0.then(() => { vid.pause(); seek(Math.min(0.05, vid.duration / 2)); }).catch(() => seek(Math.min(0.05, vid.duration / 2)));
   else seek(Math.min(0.05, vid.duration / 2));
@@ -237,7 +247,43 @@ vid.addEventListener("loadedmetadata", () => {
 vid.addEventListener("error", () => status('<span class="bad">No se pudo abrir el video. Probá exportarlo desde Fotos como "Más compatible".</span>'));
 function seek(t) { return new Promise(r => { const done = () => { vid.removeEventListener("seeked", done); render(); r(); }; vid.addEventListener("seeked", done); vid.currentTime = t; }); }
 $("scrub").addEventListener("input", () => { if (!S.running) vid.currentTime = +$("scrub").value; });
-vid.addEventListener("seeked", () => { if (!S.running) render(); });
+vid.addEventListener("seeked", () => { if (!S.running) { $("scrub").value = vid.currentTime; render(); } });
+// ---------- Cuadro por cuadro ----------
+function nearestFrame(t) {
+  const F = S.frames; if (!F.length || t < F[0].t - 0.05) return -1;
+  let lo = 0, hi = F.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; F[m].t < t ? lo = m : hi = m; }
+  return Math.abs(F[lo].t - t) <= Math.abs(F[hi].t - t) ? lo : hi;
+}
+let stepBusy = false, stepQ = 0, wheelAcc = 0;
+async function stepFrame(dir) {
+  if (S.running || S.pick || !vid.videoWidth) return;
+  stepQ += dir; if (stepBusy) return; stepBusy = true;
+  vid.pause();
+  while (stepQ) {
+    const d = Math.sign(stepQ); stepQ -= d;
+    const fi = S.frames.length > 1 ? nearestFrame(vid.currentTime) : -1;
+    let t;
+    if (fi >= 0) t = S.frames[Math.max(0, Math.min(S.frames.length - 1, fi + d))].t;   // los mismos cuadros que se analizaron
+    else t = vid.currentTime + d / 30;
+    t = Math.max(0, Math.min(vid.duration - 0.001, t));
+    await seek(t + 1e-4);
+  }
+  stepBusy = false;
+}
+$("prevF").onclick = () => stepFrame(-1);
+$("nextF").onclick = () => stepFrame(1);
+cv.addEventListener("wheel", e => {
+  if (S.pick || !vid.videoWidth) return;
+  e.preventDefault();
+  const dl = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX; if (!dl) return;
+  // cada clic de la ruedita = 1 cuadro; en el touchpad (movimientos chicos) se acumula
+  if (e.deltaMode === 1 || Math.abs(dl) >= 50) { wheelAcc = 0; stepFrame(Math.sign(dl)); return; }
+  wheelAcc += dl; if (Math.abs(wheelAcc) >= 50) { stepFrame(Math.sign(wheelAcc)); wheelAcc = 0; }
+}, { passive: false });
+document.addEventListener("keydown", e => {
+  if (/INPUT|SELECT|TEXTAREA/.test((e.target || {}).tagName || "") && e.target.id !== "scrub") return;
+  if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); stepFrame(e.key === "ArrowRight" ? 1 : -1); }
+});
 
 // ---------- Dibujo del cuadro + overlays ----------
 function render() {
@@ -260,9 +306,21 @@ function render() {
       drawChart(S.res.t[i]);
     }
   } else $("chip").classList.add("hidden");
-  if (S.cal && !S.running) {
-    const c = S.cal; ctx.strokeStyle = "#3FB8A0"; ctx.lineWidth = lw;
-    ctx.beginPath(); ctx.arc(c.x, c.y, c.d / 2, 0, Math.PI * 2); ctx.stroke(); dot(c.x, c.y, lw * 1.6, "#3FB8A0");
+  const fi = S.cal && S.frames.length > 1 && !S.running && !S.pick ? nearestFrame(vid.currentTime) : -1;
+  if (fi >= 0) {
+    // círculo del disco en la posición que detectó el seguimiento en ESTE cuadro (sin suavizar):
+    // si en algún cuadro no queda pegado al disco, ahí falló el seguimiento
+    const f = S.frames[fi], x = f.x / S.k, y = f.y / S.k, col = f.ok ? "#3FB8A0" : "#E5484D";
+    ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath(); ctx.arc(x, y, S.cal.d / 2, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - lw * 5, y); ctx.lineTo(x + lw * 5, y); ctx.moveTo(x, y - lw * 5); ctx.lineTo(x, y + lw * 5); ctx.stroke();
+    $("fchip").innerHTML = `Cuadro ${fi + 1} / ${S.frames.length}` + (f.ok ? "" : ' · <span class="bad">disco perdido</span>');
+    $("fchip").classList.remove("hidden");
+  } else {
+    $("fchip").classList.add("hidden");
+    if (S.cal && !S.running) {
+      const c = S.cal; ctx.strokeStyle = "#3FB8A0"; ctx.lineWidth = lw;
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.d / 2, 0, Math.PI * 2); ctx.stroke(); dot(c.x, c.y, lw * 1.6, "#3FB8A0");
+    }
   }
   S.pts.forEach(p => dot(p.x, p.y, lw * 2, "#3FB8A0"));
 }
@@ -277,7 +335,7 @@ function toCanvas(e) {
 }
 function startPick(msg) {
   if (S.running || !vid.videoWidth) return;
-  S.pick = 1; S.pts = []; S.cal = null; S.res = null; cv.classList.add("picking"); render();
+  S.pick = 1; S.pts = []; S.cal = null; S.res = null; S.frames = []; cv.classList.add("picking"); render();
   status(msg || "Tocá el <b>borde superior</b> del disco (paso 1 de 2). Podés deslizar el dedo y usar la lupa para afinar.");
 }
 $("calBtn").onclick = () => startPick();
@@ -409,7 +467,7 @@ $("goBtn").onclick = async () => {
     return;
   }
   S.running = true; S.stop = false; S.res = null; S.frames = [];
-  ["goBtn", "calBtn", "scrub"].forEach(id => $(id).disabled = true);
+  ["goBtn", "calBtn", "scrub", "prevF", "nextF"].forEach(id => $(id).disabled = true);
   $("stopBtn").classList.remove("hidden"); $("prog").classList.remove("hidden"); $("results").classList.add("hidden");
   status("Analizando… dejá la pantalla encendida.");
   // tamaño de trabajo: el disco queda en ~120 px
@@ -459,7 +517,7 @@ $("goBtn").onclick = async () => {
   } finally {
     vid.playbackRate = 1; S.running = false;
     $("stopBtn").classList.add("hidden"); $("prog").classList.add("hidden");
-    ["goBtn", "calBtn", "scrub"].forEach(id => $(id).disabled = false);
+    ["goBtn", "calBtn", "scrub", "prevF", "nextF"].forEach(id => $(id).disabled = false);
   }
   finish();
   async function fallback() { for (let t = S.t0 + 1 / 30; t < vid.duration && !S.stop; t += 1 / 30) { await seek(t); step(vid.currentTime); } }
@@ -582,7 +640,7 @@ function showResults() {
   $("quality").innerHTML = `Seguimiento: <span class="${q > 95 ? "ok" : q > 80 ? "warn" : "bad"}">${q.toFixed(0)}% de los cuadros</span> · ${fsTxt}` +
     (r.fsEff < 50 ? ' · <span class="warn">a menos de 50 cuadros/s el pico es poco fiable; usá cámara lenta.</span>' : "") +
     (q <= 80 ? ' · <span class="warn">se perdió el disco seguido; probá "Seguir: Punto de color".</span>' : "");
-  status(reps.length ? `Listo: ${reps.length} rep${reps.length > 1 ? "s" : ""}. Mové la barra de tiempo para ver la velocidad en cada cuadro.` : "Análisis terminado sin repeticiones detectadas.");
+  status(reps.length ? `Listo: ${reps.length} rep${reps.length > 1 ? "s" : ""}. Revisá cuadro a cuadro (◀ ▶, ruedita o flechas) que el círculo verde quede siempre sobre el disco; si en algún cuadro se sale, ahí falló el seguimiento.` : "Análisis terminado sin repeticiones detectadas.");
   drawChart();
 }
 
