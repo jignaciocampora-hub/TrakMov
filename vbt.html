@@ -45,6 +45,8 @@
   video{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
   #empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);text-align:center;padding:20px;font-size:14px}
   #loupe{position:absolute;left:10px;top:10px;width:150px;height:150px;border-radius:50%;border:3px solid var(--amber);box-shadow:0 4px 18px rgba(0,0,0,.5);z-index:4;pointer-events:none}
+  #hint{margin-top:10px;padding:10px 12px;border-radius:8px;background:var(--panel);border-left:4px solid var(--amber);font-size:15px}
+  #hint b{color:var(--amber)}
   #chip{position:absolute;right:10px;bottom:10px;z-index:3;pointer-events:none;border-radius:999px;padding:6px 12px;font:700 15px Barlow,sans-serif;background:rgba(28,35,43,.88);color:#E6EBF0;font-variant-numeric:tabular-nums}
   .tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
   .tools .lbl{color:var(--muted);font-size:13px}
@@ -111,15 +113,17 @@
       <div id="chip" class="hidden"></div>
       <video id="vid" playsinline muted preload="auto"></video>
     </div>
+    <div id="hint" class="hidden"></div>
     <div class="tools">
       <input id="scrub" type="range" min="0" max="1" step="0.001" value="0" disabled aria-label="Posición en el video">
-      <button id="calBtn" disabled>1 · Marcar disco</button>
-      <span class="lbl">Ø disco</span>
+      <button id="calBtn" disabled>1 · Marcar disco (2 toques)</button>
+      <span style="display:inline-flex;align-items:center;gap:8px;white-space:nowrap"><span class="lbl">Ø disco</span>
       <input id="diam" type="number" inputmode="decimal" value="45" min="10" max="60" step="0.5" aria-label="Diámetro del disco en cm" style="width:84px">
-      <span class="lbl">cm</span>
+      <span class="lbl">cm</span></span>
+      <span class="lbl">Seguir</span>
       <div class="seg" role="group" aria-label="Modo de seguimiento">
         <button id="mPat" aria-pressed="true">Disco</button>
-        <button id="mCol" aria-pressed="false">Marcador color</button>
+        <button id="mCol" aria-pressed="false">Punto de color</button>
       </div>
       <button id="goBtn" class="primary" disabled>2 · Analizar</button>
       <button id="stopBtn" class="hidden">Detener</button>
@@ -165,10 +169,11 @@
         <li>Teléfono en trípode, de perfil, perpendicular a la barra y a la altura del disco. No mover la cámara.</li>
         <li>El disco del lado de la cámara entero en cuadro durante toda la serie.</li>
         <li>Grabar en cámara lenta (120 o 240 fps) y elegir el factor arriba. A velocidad real la VMC sirve, el pico es menos fiable.</li>
-        <li>Si el disco no se distingue del fondo, pegá un círculo de cinta de color en el centro y usá "Marcador color".</li>
-        <li>Pausá el video en un cuadro previo a la primera rep, tocá "Marcar disco" y marcá el borde superior e inferior del disco.</li>
+        <li>Si el disco no se distingue del fondo, pegá un círculo de cinta de color en el centro y usá "Seguir: Punto de color".</li>
+        <li>Al cargar el video, dejalo en un cuadro previo a la primera rep y tocá en la imagen el borde superior y después el inferior del disco. Recién ahí se puede analizar.</li>
       </ol>
     </details>
+    <p class="note" style="text-align:center;margin-top:16px">Módulo VBT · versión 8 oct 2026 (b)</p>
   </aside>
 </main>
 
@@ -208,7 +213,7 @@ function savePref() { ls.set("tm_vbt_pref", { ex: $("ex").value, slow: $("slow")
 ["ex", "slow", "diam"].forEach(id => $(id).addEventListener("change", () => { savePref(); if (id === "ex") renderHist(); if (S.frames.length > 5 && !S.running) finish(); }));
 $("ath").onchange = () => { try { localStorage.setItem("am_ath", $("ath").value); } catch {} renderHist(); };
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
-const status = html => $("status").innerHTML = html;
+const status = html => { $("status").innerHTML = html; $("hint").innerHTML = html; $("hint").classList.toggle("hidden", !vid.videoWidth); };
 
 // ---------- Video ----------
 $("file").onchange = e => {
@@ -223,9 +228,11 @@ vid.addEventListener("loadedmetadata", () => {
   const sc = Math.min(1, 1280 / Math.max(vid.videoWidth, vid.videoHeight));
   cv.width = Math.round(vid.videoWidth * sc); cv.height = Math.round(vid.videoHeight * sc);
   $("scrub").max = vid.duration; $("scrub").value = 0; $("scrub").disabled = false;
-  $("calBtn").disabled = false; $("goBtn").disabled = true; $("empty").classList.add("hidden");
-  seek(Math.min(0.05, vid.duration / 2));
-  status("Mové la barra de tiempo hasta un cuadro <b>antes de la primera rep</b> y tocá <b>1 · Marcar disco</b>.");
+  $("calBtn").disabled = false; $("goBtn").disabled = false; $("empty").classList.add("hidden");
+  // en iPhone el primer cuadro a veces no se dibuja hasta reproducir: play/pause silencioso
+  const p0 = vid.play(); if (p0 && p0.then) p0.then(() => { vid.pause(); seek(Math.min(0.05, vid.duration / 2)); }).catch(() => seek(Math.min(0.05, vid.duration / 2)));
+  else seek(Math.min(0.05, vid.duration / 2));
+  startPick("Video cargado. Si hace falta, mové la barra de tiempo a un cuadro <b>antes de la primera rep</b>. Después tocá el <b>borde superior</b> del disco (paso 1 de 2).");
 });
 vid.addEventListener("error", () => status('<span class="bad">No se pudo abrir el video. Probá exportarlo desde Fotos como "Más compatible".</span>'));
 function seek(t) { return new Promise(r => { const done = () => { vid.removeEventListener("seeked", done); render(); r(); }; vid.addEventListener("seeked", done); vid.currentTime = t; }); }
@@ -268,11 +275,12 @@ function toCanvas(e) {
   const ox = r.left + (r.width - cv.width * s) / 2, oy = r.top + (r.height - cv.height * s) / 2;
   return { x: Math.max(0, Math.min(cv.width, (e.clientX - ox) / s)), y: Math.max(0, Math.min(cv.height, (e.clientY - oy) / s)) };
 }
-$("calBtn").onclick = () => {
-  if (S.running) return;
-  S.pick = 1; S.pts = []; S.cal = null; S.res = null; $("goBtn").disabled = true; cv.classList.add("picking"); render();
-  status("Tocá el <b>borde superior</b> del disco (podés deslizar el dedo y usar la lupa para afinar).");
-};
+function startPick(msg) {
+  if (S.running || !vid.videoWidth) return;
+  S.pick = 1; S.pts = []; S.cal = null; S.res = null; cv.classList.add("picking"); render();
+  status(msg || "Tocá el <b>borde superior</b> del disco (paso 1 de 2). Podés deslizar el dedo y usar la lupa para afinar.");
+}
+$("calBtn").onclick = () => startPick();
 function showLoupe(p) {
   const z = 4, sx = vid.videoWidth / cv.width, w = 150 / z;
   lctx.fillStyle = "#000"; lctx.fillRect(0, 0, 150, 150);
@@ -287,7 +295,7 @@ cv.addEventListener("pointermove", e => { if (S.pick && dragging) showLoupe(toCa
 cv.addEventListener("pointerup", e => {
   if (!S.pick || !dragging) return; dragging = false; loupe.classList.add("hidden");
   S.pts.push(toCanvas(e));
-  if (S.pick === 1) { S.pick = 2; status("Ahora tocá el <b>borde inferior</b> del disco."); render(); return; }
+  if (S.pick === 1) { S.pick = 2; status("Ahora tocá el <b>borde inferior</b> del disco (paso 2 de 2)."); render(); return; }
   const [a, b] = S.pts; S.pick = 0; S.pts = []; cv.classList.remove("picking");
   const d = Math.hypot(a.x - b.x, a.y - b.y);
   if (d < 12) { render(); status('<span class="warn">Los dos puntos quedaron muy cerca. Volvé a marcar el disco.</span>'); return; }
@@ -393,7 +401,13 @@ function makeTracker(cx, cy, d, mode) {
 // ---------- Análisis ----------
 $("stopBtn").onclick = () => { S.stop = true; };
 $("goBtn").onclick = async () => {
-  if (!S.cal || S.running) return;
+  if (S.running) return;
+  if (!vid.videoWidth) { status('<span class="warn">Primero cargá un video.</span>'); return; }
+  if (!S.cal) {
+    if (!S.pick) startPick();
+    status(`<span class="warn">Falta marcar el disco.</span> Tocá el <b>${S.pick === 2 ? "borde inferior" : "borde superior"}</b> del disco en el video${S.pick === 2 ? " (paso 2 de 2)" : " y después el inferior"}. Recién ahí se puede analizar.`);
+    return;
+  }
   S.running = true; S.stop = false; S.res = null; S.frames = [];
   ["goBtn", "calBtn", "scrub"].forEach(id => $(id).disabled = true);
   $("stopBtn").classList.remove("hidden"); $("prog").classList.remove("hidden"); $("results").classList.add("hidden");
@@ -543,7 +557,7 @@ function finish() {
   if (S.frames.length < 3) { status('<span class="warn">No se analizaron cuadros.</span>'); return; }
   const metersPerPx = (+$("diam").value || 45) / 100 / (S.cal.d * S.k);
   const r = analyze(S.frames, { slow: +$("slow").value || 1, metersPerPx, ex: $("ex").value });
-  if (r.err) { S.res = null; status(`<span class="bad">${r.err}</span> Probá con "Marcador color" o volvé a marcar el disco.`); drawChart(); return; }
+  if (r.err) { S.res = null; status(`<span class="bad">${r.err}</span> Probá con "Seguir: Punto de color" o volvé a marcar el disco.`); drawChart(); return; }
   r.path = r.path.map(p => ({ x: p.x / S.k, y: p.y / S.k }));
   S.res = r; showResults(); render();
 }
@@ -567,7 +581,7 @@ function showResults() {
   const q = r.okPct, fsTxt = `${Math.round(r.fsEff)} cuadros/s analizados`;
   $("quality").innerHTML = `Seguimiento: <span class="${q > 95 ? "ok" : q > 80 ? "warn" : "bad"}">${q.toFixed(0)}% de los cuadros</span> · ${fsTxt}` +
     (r.fsEff < 50 ? ' · <span class="warn">a menos de 50 cuadros/s el pico es poco fiable; usá cámara lenta.</span>' : "") +
-    (q <= 80 ? ' · <span class="warn">se perdió el disco seguido; probá el modo "Marcador color".</span>' : "");
+    (q <= 80 ? ' · <span class="warn">se perdió el disco seguido; probá "Seguir: Punto de color".</span>' : "");
   status(reps.length ? `Listo: ${reps.length} rep${reps.length > 1 ? "s" : ""}. Mové la barra de tiempo para ver la velocidad en cada cuadro.` : "Análisis terminado sin repeticiones detectadas.");
   drawChart();
 }
