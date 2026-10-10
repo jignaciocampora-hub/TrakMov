@@ -74,6 +74,11 @@
   .tablewrap{overflow-x:auto}
   #chart{width:100%;height:240px;display:block;background:var(--panel);border-radius:6px;margin-top:10px}
   .hidden{display:none !important}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  td .del{padding:2px 9px;font-size:13px}
+  tr.cut td{color:var(--bad)}
+  #cutNote{margin-top:8px}
+  #restoreReps{padding:2px 10px;font-size:13px;margin-left:6px}
   .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
   .row>*{flex:1 1 auto}
   .hist li{display:flex;justify-content:space-between;gap:8px;align-items:center;border-bottom:1px solid var(--line);padding:6px 0;font-variant-numeric:tabular-nums}
@@ -98,6 +103,8 @@
     <option value="other">Otro (concéntrica hacia arriba)</option>
   </select>
   <input id="load" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Carga kg" aria-label="Carga en kg">
+  <label style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap;color:var(--muted);font-size:13px">Cortar a
+    <input id="cut" type="number" inputmode="numeric" min="5" max="60" step="5" value="20" aria-label="Pérdida de velocidad para cortar la serie, en %" style="width:72px">%</label>
   <select id="ath" aria-label="Atleta"></select>
   <select id="slow" aria-label="Velocidad del video">
     <option value="1">Video a velocidad real</option>
@@ -126,7 +133,7 @@
         <button id="nextF" disabled aria-label="Cuadro siguiente">▶</button>
         <span class="lbl">Cuadro a cuadro (también ruedita del mouse o flechas ← →)</span>
       </div>
-      <button id="calBtn" disabled>1 · Marcar disco (2 toques)</button>
+      <button id="calBtn" disabled>1 · Marcar disco y barra (5 toques)</button>
       <span style="display:inline-flex;align-items:center;gap:8px;white-space:nowrap"><span class="lbl">Ø disco</span>
       <input id="diam" type="number" inputmode="decimal" value="45" min="10" max="60" step="0.5" aria-label="Diámetro del disco en cm" style="width:84px">
       <span class="lbl">cm</span></span>
@@ -155,15 +162,22 @@
       </div>
       <h2>Por repetición</h2>
       <div class="tablewrap"><table>
-        <thead><tr><th>Rep</th><th>VMC</th><th>VMP</th><th>Pico</th><th>ROM</th><th>Pérd.</th></tr></thead>
+        <thead><tr><th>Rep</th><th>VMC</th><th>VMP</th><th>Pico</th><th>ROM</th><th>Pérd.</th><th><span class="sr">Borrar</span></th></tr></thead>
         <tbody id="tb"></tbody>
       </table></div>
-      <p class="note">VMC: velocidad media concéntrica · VMP: velocidad media propulsiva · m/s · ROM en cm · Pérdida respecto de la mejor rep.</p>
+      <p class="note" id="cutNote"></p>
+      <p class="note">VMC: velocidad media concéntrica · VMP: velocidad media propulsiva · m/s · ROM en cm · Pérdida respecto de la mejor rep. Tocá ✕ para borrar una rep mal detectada.<span id="restoreWrap" class="hidden"> <button id="restoreReps">Restaurar reps borradas</button></span></p>
       <p class="note" id="quality"></p>
       <div class="row">
         <button id="saveBtn" class="primary">Guardar serie</button>
         <button id="csvBtn">Exportar CSV</button>
       </div>
+      <div class="row">
+        <button id="vidBtn">Descargar video con análisis</button>
+        <button id="pdfBtn">Reporte PDF</button>
+      </div>
+      <div class="bar hidden" id="expProg" style="margin-top:10px"><i></i></div>
+      <div id="dlBox" class="rm hidden"></div>
     </div>
 
     <div class="hist">
@@ -180,10 +194,10 @@
         <li>El disco del lado de la cámara entero en cuadro durante toda la serie.</li>
         <li>Grabar en cámara lenta (120 o 240 fps) y elegir el factor arriba. A velocidad real la VMC sirve, el pico es menos fiable.</li>
         <li>Si el disco no se distingue del fondo, pegá un círculo de cinta de color en el centro y usá "Seguir: Punto de color".</li>
-        <li>Al cargar el video, dejalo en un cuadro previo a la primera rep y tocá en la imagen el borde superior y después el inferior del disco. Recién ahí se puede analizar.</li>
+        <li>Al cargar el video, dejalo en un cuadro previo a la primera rep y tocá en la imagen el borde superior, el inferior, el izquierdo y el derecho del disco, y por último el centro de la barra (la punta o el marcador). Con los bordes la app mide la escala y controla que la cámara esté de perfil; el centro de la barra es el punto que sigue.</li>
       </ol>
     </details>
-    <p class="note" style="text-align:center;margin-top:16px">Módulo VBT · versión 8 oct 2026 (c)</p>
+    <p class="note" style="text-align:center;margin-top:16px">Módulo VBT · versión 9 oct 2026 (a)</p>
   </aside>
 </main>
 
@@ -219,7 +233,10 @@ const pref = ls.get("tm_vbt_pref", {});
 if (pref.ex) $("ex").value = pref.ex;
 if (pref.slow) $("slow").value = pref.slow;
 if (pref.diam) $("diam").value = pref.diam;
-function savePref() { ls.set("tm_vbt_pref", { ex: $("ex").value, slow: $("slow").value, diam: $("diam").value }); }
+if (pref.cut) $("cut").value = pref.cut;
+const cutPct = () => { const v = parseFloat($("cut").value); return v >= 1 && v <= 90 ? v : 20; };
+function savePref() { ls.set("tm_vbt_pref", { ex: $("ex").value, slow: $("slow").value, diam: $("diam").value, cut: $("cut").value }); }
+$("cut").addEventListener("input", () => { savePref(); if (S.res) showResults(); });
 ["ex", "slow", "diam"].forEach(id => $(id).addEventListener("change", () => { savePref(); if (id === "ex") renderHist(); if (S.frames.length > 5 && !S.running) finish(); }));
 $("ath").onchange = () => { try { localStorage.setItem("am_ath", $("ath").value); } catch {} renderHist(); };
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
@@ -242,7 +259,7 @@ vid.addEventListener("loadedmetadata", () => {
   // en iPhone el primer cuadro a veces no se dibuja hasta reproducir: play/pause silencioso
   const p0 = vid.play(); if (p0 && p0.then) p0.then(() => { vid.pause(); seek(Math.min(0.05, vid.duration / 2)); }).catch(() => seek(Math.min(0.05, vid.duration / 2)));
   else seek(Math.min(0.05, vid.duration / 2));
-  startPick("Video cargado. Si hace falta, mové la barra de tiempo a un cuadro <b>antes de la primera rep</b>. Después tocá el <b>borde superior</b> del disco (paso 1 de 2).");
+  startPick("Video cargado. Si hace falta, mové la barra de tiempo a un cuadro <b>antes de la primera rep</b>. Después tocá el <b>borde superior</b> del disco (paso 1 de 5).");
 });
 vid.addEventListener("error", () => status('<span class="bad">No se pudo abrir el video. Probá exportarlo desde Fotos como "Más compatible".</span>'));
 function seek(t) { return new Promise(r => { const done = () => { vid.removeEventListener("seeked", done); render(); r(); }; vid.addEventListener("seeked", done); vid.currentTime = t; }); }
@@ -310,19 +327,32 @@ function render() {
   if (fi >= 0) {
     // círculo del disco en la posición que detectó el seguimiento en ESTE cuadro (sin suavizar):
     // si en algún cuadro no queda pegado al disco, ahí falló el seguimiento
-    const f = S.frames[fi], x = f.x / S.k, y = f.y / S.k, col = f.ok ? "#3FB8A0" : "#E5484D";
-    ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath(); ctx.arc(x, y, S.cal.d / 2, 0, Math.PI * 2); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(x - lw * 5, y); ctx.lineTo(x + lw * 5, y); ctx.moveTo(x, y - lw * 5); ctx.lineTo(x, y + lw * 5); ctx.stroke();
+    const f = S.frames[fi]; drawMarks(ctx, f, lw);
     $("fchip").innerHTML = `Cuadro ${fi + 1} / ${S.frames.length}` + (f.ok ? "" : ' · <span class="bad">disco perdido</span>');
     $("fchip").classList.remove("hidden");
   } else {
     $("fchip").classList.add("hidden");
     if (S.cal && !S.running) {
       const c = S.cal; ctx.strokeStyle = "#3FB8A0"; ctx.lineWidth = lw;
-      ctx.beginPath(); ctx.arc(c.x, c.y, c.d / 2, 0, Math.PI * 2); ctx.stroke(); dot(c.x, c.y, lw * 1.6, "#3FB8A0");
+      ctx.beginPath(); ctx.ellipse(c.x, c.y, (c.w || c.d) / 2, c.d / 2, 0, 0, Math.PI * 2); ctx.stroke(); dot(c.x, c.y, lw * 1.2, "#3FB8A0");
+      if (c.bx != null) cross(ctx, c.bx, c.by, lw * 6, lw, "#F2A33A");
     }
   }
   S.pts.forEach(p => dot(p.x, p.y, lw * 2, "#3FB8A0"));
+}
+// marcas del seguimiento en un cuadro: círculo del disco + cruz en el centro de la barra (punto seguido)
+function drawMarks(g, f, lw) {
+  const x = f.x / S.k, y = f.y / S.k, ox = S.cal.x - (S.cal.bx ?? S.cal.x), oy = S.cal.y - (S.cal.by ?? S.cal.y);
+  g.strokeStyle = f.ok ? "#3FB8A0" : "#E5484D"; g.lineWidth = lw;
+  g.beginPath(); g.ellipse(x + ox, y + oy, (S.cal.w || S.cal.d) / 2, S.cal.d / 2, 0, 0, Math.PI * 2); g.stroke();
+  cross(g, x, y, lw * 6, lw, f.ok ? "#F2A33A" : "#E5484D");
+}
+function cross(g, x, y, r, lw, col) {
+  g.lineCap = "round"; g.strokeStyle = "rgba(28,35,43,.85)"; g.lineWidth = lw + 2.5;
+  g.beginPath(); g.moveTo(x - r, y); g.lineTo(x + r, y); g.moveTo(x, y - r); g.lineTo(x, y + r); g.stroke();
+  g.strokeStyle = col; g.lineWidth = lw;
+  g.beginPath(); g.moveTo(x - r, y); g.lineTo(x + r, y); g.moveTo(x, y - r); g.lineTo(x, y + r); g.stroke();
+  g.beginPath(); g.arc(x, y, r * 0.45, 0, Math.PI * 2); g.stroke();
 }
 function dot(x, y, r, c) { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "#1C232B"; ctx.lineWidth = 1.5; ctx.stroke(); }
 function nearestIdx(arr, x) { if (!arr || !arr.length) return -1; let lo = 0, hi = arr.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; arr[m] < x ? lo = m : hi = m; } return Math.abs(arr[lo] - x) < Math.abs(arr[hi] - x) ? lo : hi; }
@@ -336,7 +366,7 @@ function toCanvas(e) {
 function startPick(msg) {
   if (S.running || !vid.videoWidth) return;
   S.pick = 1; S.pts = []; S.cal = null; S.res = null; S.frames = []; cv.classList.add("picking"); render();
-  status(msg || "Tocá el <b>borde superior</b> del disco (paso 1 de 2). Podés deslizar el dedo y usar la lupa para afinar.");
+  status(msg || "Tocá el <b>borde superior</b> del disco (paso 1 de 5). Podés deslizar el dedo y usar la lupa para afinar.");
 }
 $("calBtn").onclick = () => startPick();
 function showLoupe(p) {
@@ -353,13 +383,29 @@ cv.addEventListener("pointermove", e => { if (S.pick && dragging) showLoupe(toCa
 cv.addEventListener("pointerup", e => {
   if (!S.pick || !dragging) return; dragging = false; loupe.classList.add("hidden");
   S.pts.push(toCanvas(e));
-  if (S.pick === 1) { S.pick = 2; status("Ahora tocá el <b>borde inferior</b> del disco (paso 2 de 2)."); render(); return; }
-  const [a, b] = S.pts; S.pick = 0; S.pts = []; cv.classList.remove("picking");
-  const d = Math.hypot(a.x - b.x, a.y - b.y);
-  if (d < 12) { render(); status('<span class="warn">Los dos puntos quedaron muy cerca. Volvé a marcar el disco.</span>'); return; }
-  S.cal = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, d }; S.t0 = vid.currentTime;
+  const NEXT = { 1: "<b>borde inferior</b> del disco (paso 2 de 5)", 2: "<b>borde izquierdo</b> del disco (paso 3 de 5)", 3: "<b>borde derecho</b> del disco (paso 4 de 5)",
+    4: "<b>centro de la barra</b>: la punta de la barra o el marcador de color que le pegaste (paso 5 de 5). Es el punto que se va a seguir" };
+  if (S.pick < 5) {
+    if (S.pick === 2 && Math.hypot(S.pts[0].x - S.pts[1].x, S.pts[0].y - S.pts[1].y) < 12) {
+      S.pts = []; S.pick = 1; render(); status('<span class="warn">Los dos puntos quedaron muy cerca.</span> Volvé a tocar el <b>borde superior</b> del disco (paso 1 de 5).'); return; }
+    if (S.pick === 4 && Math.hypot(S.pts[2].x - S.pts[3].x, S.pts[2].y - S.pts[3].y) < 12) {
+      S.pts.splice(2); S.pick = 3; render(); status('<span class="warn">El borde izquierdo y el derecho quedaron muy cerca.</span> Volvé a tocar el <b>borde izquierdo</b> del disco (paso 3 de 5).'); return; }
+    status("Ahora tocá el " + NEXT[S.pick] + "."); S.pick++; render(); return;
+  }
+  const [a, b, l, r, c] = S.pts;
+  const d = Math.hypot(a.x - b.x, a.y - b.y), w = Math.hypot(l.x - r.x, l.y - r.y), dx0 = (l.x + r.x) / 2, dy0 = (a.y + b.y) / 2;
+  if (Math.hypot(c.x - dx0, c.y - dy0) > d * 0.45) {      // el centro de la barra tiene que caer dentro del disco
+    S.pts.pop(); render(); status('<span class="warn">El centro de la barra quedó fuera del disco.</span> Tocá de nuevo la <b>punta de la barra</b> o el marcador, dentro del disco (paso 5 de 5).'); return; }
+  S.pick = 0; S.pts = []; cv.classList.remove("picking");
+  // la escala sale del alto (lo que importa para la velocidad vertical); el ancho sólo controla que la cámara esté de perfil.
+  // El punto que se sigue es el centro de la barra (bx, by); el disco se dibuja con su desplazamiento respecto de ese punto.
+  const ratio = w / d;
+  S.cal = { x: dx0, y: dy0, d, w, ratio, bx: c.x, by: c.y }; S.t0 = vid.currentTime;
   $("goBtn").disabled = false; render();
-  status(`Disco marcado (${Math.round(d)} px). Tocá <b>2 · Analizar</b>. Se analiza desde este cuadro hasta el final.`);
+  const pc = Math.round(Math.abs(1 - ratio) * 100);
+  status(pc <= 6
+    ? `Disco y barra marcados (${Math.round(d)} px) y <span class="ok">la cámara está de perfil</span> (el disco se ve redondo). Tocá <b>2 · Analizar</b>.`
+    : `<span class="warn">El disco se ve ovalado (${ratio < 1 ? "más angosto" : "más ancho"} que alto, ${pc} %): la cámara no está bien de perfil o el teléfono está inclinado.</span> Las velocidades pueden salir corridas. Si podés, volvé a filmar con el teléfono perpendicular a la barra; si no, tocá <b>2 · Analizar</b> igual.`);
 });
 cv.addEventListener("pointercancel", () => { dragging = false; loupe.classList.add("hidden"); });
 
@@ -463,7 +509,8 @@ $("goBtn").onclick = async () => {
   if (!vid.videoWidth) { status('<span class="warn">Primero cargá un video.</span>'); return; }
   if (!S.cal) {
     if (!S.pick) startPick();
-    status(`<span class="warn">Falta marcar el disco.</span> Tocá el <b>${S.pick === 2 ? "borde inferior" : "borde superior"}</b> del disco en el video${S.pick === 2 ? " (paso 2 de 2)" : " y después el inferior"}. Recién ahí se puede analizar.`);
+    const nm = ["", "borde superior del disco", "borde inferior del disco", "borde izquierdo del disco", "borde derecho del disco", "centro de la barra"][S.pick || 1];
+    status(`<span class="warn">Falta marcar el disco.</span> Tocá el <b>${nm}</b> en el video (paso ${S.pick || 1} de 5). Son 5 toques: arriba, abajo, izquierda y derecha del disco, y el centro de la barra. Recién ahí se puede analizar.`);
     return;
   }
   S.running = true; S.stop = false; S.res = null; S.frames = [];
@@ -476,8 +523,9 @@ $("goBtn").onclick = async () => {
   await seek(S.t0);
   pctx.drawImage(vid, 0, 0, pc.width, pc.height);
   const d = S.cal.d * S.k, base = Math.max(10, d * 0.45);
-  const track = makeTracker(S.cal.x * S.k, S.cal.y * S.k, d, S.mode);
-  let p = { x: S.cal.x * S.k, y: S.cal.y * S.k }, prev = null, lost = 0, lastT = S.t0, prevT = S.t0;
+  const bx = (S.cal.bx ?? S.cal.x) * S.k, by = (S.cal.by ?? S.cal.y) * S.k;
+  const track = makeTracker(bx, by, d, S.mode);
+  let p = { x: bx, y: by }, prev = null, lost = 0, lastT = S.t0, prevT = S.t0;
   S.frames.push({ t: S.t0, x: p.x, y: p.y, ok: true });
   const step = t => {
     if (t <= lastT + 1e-6) return;
@@ -604,13 +652,17 @@ function analyze(frames, opts) {
     let dxMax = 0; for (let k = i0; k <= i1; k++) dxMax = Math.max(dxMax, Math.abs(posX[k] - posX[i0]));
     reps.push({ i0, i1, ip, ts, te, mcv, mpv, pv: v[ip], rom, dur, tpv: t[ip] - ts, ecc: eDur > 0.1 && eRom > 0.03 ? eRom / eDur : null, dx: dxMax });
   }
-  const best = reps.reduce((m, r) => Math.max(m, r.mcv), 0);
-  reps.forEach(r => r.loss = best ? (best - r.mcv) / best * 100 : 0);
+  const best = recalcLoss(reps);
   const okPct = 100 * good.length / frames.length;
   const path = Array.from(t, (_, i) => ({ x: X[0] + posX[i] / metersPerPx, y: Y[0] - posY[i] / metersPerPx }));
   return { t, posY, posX, v, a, fs, fsEff: (frames.length - 1) / Math.max(1e-6, T), reps, best, okPct, path, slow };
 }
 
+function recalcLoss(reps) {
+  const best = reps.reduce((m, r) => Math.max(m, r.mcv), 0);
+  reps.forEach(r => r.loss = best ? (best - r.mcv) / best * 100 : 0);
+  return best;
+}
 function finish() {
   if (S.frames.length < 3) { status('<span class="warn">No se analizaron cuadros.</span>'); return; }
   const metersPerPx = (+$("diam").value || 45) / 100 / (S.cal.d * S.k);
@@ -625,47 +677,69 @@ function showResults() {
   $("results").classList.remove("hidden");
   if (!reps.length) {
     $("kBest").textContent = "–"; $("kPeak").textContent = "–"; $("kLoss").textContent = "–"; $("kReps").textContent = "0"; $("kZone").innerHTML = "";
-    $("tb").innerHTML = `<tr><td colspan="6" class="note">No se detectaron repeticiones. Revisá el ejercicio elegido y que el video incluya la subida completa.</td></tr>`;
+    $("tb").innerHTML = `<tr><td colspan="7" class="note">No se detectaron repeticiones. Revisá el ejercicio elegido y que el video incluya la subida completa.</td></tr>`;
   } else {
     const bi = reps.findIndex(x => x.mcv === r.best), z = zoneOf(r.best), last = reps[reps.length - 1];
     $("kBest").innerHTML = `${r.best.toFixed(2)}<small>m/s</small>`;
     $("kZone").innerHTML = `<span class="zone" style="background:${z[2]}">${z[1]}</span>`;
     $("kPeak").innerHTML = `${Math.max(...reps.map(x => x.pv)).toFixed(2)}<small>m/s</small>`;
-    const loss = last.loss, cls = loss < 10 ? "ok" : loss < 25 ? "warn" : "bad";
+    const cut = cutPct(), loss = last.loss, cls = loss < cut / 2 ? "ok" : loss < cut ? "warn" : "bad";
     $("kLoss").innerHTML = `<span class="${cls}">${loss.toFixed(0)}<small>%</small></span>`;
     $("kReps").textContent = reps.length;
-    $("tb").innerHTML = reps.map((x, i) => `<tr class="${i === bi ? "best" : ""}"><td>${i + 1}</td><td>${x.mcv.toFixed(2)}</td><td>${x.mpv.toFixed(2)}</td><td>${x.pv.toFixed(2)}</td><td>${(x.rom * 100).toFixed(0)}</td><td>${x.loss.toFixed(0)}%</td></tr>`).join("");
+    // primera rep que supera el objetivo de pérdida (contada después de la mejor rep)
+    const ci = reps.findIndex((x, i) => i > bi && x.loss >= cut);
+    $("tb").innerHTML = reps.map((x, i) => `<tr class="${i === bi ? "best" : ci >= 0 && i >= ci ? "cut" : ""}"><td>${i + 1}${i === ci ? " ⛔" : ""}</td><td>${x.mcv.toFixed(2)}</td><td>${x.mpv.toFixed(2)}</td><td>${x.pv.toFixed(2)}</td><td>${(x.rom * 100).toFixed(0)}</td><td>${x.loss.toFixed(0)}%</td><td><button class="del" data-rep="${i}" aria-label="Borrar rep ${i + 1}">✕</button></td></tr>`).join("");
+    $("cutNote").innerHTML = ci < 0
+      ? `<span class="ok">No se superó el ${cut} % de pérdida.</span> La serie terminó con ${loss.toFixed(0)} %.`
+      : `<span class="bad">Se superó el ${cut} % en la rep ${ci + 1} (${reps[ci].loss.toFixed(0)} %).</span> ` +
+        (reps.length - ci - 1 > 0 ? `Con ese objetivo la serie terminaba ahí: sobr${reps.length - ci - 1 > 1 ? "aron" : "ó"} ${reps.length - ci - 1} rep${reps.length - ci - 1 > 1 ? "s" : ""}.` : "Fue la última rep: la serie se cortó a tiempo.");
   }
+  if (!reps.length) $("cutNote").innerHTML = "";
+  $("restoreWrap").classList.toggle("hidden", !r.deleted);
   const q = r.okPct, fsTxt = `${Math.round(r.fsEff)} cuadros/s analizados`;
   $("quality").innerHTML = `Seguimiento: <span class="${q > 95 ? "ok" : q > 80 ? "warn" : "bad"}">${q.toFixed(0)}% de los cuadros</span> · ${fsTxt}` +
     (r.fsEff < 50 ? ' · <span class="warn">a menos de 50 cuadros/s el pico es poco fiable; usá cámara lenta.</span>' : "") +
-    (q <= 80 ? ' · <span class="warn">se perdió el disco seguido; probá "Seguir: Punto de color".</span>' : "");
-  status(reps.length ? `Listo: ${reps.length} rep${reps.length > 1 ? "s" : ""}. Revisá cuadro a cuadro (◀ ▶, ruedita o flechas) que el círculo verde quede siempre sobre el disco; si en algún cuadro se sale, ahí falló el seguimiento.` : "Análisis terminado sin repeticiones detectadas.");
+    (q <= 80 ? ' · <span class="warn">se perdió el disco seguido; probá "Seguir: Punto de color".</span>' : "") +
+    (S.cal && S.cal.ratio && Math.abs(1 - S.cal.ratio) > 0.06 ? ` · <span class="warn">disco ovalado al calibrar (${Math.round(Math.abs(1 - S.cal.ratio) * 100)} %): cámara no del todo de perfil.</span>` : "");
+  status(reps.length ? `Listo: ${reps.length} rep${reps.length > 1 ? "s" : ""}. Revisá cuadro a cuadro (◀ ▶, ruedita o flechas) que el círculo verde quede sobre el disco y la cruz naranja sobre el centro de la barra; si en algún cuadro se salen, ahí falló el seguimiento.` : "Análisis terminado sin repeticiones detectadas.");
   drawChart();
 }
 
+$("tb").addEventListener("click", e => {
+  const b = e.target.closest("button.del"); if (!b || !S.res) return;
+  const i = +b.dataset.rep; S.res.reps.splice(i, 1); S.res.deleted = (S.res.deleted || 0) + 1;
+  S.res.best = recalcLoss(S.res.reps); showResults(); render();
+  status(`Rep ${i + 1} borrada. Quedan ${S.res.reps.length}; la pérdida de velocidad se recalculó.`);
+});
+$("restoreReps").onclick = () => { finish(); status("Se restauraron todas las reps detectadas."); };
+
 // ---------- Gráfico ----------
-function drawChart(cursorT) {
-  const c = $("chart"), dpr = window.devicePixelRatio || 1, W = c.clientWidth, H = c.clientHeight;
+const CH_DARK = { grid: "#36414D", txt: "#93A1AF", zero: "#E6EBF0", lbl: "#E6EBF0", pos: "rgba(147,161,175,.6)", rep: "rgba(63,184,160,.16)", bg: null };
+const CH_LIGHT = { grid: "#DDE3E8", txt: "#5B6B7A", zero: "#34495E", lbl: "#1C232B", pos: "rgba(91,107,122,.55)", rep: "rgba(63,184,160,.18)", bg: "#FFFFFF" };
+function drawChart(cursorT, target, theme) {
+  const c = target || $("chart"), dpr = target ? 2 : (window.devicePixelRatio || 1);
+  const W = target ? target.width / 2 : c.clientWidth, H = target ? target.height / 2 : c.clientHeight, T = theme || CH_DARK;
   if (!W) return;
-  c.width = W * dpr; c.height = H * dpr; const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
-  const r = S.res; g.font = "12px Barlow, sans-serif";
+  if (!target) { c.width = W * dpr; c.height = H * dpr; }
+  const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  if (T.bg) { g.fillStyle = T.bg; g.fillRect(0, 0, W, H); }
+  const r = S.res; g.font = "12px Barlow, Helvetica, sans-serif";
   if (!r) { g.fillStyle = "#93A1AF"; g.fillText("El gráfico aparece después de analizar.", 14, 24); return; }
   const L = 38, Rm = 12, Tp = 12, B = 22, pw = W - L - Rm, ph = H - Tp - B, t0 = r.t[0], t1 = r.t[r.t.length - 1];
   const vmax = Math.max(1, Math.ceil(Math.max(...r.v) * 2) / 2), vmin = Math.min(-0.5, Math.floor(Math.min(...r.v) * 2) / 2);
   const X = t => L + (t - t0) / Math.max(1e-6, t1 - t0) * pw, Yv = v => Tp + (vmax - v) / (vmax - vmin) * ph;
   const pmin = Math.min(...r.posY), pmax = Math.max(...r.posY), Yp = p => Tp + ph - (p - pmin) / Math.max(1e-6, pmax - pmin) * ph * 0.9 - ph * 0.05;
-  g.fillStyle = "rgba(63,184,160,.16)";
+  g.fillStyle = T.rep;
   r.reps.forEach((x, i) => { g.fillRect(X(r.t[x.i0]), Tp, X(r.t[x.i1]) - X(r.t[x.i0]), ph); });
-  g.strokeStyle = "#36414D"; g.lineWidth = 1; g.fillStyle = "#93A1AF";
+  g.strokeStyle = T.grid; g.lineWidth = 1; g.fillStyle = T.txt;
   for (let v = vmin; v <= vmax + 1e-9; v += 0.5) { g.beginPath(); g.moveTo(L, Yv(v)); g.lineTo(W - Rm, Yv(v)); g.stroke(); g.fillText(v.toFixed(1), 4, Yv(v) + 4); }
   const step = Math.max(1, Math.ceil((t1 - t0) / 8));
   for (let s = Math.ceil(t0); s <= t1; s += step) g.fillText(`${Math.round(s - t0)} s`, X(s) - 8, H - 6);
-  g.strokeStyle = "#E6EBF0"; g.lineWidth = 1.2; g.beginPath(); g.moveTo(L, Yv(0)); g.lineTo(W - Rm, Yv(0)); g.stroke();
+  g.strokeStyle = T.zero; g.lineWidth = 1.2; g.beginPath(); g.moveTo(L, Yv(0)); g.lineTo(W - Rm, Yv(0)); g.stroke();
   const line = (arr, Y, col, w) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); arr.forEach((y, i) => i ? g.lineTo(X(r.t[i]), Y(y)) : g.moveTo(X(r.t[i]), Y(y))); g.stroke(); };
-  line(r.posY, Yp, "rgba(147,161,175,.6)", 1.2);
+  line(r.posY, Yp, T.pos, 1.2);
   line(r.v, Yv, "#F2A33A", 2);
-  g.fillStyle = "#E6EBF0"; g.font = "600 12px Barlow, sans-serif";
+  g.fillStyle = T.lbl; g.font = "600 12px Barlow, Helvetica, sans-serif";
   r.reps.forEach((x, i) => { const xm = (X(r.t[x.i0]) + X(r.t[x.i1])) / 2; g.fillText(`${i + 1}`, xm - 3, Tp + 13); g.fillText(x.mcv.toFixed(2), xm - 12, Tp + 27); });
   if (cursorT != null) { g.strokeStyle = "#7CC4F2"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(cursorT), Tp); g.lineTo(X(cursorT), Tp + ph); g.stroke(); }
 }
@@ -714,11 +788,205 @@ $("histList").onclick = e => {
 };
 renderHist();
 
+// ---------- Exportar: video con análisis y reporte PDF ----------
+const exInfo = () => {
+  const a = $("ath").selectedOptions[0], ath = $("ath").value && a ? a.textContent : "";
+  const load = parseFloat(String($("load").value).replace(",", "."));
+  return { ath, ex: EX[$("ex").value].n, load: load > 0 ? load : null, cut: cutPct(), date: new Date() };
+};
+const localDate = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const fileStamp = () => { const i = exInfo(); return [i.ex, i.ath, localDate()].filter(Boolean).join("_").replace(/[^\wáéíóúñÁÉÍÓÚÑ-]+/g, "_"); };
+function rrect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+
+// dibuja un cuadro del video con todo el análisis encima (para el video exportado y la foto del PDF)
+function drawExportFrame(g, W, H, mt, full, bare) {
+  const r = S.res, sc = W / cv.width, lw = Math.max(2, W / 320), U = Math.min(W, H) / 100, cut = cutPct();
+  g.drawImage(vid, 0, 0, W, H);
+  g.save(); g.scale(sc, sc);
+  const tr = mt / r.slow, ic = full ? r.t.length - 1 : Math.max(0, nearestIdx(r.t, tr));
+  // trayectoria: gris lo recorrido, naranja las concéntricas ya hechas (o en curso)
+  g.lineJoin = "round"; g.strokeStyle = "rgba(230,235,240,.45)"; g.lineWidth = lw / 2 / sc * sc; g.beginPath();
+  for (let i = 0; i <= ic; i++) { const p = r.path[i]; i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); } g.stroke();
+  g.strokeStyle = "rgba(242,163,58,.95)"; g.lineWidth = lw;
+  for (const x of r.reps) { if (x.i0 > ic) break; g.beginPath(); for (let i = x.i0; i <= Math.min(x.i1, ic); i++) { const p = r.path[i]; i === x.i0 ? g.moveTo(p.x, p.y) : g.lineTo(p.x, p.y); } g.stroke(); }
+  if (!full) { const fi = nearestFrame(mt); if (fi >= 0) drawMarks(g, S.frames[fi], lw); }
+  g.restore();
+  // velocidad instantánea (arriba a la derecha)
+  const fs = Math.max(14, U * 4.2), pad = U * 2;
+  g.textBaseline = "alphabetic";
+  if (!full) {
+    const v = r.v[ic], txt = `${v >= 0 ? "▲" : "▼"} ${Math.abs(v).toFixed(2)} m/s`;
+    g.font = `700 ${fs * 1.25}px Barlow, Helvetica, sans-serif`; const tw = g.measureText(txt).width;
+    g.fillStyle = "rgba(28,35,43,.82)"; rrect(g, W - tw - pad * 3, pad, tw + pad * 2, fs * 1.9, U * 1.5); g.fill();
+    g.fillStyle = v >= 0.05 ? "#F2A33A" : "#E6EBF0"; g.fillText(txt, W - tw - pad * 2, pad + fs * 1.4);
+  }
+  if (bare) return;                                  // foto para el PDF: sólo trayectoria, sin textos
+  // encabezado (arriba a la izquierda)
+  const inf = exInfo(), h1 = "TrakMov · VBT", h2 = [inf.ex, inf.load ? inf.load + " kg" : "", inf.ath].filter(Boolean).join(" · ");
+  g.font = `700 ${fs}px Barlow, Helvetica, sans-serif`; const w1 = g.measureText(h1).width;
+  g.font = `600 ${fs * 0.75}px Barlow, Helvetica, sans-serif`; const w2 = g.measureText(h2).width;
+  g.fillStyle = "rgba(28,35,43,.82)"; rrect(g, pad, pad, Math.max(w1, w2) + pad * 2, fs * 2.3, U * 1.5); g.fill();
+  g.fillStyle = "#F2A33A"; g.font = `700 ${fs}px Barlow, Helvetica, sans-serif`; g.fillText(h1, pad * 2, pad + fs * 1.05);
+  g.fillStyle = "#E6EBF0"; g.font = `600 ${fs * 0.75}px Barlow, Helvetica, sans-serif`; g.fillText(h2, pad * 2, pad + fs * 1.95);
+  // reps terminadas (abajo a la izquierda)
+  const done = r.reps.filter(x => full || x.te <= tr + 1e-6);
+  if (done.length) {
+    const best = r.best, bi = r.reps.findIndex(x => x.mcv === best), ci = r.reps.findIndex((x, i) => i > bi && x.loss >= cut);
+    const rows = done.slice(-8), lh = fs * 1.15, bw = fs * 9.2, bh = lh * (rows.length + 1) + pad;
+    g.fillStyle = "rgba(28,35,43,.82)"; rrect(g, pad, H - bh - pad, bw, bh, U * 1.5); g.fill();
+    g.font = `600 ${fs * 0.62}px Barlow, Helvetica, sans-serif`; g.fillStyle = "#93A1AF";
+    g.fillText("REP   VMC m/s   PÉRD.", pad * 2, H - bh - pad + lh * 0.9);
+    rows.forEach((x, k) => {
+      const i = r.reps.indexOf(x), y = H - bh - pad + lh * (k + 1.85);
+      g.font = `700 ${fs * 0.8}px Barlow, Helvetica, sans-serif`;
+      g.fillStyle = i === bi ? "#F2A33A" : ci >= 0 && i >= ci ? "#FF8A8D" : "#E6EBF0";
+      g.fillText(String(i + 1), pad * 2, y); g.fillText(x.mcv.toFixed(2), pad * 2 + fs * 2.2, y); g.fillText(`${x.loss.toFixed(0)}%${i === ci ? " ■" : ""}`, pad * 2 + fs * 5.6, y);
+    });
+  }
+}
+
+let lastFile = null;
+function offerFile(blob, name, label) {
+  lastFile = { blob, name };
+  const mb = (blob.size / 1048576).toFixed(1);
+  $("dlBox").innerHTML = `<div class="note">${label} listo (${mb} MB).</div><div class="row"><button id="dlGo" class="primary">Guardar ${name.split(".").pop().toUpperCase()}</button></div>`;
+  $("dlBox").classList.remove("hidden");
+  $("dlGo").onclick = saveLast;
+}
+async function saveLast() {
+  if (!lastFile) return;
+  const { blob, name } = lastFile, file = new File([blob], name, { type: blob.type });
+  // en iPhone/iPad, "Compartir" permite guardar el video en Fotos o el PDF en Archivos
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: name }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+  }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+}
+
+$("vidBtn").onclick = async () => {
+  if (!S.res || S.running) return;
+  const can = window.MediaRecorder && HTMLCanvasElement.prototype.captureStream;
+  if (!can) { status('<span class="warn">Este navegador no puede grabar video. Probá con Safari actualizado o Chrome.</span>'); return; }
+  const mime = ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm"].find(t => MediaRecorder.isTypeSupported(t)) || "";
+  const sc = Math.min(1, 1280 / Math.max(cv.width, cv.height)), W = Math.round(cv.width * sc / 2) * 2, H = Math.round(cv.height * sc / 2) * 2;
+  const oc = document.createElement("canvas"); oc.width = W; oc.height = H; const g = oc.getContext("2d");
+  const stream = oc.captureStream(30), chunks = [];
+  const rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 8e6 } : undefined);
+  rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  const stopped = new Promise(res => rec.onstop = res);
+  S.running = true; S.stop = false; $("dlBox").classList.add("hidden");
+  ["goBtn", "calBtn", "scrub", "prevF", "nextF", "vidBtn", "pdfBtn"].forEach(id => $(id).disabled = true);
+  $("stopBtn").classList.remove("hidden"); $("expProg").classList.remove("hidden");
+  status("Grabando el video con el análisis… se reproduce una vez completo (en cámara lenta tarda lo que dura el video). Dejá la pantalla encendida.");
+  const tStart = Math.max(0, S.t0 - 0.2), tEnd = vid.duration;
+  await seek(tStart); drawExportFrame(g, W, H, vid.currentTime, false);
+  vid.playbackRate = 1; rec.start(250);
+  let raf = 0;
+  const loop = () => {
+    drawExportFrame(g, W, H, vid.currentTime, false);
+    $("expProg").firstElementChild.style.width = (100 * (vid.currentTime - tStart) / Math.max(1e-3, tEnd - tStart)).toFixed(1) + "%";
+    if (S.stop || vid.ended || vid.currentTime >= tEnd - 0.01) { vid.pause(); return finishRec(); }
+    raf = requestAnimationFrame(loop);
+  };
+  let finished = false;
+  const finishRec = () => { if (finished) return; finished = true; cancelAnimationFrame(raf); drawExportFrame(g, W, H, tEnd, true);
+    setTimeout(() => rec.state !== "inactive" && rec.stop(), 1200); };   // ~1 s final con el resumen de la serie
+  try { await vid.play(); } catch { finished = true; rec.stop(); }
+  raf = requestAnimationFrame(loop);
+  await stopped;
+  vid.pause(); S.running = false;
+  ["goBtn", "calBtn", "scrub", "prevF", "nextF", "vidBtn", "pdfBtn"].forEach(id => $(id).disabled = false);
+  $("stopBtn").classList.add("hidden"); $("expProg").classList.add("hidden");
+  stream.getTracks().forEach(t => t.stop());
+  if (S.stop || !chunks.length) { status("Grabación cancelada."); render(); return; }
+  const type = (rec.mimeType || mime || "video/webm").split(";")[0], blob = new Blob(chunks, { type });
+  offerFile(blob, `VBT_${fileStamp()}.${type.includes("mp4") ? "mp4" : "webm"}`, "Video con análisis");
+  status("Video listo. Tocá <b>Guardar</b> para bajarlo (en iPhone elegí «Guardar video» para que quede en Fotos).");
+  await seek(S.t0);
+};
+
+// --- Reporte PDF (jsPDF se carga sólo cuando se usa) ---
+let jsPDFp = null;
+const loadJsPDF = () => jsPDFp || (jsPDFp = new Promise((res, rej) => {
+  if (window.jspdf) return res(window.jspdf.jsPDF);
+  const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+  sc.onload = () => window.jspdf ? res(window.jspdf.jsPDF) : rej(new Error("jsPDF"));
+  sc.onerror = () => { jsPDFp = null; rej(new Error("No se pudo cargar el generador de PDF (¿sin conexión?).")); };
+  document.head.appendChild(sc);
+}));
+$("pdfBtn").onclick = async () => {
+  const r = S.res; if (!r || S.running) return;
+  status("Armando el reporte PDF…");
+  let jsPDF; try { jsPDF = await loadJsPDF(); } catch (e) { status(`<span class="bad">${e.message}</span>`); return; }
+  const inf = exInfo(), reps = r.reps, pdf = new jsPDF({ unit: "mm", format: "a4", compress: true }), PW = 210, M = 14;
+  const ink = [28, 35, 43], mut = [91, 107, 122], acc = [214, 128, 20], ok = [47, 150, 128], bad = [205, 52, 58];
+  const T = (txt, x, y, o = {}) => { pdf.setFont("helvetica", o.b ? "bold" : "normal"); pdf.setFontSize(o.s || 10); pdf.setTextColor(...(o.c || ink)); pdf.text(Array.isArray(txt) ? txt : String(txt), x, y, o.a ? { align: o.a } : undefined); };
+  // encabezado
+  pdf.setFillColor(...ink); pdf.rect(0, 0, PW, 24, "F");
+  T("Informe de velocidad de barra (VBT)", M, 11, { b: 1, s: 16, c: [255, 255, 255] });
+  T("TrakMov · " + inf.date.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }) + " " + inf.date.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }), M, 18, { s: 9, c: [200, 208, 216] });
+  let y = 33;
+  const meta = [["Atleta", inf.ath || "Sin atleta"], ["Ejercicio", inf.ex], ["Carga", inf.load ? inf.load + " kg" : "-"],
+    ["Video", (+$("slow").value > 1 ? "Cámara lenta x" + $("slow").value : "Velocidad real")], ["Objetivo de pérdida", inf.cut + " %"]];
+  meta.forEach(([k, v], i) => { const x = M + (i % 3) * 62, yy = y + Math.floor(i / 3) * 10; T(k.toUpperCase(), x, yy, { s: 7, c: mut }); T(v, x, yy + 4.6, { b: 1, s: 10.5 }); });
+  y += 24;
+  // KPIs
+  const bi = reps.findIndex(x => x.mcv === r.best), ci = reps.findIndex((x, i) => i > bi && x.loss >= inf.cut), last = reps[reps.length - 1];
+  const z = reps.length ? zoneOf(r.best) : null;
+  const kp = [["Mejor VMC", reps.length ? r.best.toFixed(2) + " m/s" : "-"], ["Pico máximo", reps.length ? Math.max(...reps.map(x => x.pv)).toFixed(2) + " m/s" : "-"],
+    ["Pérdida final", reps.length ? last.loss.toFixed(0) + " %" : "-"], ["Repeticiones", String(reps.length)]];
+  const kw = (PW - 2 * M - 9) / 4;
+  kp.forEach(([k, v], i) => { const x = M + i * (kw + 3); pdf.setFillColor(241, 244, 246); pdf.roundedRect(x, y, kw, 18, 2, 2, "F");
+    T(k.toUpperCase(), x + 3, y + 5.5, { s: 7, c: mut }); T(v, x + 3, y + 13.5, { b: 1, s: 14, c: i === 0 ? acc : i === 2 && reps.length && last.loss >= inf.cut ? bad : ink }); });
+  y += 23;
+  if (z) { T("Zona de la mejor rep: " + z[1], M, y, { s: 9, c: mut }); y += 6; }
+  // foto con la trayectoria + gráfico
+  const snapW = 72, maxH = 96, ar = cv.height / cv.width; let sw = snapW, sh = snapW * ar; if (sh > maxH) { sh = maxH; sw = sh / ar; }
+  const fr = document.createElement("canvas"), fw = Math.min(720, cv.width); fr.width = fw; fr.height = Math.round(fw * ar);
+  const tSnap = reps.length ? reps[bi].te * r.slow : vid.currentTime; await seek(tSnap);
+  drawExportFrame(fr.getContext("2d"), fr.width, fr.height, tSnap, true, true);
+  pdf.addImage(fr.toDataURL("image/jpeg", 0.85), "JPEG", M, y, sw, sh);
+  T("Trayectoria de la barra (naranja: subidas)", M, y + sh + 4, { s: 7, c: mut });
+  const cxp = M + sw + 6, cwp = PW - M - cxp, chp = Math.min(sh, 62);
+  const cc = document.createElement("canvas"); cc.width = Math.round(cwp * 5) * 2; cc.height = Math.round(chp * 5) * 2;
+  drawChart(null, cc, CH_LIGHT); pdf.addImage(cc.toDataURL("image/jpeg", 0.9), "JPEG", cxp, y, cwp, chp);
+  T("Velocidad vertical (naranja, m/s) y altura de la barra (gris); en verde, las subidas.", cxp, y + chp + 4, { s: 7, c: mut });
+  y += Math.max(sh, chp) + 11;
+  // tabla por rep
+  const cols = [["Rep", 14], ["VMC m/s", 24], ["VMP m/s", 24], ["Pico m/s", 24], ["T. al pico s", 24], ["ROM cm", 20], ["Desvío horiz. cm", 26], ["Pérdida", 22]];
+  const tw = cols.reduce((a, c) => a + c[1], 0), tx = M;
+  const head = () => { pdf.setFillColor(...ink); pdf.rect(tx, y, tw, 7, "F"); let x = tx; cols.forEach(([h, w]) => { T(h, x + w - 2, y + 4.8, { b: 1, s: 8, c: [255, 255, 255], a: "right" }); x += w; }); y += 7; };
+  if (y > 270) { pdf.addPage(); y = 18; }
+  head();
+  reps.forEach((x, i) => {
+    if (y > 282) { pdf.addPage(); y = 18; head(); }
+    if (i % 2) { pdf.setFillColor(246, 248, 249); pdf.rect(tx, y, tw, 6.5, "F"); }
+    const col = i === bi ? acc : ci >= 0 && i >= ci ? bad : ink;
+    const vals = [String(i + 1) + (i === ci ? " *" : ""), x.mcv.toFixed(2), x.mpv.toFixed(2), x.pv.toFixed(2), x.tpv.toFixed(2), (x.rom * 100).toFixed(0), (x.dx * 100).toFixed(1), x.loss.toFixed(0) + " %"];
+    let xx = tx; cols.forEach(([, w], k) => { T(vals[k], xx + w - 2, y + 4.6, { s: 9, c: col, b: i === bi }); xx += w; }); y += 6.5;
+  });
+  y += 5;
+  const notes = [];
+  if (reps.length) notes.push(ci < 0 ? `No se superó el ${inf.cut} % de pérdida de velocidad (final: ${last.loss.toFixed(0)} %).`
+    : `* Se superó el ${inf.cut} % de pérdida en la rep ${ci + 1} (${reps[ci].loss.toFixed(0)} %)` + (reps.length - ci - 1 > 0 ? `: con ese objetivo sobraron ${reps.length - ci - 1} rep(s).` : "; fue la última rep."));
+  notes.push(`Seguimiento: ${r.okPct.toFixed(0)} % de los cuadros, ${Math.round(r.fsEff)} cuadros/s analizados` + (r.fsEff < 50 ? " (a menos de 50 cuadros/s el pico es poco fiable)." : "."));
+  if (S.cal && S.cal.ratio && Math.abs(1 - S.cal.ratio) > 0.06) notes.push(`Atención: al calibrar el disco se veía ovalado (${Math.round(Math.abs(1 - S.cal.ratio) * 100)} %); la cámara no estaba del todo de perfil.`);
+  if (r.deleted) notes.push(`Se borraron ${r.deleted} rep(s) a mano por estar mal detectadas.`);
+  notes.push("VMC: velocidad media concéntrica. VMP: velocidad media propulsiva. Pérdida: respecto de la mejor rep. Escala calibrada con un disco de " + ($("diam").value || 45) + " cm.");
+  if (y > 270) { pdf.addPage(); y = 18; }
+  notes.forEach(n => { const ls2 = pdf.splitTextToSize(n, PW - 2 * M); T(ls2, M, y, { s: 8.5, c: n.startsWith("*") || n.startsWith("Atención") ? bad : mut }); y += ls2.length * 4.2 + 1.5; });
+  T("Generado con TrakMov · módulo VBT", PW / 2, 291, { s: 7, c: mut, a: "center" });
+  await seek(S.t0);
+  offerFile(pdf.output("blob"), `Informe_VBT_${fileStamp()}.pdf`, "Reporte PDF");
+  status("Reporte listo. Tocá <b>Guardar PDF</b> para bajarlo o compartirlo.");
+};
+
 // ---------- CSV ----------
 $("csvBtn").onclick = () => {
   const r = S.res; if (!r) return;
   const a = $("ath").selectedOptions[0], q = s => `"${String(s).replace(/"/g, '""')}"`;
-  const lines = [`Atleta;${q(a ? a.textContent : "")}`, `Ejercicio;${q(EX[$("ex").value].n)}`, `Carga kg;${$("load").value}`, "",
+  const lines = [`Atleta;${q(a ? a.textContent : "")}`, `Ejercicio;${q(EX[$("ex").value].n)}`, `Carga kg;${$("load").value}`, `Objetivo pérdida %;${cutPct()}`, "",
     "Rep;VMC m/s;VMP m/s;Pico m/s;Tiempo al pico s;ROM cm;Concéntrica s;Excéntrica m/s;Desvío horizontal cm;Pérdida %",
     ...r.reps.map((x, i) => [i + 1, x.mcv.toFixed(3), x.mpv.toFixed(3), x.pv.toFixed(3), x.tpv.toFixed(3), (x.rom * 100).toFixed(1), x.dur.toFixed(3), x.ecc ? x.ecc.toFixed(3) : "", (x.dx * 100).toFixed(1), x.loss.toFixed(1)].join(";")),
     "", "t s;altura m;horizontal m;velocidad m/s;aceleración m/s2",
