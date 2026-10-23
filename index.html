@@ -5094,7 +5094,7 @@ async function runPdf(share) {
       const res = V[k]; if (!res) continue;
       doc.addPage(); y = 18; h2(`Plano ${runSideName(k).toLowerCase()} · ${res.nStrides} zancadas`);
       para(`Cadencia ${f1(res.met.cad.m)} ppm  ·  contacto ${f1(res.met.contact.m)} ms  ·  apoyo ${f1(res.met.stance.m)}% del ciclo${res.met.stepLen ? `  ·  paso ${f1(res.met.stepLen.m)} cm` : ""}  ·  patrón: ${runStrike(res.met.footIC.m)}`, 9.5);
-      await images(RUN.imgs[k], 3, 60);
+      await images(RUN.imgs[k], 3, 52);
       table(["Fase", "Cadera", "Rodilla", "Tobillo"], RUN_PH.map(([ph, nm]) => [nm, ...["hip", "knee", "ankle"].map(j => { const s = res.phases[ph][j]; return Number.isFinite(s.m) ? `${f1(runZ(s.m, 0))}° ± ${f1(s.sd)}` : "-"; })]), [60, 40, 41, 41]);
       table(["", "Contacto", "Final amortiguación", "Final propulsión"], RUN_OBS.map(([n, ks]) => [n, ...ks.map(x => x && res.met[x] ? { t: runFmt(x, res.met[x].m) + "  (" + (runRef(x).ref || "dato") + ")", lvl: runLevel(x, res.met[x].m) } : "-")]), [34, 50, 50, 48]);
       table(["Indicador", "Valor", "Nivel", "Referencia"], ["cad", "trunk", "ankleMS", "hipTO", "vo", "over", "kneeSw", "hipSw"].filter(x => res.met[x]).map(x => { const l = runLevel(x, res.met[x].m); return [runRef(x).n, { t: runFmt(x, res.met[x].m), lvl: l }, l || "dato", runRef(x).ref || ""]; }), [66, 28, 24, 64]);
