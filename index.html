@@ -4484,8 +4484,16 @@ function runBuildSlots() {
           <label>Cuadros/s del video<select id="rsFps_${k}"><option value="auto">Detectar solo</option><option>30</option><option>60</option><option>120</option><option>240</option></select></label>
           <label>Tramo a analizar<select id="rsDur_${k}"><option value="6">6 s</option><option value="10" selected>10 s</option><option value="20">20 s</option><option value="40">40 s</option><option value="9999">Hasta el final</option></select></label>
         </div>
-        ${k === "P" ? "" : `<div class="rs-opts" style="margin-top:10px"><label style="grid-column:1/-1">Encuadre del video<select id="rsMode_${k}"><option value="mk">De la cadera para abajo · marcar 5 puntos</option><option value="auto">Cuerpo entero · reconocimiento automático</option></select></label></div>`}
+        ${k === "P" ? "" : `<div class="rs-opts" style="margin-top:10px"><label style="grid-column:1/-1">Encuadre del video<select id="rsMode_${k}"><option value="man">Marcar las fases a mano · sin seguimiento (máxima precisión)</option><option value="mk">Marcar 5 puntos y seguirlos solos (ideal con stickers)</option><option value="auto">Cuerpo entero · reconocimiento automático</option></select></label></div>`}
         <p class="note2" style="margin:6px 0 0" id="rsHint_${k}">Se analiza desde donde está el video: mové la barra hasta que corra a ritmo estable.</p>
+        ${k === "P" ? "" : `<div id="rsMan_${k}" class="hidden">
+          <div class="rs-step" style="margin-top:10px"><button data-fstep="-10" data-fk="${k}">⏮ −10</button><button data-fstep="-1" data-fk="${k}">◀ cuadro</button><button data-fstep="1" data-fk="${k}">cuadro ▶</button><button data-fstep="10" data-fk="${k}">+10 ⏭</button></div>
+          <p class="note2" style="margin:4px 0 4px">Fase que vas a medir:</p>
+          <div class="chips" id="rsManPh_${k}" style="flex-wrap:wrap">${RUN_PH.map(([ph, n]) => `<button class="chip" data-mph2="${ph}">${n}</button>`).join("")}</div>
+          <button class="btn-d wide" id="rsManGo_${k}">📐 Medir este cuadro</button>
+          <p class="note2" id="rsManMsg_${k}" style="margin:8px 0 0">Avanzá cuadro a cuadro hasta el <b>contacto inicial</b> (primer cuadro con el pie en la cinta), tocá «Medir» y marcá cadera, rodilla, tobillo, talón y punta. Después seguí con las otras fases. Medí 2 o 3 zancadas para tener el promedio.</p>
+          <div id="rsManList_${k}"></div>
+        </div>`}
         ${k === "P" ? "" : `<button class="btn-o wide" id="rsMk_${k}" style="padding:12px !important">📍 Marcar los 5 puntos</button>`}
         <button class="btn-o wide" id="rsPick_${k}" style="padding:12px !important">👆 Elegir al atleta</button>
         <p class="note2 hidden" id="rsPickMsg_${k}" style="margin:6px 0 0"></p>
@@ -4499,16 +4507,18 @@ function runBuildSlots() {
   $("runSlots").querySelectorAll("[data-rsfile]").forEach(inp => inp.onchange = e => { const f = e.target.files[0]; if (f) (inp.dataset.rsfile === "M" ? runMLoad(f) : runLoadVideo(inp.dataset.rsfile, f)); e.target.value = ""; });
   for (const k of ["R", "L", "P"]) { $("rsGo_" + k).onclick = () => (runIsMk(k) ? runProcessMarkers(k) : runProcess(k)); $("rsPick_" + k).onclick = () => runPickMode(k); }
   for (const k of ["R", "L"]) {
-    let md = "mk"; try { md = localStorage.getItem("am_runmode") || "mk"; } catch {}
-    $("rsMode_" + k).value = md; $("rsMk_" + k).onclick = () => runMkMode(k);
-    $("rsMode_" + k).onchange = () => { try { localStorage.setItem("am_runmode", $("rsMode_" + k).value); } catch {} runModeUI(k); };
+    let md = "man"; try { md = localStorage.getItem("am_runmode2") || "man"; } catch {}
+    $("rsMode_" + k).value = md; $("rsMk_" + k).onclick = () => runMkMode(k); runManBind(k);
+    $("rsMode_" + k).onchange = () => { try { localStorage.setItem("am_runmode2", $("rsMode_" + k).value); } catch {} runModeUI(k); };
     runModeUI(k);
   }
 }
 const runIsMk = k => k !== "P" && $("rsMode_" + k) && $("rsMode_" + k).value === "mk";
 function runModeUI(k) {
-  const mkm = runIsMk(k);
-  $("rsMk_" + k).classList.toggle("hidden", !mkm); $("rsPick_" + k).classList.toggle("hidden", mkm);
+  const mkm = runIsMk(k), mn = runIsMan(k);
+  $("rsMk_" + k).classList.toggle("hidden", !mkm); $("rsPick_" + k).classList.toggle("hidden", mkm || mn);
+  $("rsMan_" + k).classList.toggle("hidden", !mn); $("rsGo_" + k).classList.toggle("hidden", mn); $("rsDur_" + k).parentElement.classList.toggle("hidden", mn);
+  if (mn) { $("rsHint_" + k).textContent = "Sin seguimiento automático: medís solo los cuadros clave y los puntos quedan exactamente donde los tocás. Si pusiste stickers, tocá justo sobre ellos."; return; }
   $("rsHint_" + k).textContent = mkm
     ? "Pausá en un cuadro donde corra estable y se vea bien la pierna, tocá «📍 Marcar los 5 puntos» y marcá cadera, rodilla, tobillo, talón y punta del pie. Si pusiste marcas (stickers), tocá justo sobre ellas: el seguimiento es mucho más preciso."
     : "Se analiza desde donde está el video: mové la barra hasta que corra a ritmo estable. Tiene que verse el cuerpo entero, con la cabeza y los pies.";
@@ -4517,6 +4527,7 @@ async function runLoadVideo(k, file) {
   const st = RS[k]; if (st.busy) return;
   if (st.url) URL.revokeObjectURL(st.url);
   st.url = URL.createObjectURL(file); st.frames = null; st.fpsAuto = null; st.name = file.name; st.pick = null; st.preview = null; st.picking = false; st.mk = null; st.trk = null; st.marking = false; st.mkNew = null;
+  if (k !== "P") { st.man = []; st.manNew = null; st.manPh = "ic"; if (RUN.views[k] && RUN.views[k].manual) { delete RUN.views[k]; delete RUN.imgs[k]; $("rsRes_" + k).innerHTML = ""; $("rsSt_" + k).textContent = ""; } runManList(k); runManChips(k); }
   if ($("rsMk_" + k)) $("rsMk_" + k).textContent = "📍 Marcar los 5 puntos";
   $("rsPickMsg_" + k).classList.add("hidden"); $("rsPick_" + k).textContent = "👆 Elegir al atleta";
   const v = $("rsV_" + k); v.src = st.url; v.muted = true;
@@ -5018,6 +5029,119 @@ function runMkDraw(g, st, s, ox, oy, over) {
   pts.forEach((q, i) => { const A = P(q); g.fillStyle = "#5BBF8A"; g.strokeStyle = "#fff"; g.lineWidth = 2; g.beginPath(); g.arc(A.x, A.y, 7, 0, 7); g.fill(); g.stroke(); runTag(g, A.x + 10, A.y + 6, MK_SHORT[i], "", 12); });
 }
 
+// =====================================================================
+// MODO MANUAL POR FASES (sin seguimiento): se mide solo en los cuadros clave, tocando los 5 puntos.
+// Los puntos no se "mueven" nunca: cada ángulo sale de tus toques en ese cuadro, como en Kinovea.
+// =====================================================================
+const runIsMan = k => k !== "P" && $("rsMode_" + k) && $("rsMode_" + k).value === "man";
+const RUN_PH_NEXT = { ic: "ms", ms: "to", to: "isw", isw: "msw", msw: "pc", pc: "ic" };
+function runManCalc(p) {
+  const [H, K, A, E, T] = p, dir = Math.sign(T.x - E.x) || 1, sag = v => Math.atan2(dir * v.x, v.y) * RD;
+  return { dir, thigh: sag(rv(H, K)), knee: 180 - rAngB(rv(K, H), rv(K, A)), ankle: 90 - rAngB(rv(A, K), rv(E, T)), tibia: sag(rv(K, A)),
+    foot: Math.atan2(E.y - T.y, dir * (T.x - E.x)) * RD, leg: Math.hypot(K.x - H.x, K.y - H.y) + Math.hypot(A.x - K.x, A.y - K.y), heelF: dir * (E.x - H.x) };
+}
+async function runManFps(k) { const st = RS[k], sel = $("rsFps_" + k).value; if (sel !== "auto") return +sel; if (!st.fpsAuto) st.fpsAuto = await runEstFps($("rsV_" + k)); return st.fpsAuto; }
+async function runManStep(k, n) { const v = $("rsV_" + k); v.pause(); const f = await runManFps(k); v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + n / f)); }
+function runManStart(k) {
+  const st = RS[k], v = $("rsV_" + k), c = $("rsC_" + k);
+  if (!v.videoWidth) return;
+  if (st.manNew) { st.manNew = null; c.style.pointerEvents = "none"; $("rsManGo_" + k).textContent = "📐 Medir este cuadro"; $("rsManMsg_" + k).textContent = "Medición cancelada."; st.redraw && st.redraw(); return; }
+  v.pause(); st.manNew = []; c.style.pointerEvents = "auto"; c.style.cursor = "crosshair";
+  $("rsManGo_" + k).textContent = "✕ Cancelar";
+  $("rsManMsg_" + k).textContent = `${RUN_PH.find(x => x[0] === st.manPh)[1]} · tocá 1/5 · ${MK_NAMES[0]}`;
+  st.redraw && st.redraw();
+}
+async function runManTap(k, x, y) {
+  const st = RS[k], v = $("rsV_" + k), c = $("rsC_" + k);
+  st.manNew.push({ x, y }); st.redraw && st.redraw();
+  if (st.manNew.length < 5) { $("rsManMsg_" + k).textContent = `${RUN_PH.find(q => q[0] === st.manPh)[1]} · tocá ${st.manNew.length + 1}/5 · ${MK_NAMES[st.manNew.length]}`; return; }
+  const pts = st.manNew; st.manNew = null; c.style.pointerEvents = "none"; $("rsManGo_" + k).textContent = "📐 Medir este cuadro";
+  const q = { ph: st.manPh, t: +v.currentTime.toFixed(4), pts, vals: runManCalc(pts) };
+  q.img = await runManSnap(k, q);
+  st.man.push(q); st.man.sort((a, b) => a.t - b.t);
+  const done = RUN_PH.find(x => x[0] === q.ph)[1];
+  st.manPh = RUN_PH_NEXT[q.ph]; runManChips(k);
+  $("rsManMsg_" + k).textContent = `✓ ${done}: muslo ${f1(runZ(q.vals.thigh, 0))}°, rodilla ${f1(q.vals.knee)}°, tobillo ${f1(runZ(q.vals.ankle, 0))}°. Siguiente: ${RUN_PH.find(x => x[0] === st.manPh)[1]} — avanzá cuadro a cuadro hasta ese momento y medí.`;
+  runManBuild(k);
+}
+async function runManSnap(k, q) {
+  const v = $("rsV_" + k), W = 480, Hh = 600, c = document.createElement("canvas"); c.width = W; c.height = Hh; const g = c.getContext("2d");
+  const xs = q.pts.map(p => p.x), ys = q.pts.map(p => p.y), vw = v.videoWidth, vh = v.videoHeight;
+  let h = Math.max((Math.max(...ys) - Math.min(...ys)) * 1.35, vh * 0.3), w = h * W / Hh; if (w > vw) { w = vw; h = w * Hh / W; } if (h > vh) { h = vh; w = h * W / Hh; }
+  const sx = Math.max(0, Math.min(vw - w, (Math.min(...xs) + Math.max(...xs)) / 2 - w / 2)), sy = Math.max(0, Math.min(vh - h, (Math.min(...ys) + Math.max(...ys)) / 2 - h / 2 - h * 0.05, Math.min(...ys) - h * 0.1)), s = W / w;
+  g.fillStyle = "#0F2233"; g.fillRect(0, 0, W, Hh); g.drawImage(v, sx, sy, w, h, 0, 0, W, Hh);
+  const P = p => ({ x: (p.x - sx) * s, y: (p.y - sy) * s }), [H, K, A, E, T] = q.pts.map(P), col = RUN_COL[k];
+  const line = (pts, cl, lw) => { g.strokeStyle = cl; g.lineWidth = lw; g.lineCap = g.lineJoin = "round"; g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.stroke(); };
+  g.setLineDash([5, 5]); line([{ x: H.x, y: H.y - 60 }, { x: H.x, y: H.y + 80 }], "rgba(255,255,255,.65)", 1.5); line([K, { x: K.x, y: K.y + (A.y - K.y) * 1.1 }], "rgba(255,255,255,.65)", 1.5); g.setLineDash([]);
+  line([H, K, A], col, 4); line([A, E, T, A], col, 3);
+  [H, K, A, E, T].forEach(p => { g.fillStyle = col; g.strokeStyle = "#fff"; g.lineWidth = 2; g.beginPath(); g.arc(p.x, p.y, 6, 0, 7); g.fill(); g.stroke(); });
+  const off = q.vals.dir > 0 ? -130 : 18;
+  runTag(g, H.x + off, Math.max(H.y + 6, 62), `Muslo ${Math.round(q.vals.thigh)}°`, "", 17); runTag(g, K.x + off, K.y + 6, `Rodilla ${Math.round(q.vals.knee)}°`, "", 17); runTag(g, A.x + off, A.y + 6, `Tobillo ${Math.round(q.vals.ankle)}°`, "", 17);
+  g.fillStyle = "rgba(15,34,51,.9)"; g.fillRect(0, 0, W, 32); g.fillStyle = "#5BBF8A"; g.font = "700 18px Barlow, sans-serif"; g.fillText(`${RUN_PH.find(x => x[0] === q.ph)[1]} · ${f1(q.t, 2)} s`, 10, 22);
+  return c.toDataURL("image/jpeg", 0.85);
+}
+function runManChips(k) { const el = $("rsManPh_" + k); if (!el) return; el.querySelectorAll("[data-mph2]").forEach(b => b.classList.toggle("on", b.dataset.mph2 === RS[k].manPh)); }
+// Arma el resultado del plano a partir de las mediciones manuales (mismo formato que el análisis automático)
+async function runManBuild(k) {
+  const st = RS[k], ms = st.man;
+  if (!ms.length) { delete RUN.views[k]; delete RUN.imgs[k]; $("rsRes_" + k).innerHTML = ""; $("rsSt_" + k).textContent = ""; runManList(k); RUN.concl = null; runRenderAll(); return; }
+  const by = ph => ms.filter(q => q.ph === ph), V = (ph, f) => rStat(by(ph).map(q => f(q.vals)));
+  const a = athObj(curAth), legPx = Math.max(...ms.map(q => q.vals.leg)), cmPx = a && +a.altura ? 0.491 * a.altura / legPx : NaN;
+  const fps = await runManFps(k);
+  // tiempos: contacto → despegue (tiempo de contacto) y contacto → contacto (zancada)
+  const ics = by("ic").map(q => q.t), tos = by("to").map(q => q.t);
+  const contact = [], stride = [];
+  for (let i = 0; i < ics.length; i++) {
+    const nx = ics[i + 1], to = tos.find(t => t > ics[i] && (nx == null || t < nx));
+    if (to != null) contact.push(to - ics[i] + 0.5 / fps);   // del primer al último cuadro con el pie apoyado, + medio cuadro
+    if (nx != null) stride.push(nx - ics[i]);
+  }
+  const stMed = rMed(stride), sel = $("rsSlow_" + k).value;
+  const slow = sel !== "auto" ? +sel : Number.isFinite(stMed) ? runSlowFactor(120 / stMed, "auto") : 1;
+  const cad = Number.isFinite(stMed) ? 120 / stMed * slow : NaN, ct = contact.length ? contact.map(x => x / slow * 1000) : [];
+  const met = {
+    cad: { m: cad }, contact: rStat(ct), stance: { m: Number.isFinite(stMed) && ct.length ? rMean(ct) / (stMed / slow * 1000) * 100 : NaN },
+    thighIC: V("ic", v => v.thigh), kneeIC: V("ic", v => v.knee), tibiaIC: V("ic", v => v.tibia), footIC: V("ic", v => v.foot), over: V("ic", v => v.heelF * cmPx),
+    thighMS: V("ms", v => v.thigh), kneeMS: V("ms", v => v.knee), ankleMS: V("ms", v => v.ankle), tibiaMS: V("ms", v => -v.tibia),
+    thighTO: V("to", v => -v.thigh), kneeTO: V("to", v => v.knee), footTO: V("to", v => -v.foot), tibiaTO: V("to", v => -v.tibia),
+    kneeSw: V("isw", v => v.knee), hipSw: V("msw", v => v.thigh)
+  };
+  if (Number.isFinite(cad) && +$("runSpeed").value > 0) met.stepLen = { m: +$("runSpeed").value / 3.6 / (cad / 60) * 100 };
+  const phases = Object.fromEntries(RUN_PH.map(([ph]) => [ph, { hip: V(ph, v => v.thigh), knee: V(ph, v => v.knee), ankle: V(ph, v => v.ankle) }]));
+  const v = $("rsV_" + k);
+  RUN.views[k] = { view: k, near: k, dir: ms[0].vals.dir, nStrides: Math.max(1, ics.length), slow, fps, rf: fps * slow, manual: true, markers: true,
+    scaleSrc: Number.isFinite(cmPx) ? "altura del atleta" : "sin altura cargada (cargala para medir en cm)", met, phases, stanceEnd: met.stance.m, curves: null,
+    vw: v.videoWidth, vh: v.videoHeight, t0: 0, t1: 0, nMeas: ms.length, date: new Date().toISOString() };
+  RUN.imgs[k] = RUN_PH.map(([ph]) => by(ph)[0]).filter(Boolean).map(q => ({ title: `${RUN_PH.find(x => x[0] === q.ph)[1]}`, src: q.img }));
+  $("rsSt_" + k).textContent = `✓ ${ms.length} medicion${ms.length === 1 ? "" : "es"}`; $("rsSt_" + k).className = "rs-st ok";
+  runManList(k); RUN.concl = null; runRenderAll();
+}
+function runManList(k) {
+  const st = RS[k], el = $("rsManList_" + k); if (!el) return;
+  const byPh = Object.fromEntries(RUN_PH.map(([ph]) => [ph, st.man.filter(q => q.ph === ph).length]));
+  el.innerHTML = st.man.length ? `<p class="note2" style="margin:10px 0 4px">Mediciones (tocá una para ir a ese cuadro): ${RUN_PH.map(([ph, n]) => `${n.split(" ")[0]} ${byPh[ph]}`).join(" · ")}</p>
+    <div style="overflow-x:auto"><table class="rtable rtl"><tr><th>Fase</th><th>Tiempo</th><th>Muslo</th><th>Rodilla</th><th>Tobillo</th><th></th></tr>
+    ${st.man.map((q, i) => `<tr data-mgo="${i}" style="cursor:pointer"><td>${RUN_PH.find(x => x[0] === q.ph)[1]}</td><td>${f1(q.t, 2)} s</td><td>${f1(runZ(q.vals.thigh, 0))}°</td><td>${f1(q.vals.knee)}°</td><td>${f1(runZ(q.vals.ankle, 0))}°</td><td><button class="chip" data-mdel2="${i}" aria-label="Borrar">🗑</button></td></tr>`).join("")}</table></div>` : "";
+}
+function runManBind(k) {
+  const st = RS[k]; st.man = st.man || []; st.manPh = st.manPh || "ic";
+  document.querySelectorAll(`[data-fstep][data-fk="${k}"]`).forEach(b => b.onclick = () => runManStep(k, +b.dataset.fstep));
+  $("rsManPh_" + k).onclick = e => { const b = e.target.closest("[data-mph2]"); if (!b) return; st.manPh = b.dataset.mph2; runManChips(k); };
+  $("rsManGo_" + k).onclick = () => runManStart(k);
+  $("rsManList_" + k).onclick = e => {
+    const d = e.target.closest("[data-mdel2]"); if (d) { e.stopPropagation(); st.man.splice(+d.dataset.mdel2, 1); runManBuild(k); return; }
+    const r = e.target.closest("[data-mgo]"); if (r) { const q = st.man[+r.dataset.mgo]; const v = $("rsV_" + k); v.pause(); v.currentTime = q.t; }
+  };
+  runManChips(k);
+}
+// dibujo: toques en curso o la medición del cuadro donde está parado el video
+function runManDraw(g, st, v, s, ox, oy) {
+  if (st.manNew) { runMkDraw(g, st, s, ox, oy, st.manNew); return true; }
+  if (!st.man || !st.man.length) return false;
+  const q = st.man.find(m => Math.abs(m.t - v.currentTime) < 0.012); if (!q) return false;
+  runMkDraw(g, st, s, ox, oy, q.pts); return true;
+}
+
 // ---------- Dibujo del esqueleto sobre el cuadro ----------
 const RUN_COL = { L: "#F2A33A", R: "#3FB8A0" };
 function runTag(g, x, y, txt, col = "#0F2233", fs = 15) {
@@ -5091,6 +5215,7 @@ function runOverlayBind(k) {
     const w = v.clientWidth, h = v.clientHeight; if (!w) return;
     if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
     g.clearRect(0, 0, w, h);
+    if (runIsMan(k)) { const vw = v.videoWidth, vh = v.videoHeight, s = Math.min(w / vw, h / vh); runManDraw(g, st, v, s, (w - vw * s) / 2, (h - vh * s) / 2); return; }
     if (st.busy && st.livePts) { const vw = v.videoWidth, vh = v.videoHeight, s = Math.min(w / vw, h / vh); runMkDraw(g, st, s, (w - vw * s) / 2, (h - vh * s) / 2, st.livePts); return; }
     if (st.mkNew || (st.mk && !st.frames)) { const vw = v.videoWidth, vh = v.videoHeight, s = Math.min(w / vw, h / vh); runMkDraw(g, st, s, (w - vw * s) / 2, (h - vh * s) / 2); return; }
     if (st.preview && (!st.frames || !res)) {
@@ -5113,6 +5238,12 @@ function runOverlayBind(k) {
   RS[k].redraw = draw;
   c.onclick = async e => {
     const st = RS[k];
+    if (st.manNew) {
+      const r = c.getBoundingClientRect(), vw = v.videoWidth, vh = v.videoHeight, s = Math.min(r.width / vw, r.height / vh);
+      const x = ((e.clientX - r.left) - (r.width - vw * s) / 2) / s, y = ((e.clientY - r.top) - (r.height - vh * s) / 2) / s;
+      if (x >= 0 && y >= 0 && x <= vw && y <= vh) runManTap(k, x, y);
+      return;
+    }
     if (st.marking) {
       const r = c.getBoundingClientRect(), vw = v.videoWidth, vh = v.videoHeight, s = Math.min(r.width / vw, r.height / vh);
       const x = ((e.clientX - r.left) - (r.width - vw * s) / 2) / s, y = ((e.clientY - r.top) - (r.height - vh * s) / 2) / s;
@@ -5271,8 +5402,8 @@ function runViewHTML(k) {
   if (k !== "P") {
     const m = res.met;
     return `<div class="rkpis">${runKpi("Cadencia", f1(m.cad.m) + " ppm")}${runKpi("Contacto", f1(m.contact.m) + " ms")}${runKpi("Apoyo", f1(m.stance.m) + "%")}${m.stepLen ? runKpi("Paso", f1(m.stepLen.m) + " cm") : ""}${runKpi("Zancadas", res.nStrides)}${runKpi("Cámara lenta", slowTxt)}</div>
-      <h4>Fases de la carrera <span class="note2">(zancada representativa)</span></h4><div class="rgrid">${imgs}</div>
-      <h4>Ángulos por fase <span class="note2">(promedio ± desvío de ${res.nStrides} zancadas)</span></h4>
+      <h4>Fases de la carrera <span class="note2">(${res.manual ? "medición manual" : "zancada representativa"})</span></h4><div class="rgrid">${imgs}</div>
+      <h4>Ángulos por fase <span class="note2">(${res.manual ? `promedio de tus ${res.nMeas} mediciones` : `promedio ± desvío de ${res.nStrides} zancadas`})</span></h4>
       <div style="overflow-x:auto"><table class="rtable"><tr><th>Fase</th><th>${res.markers ? "Muslo*" : "Cadera"}</th><th>Rodilla</th><th>Tobillo</th></tr>
       ${RUN_PH.map(([ph, nm]) => `<tr><td>${nm}<div class="note2" style="font-size:11px">${RUN_PH_DEF[ph]}</div></td><td>${runPM(res.phases[ph].hip)}</td><td>${runPM(res.phases[ph].knee)}</td><td>${runPM(res.phases[ph].ankle)}</td></tr>`).join("")}</table></div>
       <p class="note2" style="font-size:12px">${res.markers ? "*Video de la cadera para abajo (puntos marcados): el muslo se mide respecto de la vertical (+ adelante / − atrás). " : "Cadera: + flexión / − extensión respecto del tronco. "}Rodilla: 0° = extendida. Tobillo: + dorsiflexión / − flexión plantar.</p>
@@ -5284,9 +5415,9 @@ function runViewHTML(k) {
       <tr><td>Patrón de apoyo</td><td><b>${runStrike(m.footIC.m)}</b></td><td><span class='note2'>dato</span></td><td class="note2">Retropié 80–90% · mediopié 5–15% · antepié 1–5% de los corredores</td></tr>
       ${runMetricRows(["over", "contact", "kneeSw", "hipSw", "stepLen"], m)}</table></div>
       <p class="note2" style="font-size:12px">Escala en cm: ${esc(res.scaleSrc || "")}. Cuadros/s del video: ${res.fps}${res.slow > 1 ? ` · cámara lenta ×${res.slow} (${res.fps * res.slow} cuadros/s reales)` : ""}.${res.fps * res.slow < 60 ? " ⚠️ Con menos de 60 cuadros/s reales los eventos y los ángulos del contacto pierden precisión: filmá en 120 o 240 fps." : ""}</p>
-      <h4>Curvas del ciclo <span class="note2">(0% y 100% = contacto)</span></h4>
+      ${res.curves ? `<h4>Curvas del ciclo <span class="note2">(0% y 100% = contacto)</span></h4>
       <div class="chips" id="rcSel_${k}">${["knee", "hip", "ankle"].map((j, i) => `<button class="chip ${i ? "" : "on"}" data-rc="${j}">${{ knee: "Rodilla", hip: "Cadera", ankle: "Tobillo" }[j]}</button>`).join("")}</div>
-      <canvas class="rchart" id="rcC_${k}" style="height:190px"></canvas>`;
+      <canvas class="rchart" id="rcC_${k}" style="height:190px"></canvas>` : ""}`;
   }
   const L = res.sides.L, R = res.sides.R;
   const rows = ["drop", "bas", "add", "thl", "valg", "ev", "cal", "lean", "sh", "heel"].filter(mk => L[mk]).map(mk => {
@@ -5502,7 +5633,7 @@ $("goRun").onclick = openRun;
 
 
 // ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
-const APP_VERSION = "23 oct 2026 (g)";
+const APP_VERSION = "23 oct 2026 (h)";
 $("verTxt").textContent = APP_VERSION;
 async function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
