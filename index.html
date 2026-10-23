@@ -205,9 +205,225 @@
   .jcard dt{color:var(--muted)}
   .jcard dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
   .flag{font-size:13px;margin:6px 0 0}
+  .runslot h3{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .rs-st{font:600 13px Barlow,sans-serif;color:#7A8896;background:#EEF1F4;border-radius:999px;padding:3px 10px}
+  .rs-st.ok{background:#E3F4EA;color:#2F7D55}
+  .rs-st:empty{display:none}
+  .rs-vwrap{position:relative;margin:12px 0 8px;background:#0F2233;border-radius:14px;overflow:hidden}
+  .rs-vwrap video{display:block;width:100%;max-height:62vh;background:#0F2233}
+  .rs-vwrap canvas{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+  .rs-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .rs-opts label{display:flex;flex-direction:column;gap:4px;font:600 13px Barlow,sans-serif;color:#6B7B8A}
+  .rs-opts select,.rs-opts input{font:400 16px Barlow,sans-serif;padding:9px 10px;border:1px solid #D5DCE2;border-radius:10px;background:#fff;color:#34495E;width:100%;box-sizing:border-box}
+  .rs-prog{margin-top:12px;background:#EEF1F4;border-radius:999px;height:10px;position:relative}
+  .rs-prog div{height:100%;background:#5BBF8A;border-radius:999px;width:0;transition:width .2s}
+  .rs-prog span{position:absolute;top:14px;left:0;font-size:13px;color:#6B7B8A}
+  .rs-prog:not(.hidden){margin-bottom:26px}
+  .rs-err{background:#FDECEC;color:#B4353A;border-radius:12px;padding:10px 12px;margin-top:12px;font-size:15px}
+  .rkpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px;margin:14px 0 6px}
+  .rkpi{background:#F4F7F9;border-radius:12px;padding:8px 10px}
+  .rkpi span{display:block;font-size:12px;color:#7A8896}
+  .rkpi b{font:700 19px Barlow,sans-serif;color:#34495E}
+  #scrRun h4{font:700 16px Barlow,sans-serif;margin:16px 0 8px;color:#34495E}
+  .rgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .rgrid.g2{grid-template-columns:repeat(2,1fr)}
+  @media (max-width:560px){.rgrid{grid-template-columns:repeat(2,1fr)}}
+  .rgrid figure{margin:0}
+  .rgrid img{width:100%;display:block;border-radius:10px}
+  .rgrid figcaption{font-size:12px;color:#6B7B8A;margin-top:3px;text-align:center}
+  .rpill{display:inline-block;border:1.5px solid;border-radius:999px;padding:1px 9px;font-weight:700}
+  .rtl td{vertical-align:top}
+  .rtable small{color:#93A1AF;font-size:11px}
+  .rtl th,.rtl td{text-align:left !important}
 </style>
 </head>
 <body class="light">
+<!-- ===================== Acceso con código (licencias de prueba) ===================== -->
+<style>
+  #licGate{position:fixed;inset:0;z-index:2147483000;background:#F4F7F9;color:#34495E;display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));overflow:auto;font:15px/1.5 Barlow,system-ui,sans-serif}
+  #licGate.hidden{display:none}
+  #licGate .lg-card{width:100%;max-width:400px;background:#fff;border-radius:18px;box-shadow:0 8px 30px rgba(52,73,94,.12);padding:24px 20px}
+  #licGate .lg-brand{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  #licGate .lg-brand img{width:44px;height:44px;border-radius:11px}
+  #licGate .lg-brand span{font:800 24px Barlow,sans-serif;letter-spacing:.5px}
+  #licGate h2{font:700 22px "Barlow Condensed",Barlow,sans-serif;margin:0 0 4px}
+  #licGate p{margin:0 0 12px;color:#5E6E7E}
+  #licGate label{display:block;font-weight:600;font-size:13px;margin:10px 0 4px;color:#4D5E6E}
+  #licGate input,#licGate textarea{width:100%;box-sizing:border-box;border:1.5px solid #D5DDE4;border-radius:10px;padding:11px 12px;font:16px Barlow,system-ui,sans-serif;color:#34495E;background:#FAFCFD}
+  #licGate textarea{font:13px ui-monospace,Menlo,monospace;height:84px;resize:none;word-break:break-all}
+  #licGate input:focus,#licGate textarea:focus{outline:none;border-color:#5BBF8A}
+  #licGate .lg-btn{width:100%;margin-top:16px;border:0;border-radius:12px;padding:13px;font:700 16px Barlow,sans-serif;background:#5BBF8A;color:#fff;cursor:pointer}
+  #licGate .lg-btn:disabled{opacity:.6}
+  #licGate .lg-link{background:none;border:0;color:#3C8FCB;font:600 14px Barlow,sans-serif;padding:6px 0;cursor:pointer}
+  #licGate .lg-ok{background:#E8F6EE;color:#2E7D55;border-radius:10px;padding:9px 12px;font-size:14px;margin-top:4px}
+  #licGate .lg-err{background:#FDECEC;color:#B4353A;border-radius:10px;padding:9px 12px;font-size:14px;margin-top:12px}
+  #licGate .lg-exp{background:#FFF4E2;color:#8A5A12;border-radius:12px;padding:12px;margin:4px 0 8px;font-size:15px}
+  #licGate .lg-foot{font-size:12px;color:#93A1AF;text-align:center;margin-top:14px}
+  #licChip{display:inline-flex;gap:6px;align-items:center;border-radius:20px;padding:4px 12px;font:600 13px Barlow,sans-serif;background:#E8F6EE;color:#2E7D55;margin-top:6px}
+  #licChip.warn{background:#FFF4E2;color:#8A5A12}
+  #licChip button{background:none;border:0;color:inherit;text-decoration:underline;font:inherit;cursor:pointer;padding:0}
+</style>
+<div id="licGate">
+  <div class="lg-card">
+    <div class="lg-brand"><img src="tm-icon-192.png?v=3" alt=""><span>Trak<span style="color:#5BBF8A">Mov</span></span></div>
+    <div id="lgWait"><p>Verificando acceso…</p></div>
+    <div id="lgForm" style="display:none">
+      <div id="lgExpBox"></div>
+      <h2 id="lgTitle">Acceso a TrakMov</h2>
+      <p id="lgSub">Ingresá con los datos que te pasaron.</p>
+      <div id="lgCodeOk" class="lg-ok" style="display:none">✓ Código de acceso cargado desde el link</div>
+      <div id="lgCodeWrap">
+        <label for="lgCode">Código de acceso</label>
+        <textarea id="lgCode" placeholder="TM1.…" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+        <button class="lg-link" id="lgPaste" type="button">📋 Pegar código</button>
+      </div>
+      <div id="lgCred">
+        <label for="lgUser">Usuario</label>
+        <input id="lgUser" autocomplete="username" autocapitalize="off" spellcheck="false">
+        <label for="lgPass">Contraseña</label>
+        <input id="lgPass" type="password" autocomplete="current-password">
+      </div>
+      <div id="lgErr" class="lg-err" style="display:none"></div>
+      <button class="lg-btn" id="lgGo" type="button">Ingresar</button>
+      <div class="lg-foot">Tus atletas y evaluaciones quedan guardados en este dispositivo.</div>
+    </div>
+  </div>
+</div>
+<script>
+// Cada acceso es un código firmado digitalmente (ECDSA P-256) con nombre, usuario, contraseña (en hash) y fechas.
+// La app solo tiene la clave PÚBLICA: puede comprobar un código pero no fabricarlo ni cambiarle la fecha.
+(() => {
+  const PUB = { kty: "EC", crv: "P-256", x: "z8mKO5wHe8AXPnPdK0F3fKG_e4uTatKmKunHf42TnIo", y: "auEtegEW5gJhXxXw-jom5pI_h0YMgwHH48H9UFvUDGs" };
+  const OWNER = "Juan Ignacio Cámpora";
+  const K_LIC = "tm_lic", K_SEEN = "tm_seen", K_REV = "tm_revoked";
+  const $l = id => document.getElementById(id);
+  const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} }, del: k => { try { localStorage.removeItem(k); } catch {} } };
+  const b64d = s => { s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "="; return Uint8Array.from(atob(s), c => c.charCodeAt(0)); };
+  const b64e = u => btoa(String.fromCharCode(...u)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const fmt = t => new Date(t * 1000).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  let key = null, serverT = 0, cur = null;
+
+  // Hora confiable: la mayor entre el reloj del equipo, la última vista y la del servidor (si hay internet).
+  function now() {
+    const seen = +ls.get(K_SEEN) || 0, dev = Date.now() / 1000;
+    const t = Math.max(dev, seen, serverT);
+    if (t > seen) ls.set(K_SEEN, String(Math.floor(t)));
+    return t;
+  }
+  async function syncServer() {
+    if (!/^https?:/.test(location.protocol)) return;
+    try {
+      const r = await fetch(location.pathname + "?t=" + Date.now(), { method: "HEAD", cache: "no-store" });
+      const d = Date.parse(r.headers.get("date")); if (d) serverT = Math.max(serverT, d / 1000);
+    } catch {}
+    try { // lista de accesos dados de baja (archivo opcional revocados.txt en el repo)
+      const r = await fetch("revocados.txt?t=" + Date.now(), { cache: "no-store" });
+      if (r.ok) { const ids = (await r.text()).split(/\s+/).filter(Boolean); ls.set(K_REV, JSON.stringify(ids)); }
+    } catch {}
+  }
+  function parse(code) {
+    code = (code || "").trim().replace(/\s+/g, "");
+    const m = code.match(/^TM1\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/); if (!m) return null;
+    try { return { code, body: m[1], sig: b64d(m[2]), p: JSON.parse(new TextDecoder().decode(b64d(m[1]))) }; } catch { return null; }
+  }
+  async function verify(c) {
+    if (!c || !window.crypto || !crypto.subtle) return false;
+    if (!key) key = await crypto.subtle.importKey("jwk", PUB, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+    return crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, key, c.sig, new TextEncoder().encode("TM1." + c.body));
+  }
+  async function pwHash(p, user, pass) {
+    const h = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(p.id + "|" + user + "|" + pass)));
+    return b64e(h.slice(0, 12));
+  }
+  function status(p) {
+    let rev = []; try { rev = JSON.parse(ls.get(K_REV) || "[]"); } catch {}
+    if (rev.includes(p.id)) return "rev";
+    const t = now();
+    if (p.s && t < p.s - 43200) return "early";
+    if (t >= p.e) return "exp";
+    return "ok";
+  }
+  function showForm(opts = {}) {
+    $l("licGate").classList.remove("hidden"); $l("lgWait").style.display = "none"; $l("lgForm").style.display = "";
+    $l("lgExpBox").innerHTML = opts.box || "";
+    $l("lgTitle").textContent = opts.title || "Acceso a TrakMov";
+    $l("lgSub").textContent = opts.sub || "Ingresá con los datos que te pasaron.";
+    const pre = opts.code || "";
+    $l("lgCode").value = pre; $l("lgCodeOk").style.display = pre ? "" : "none"; $l("lgCodeWrap").style.display = pre ? "none" : "";
+    refreshCred(); err(opts.err || "");
+  }
+  function refreshCred() { const c = parse($l("lgCode").value); $l("lgCred").style.display = c && !c.p.h ? "none" : ""; }
+  function err(t) { $l("lgErr").textContent = t; $l("lgErr").style.display = t ? "" : "none"; }
+  function chip() {
+    if (!cur) return;
+    const v = $l("appVer"); if (!v) return document.addEventListener("DOMContentLoaded", chip, { once: true });
+    let el = $l("licChip");
+    if (!el) { const d = document.createElement("div"); d.style.textAlign = "center"; d.innerHTML = '<span id="licChip"></span>'; v.after(d); el = $l("licChip"); }
+    const p = cur.p, days = Math.ceil((p.e - now()) / 86400);
+    if (p.e > 3.9e9) { el.className = ""; el.innerHTML = `✓ Licencia: ${p.n}`; return; }
+    el.className = days <= 3 ? "warn" : "";
+    el.innerHTML = `Acceso de prueba · ${days === 1 ? "queda 1 día" : "quedan " + days + " días"} (hasta el ${fmt(p.e - 1)}) · <button type="button" id="licChg">cambiar código</button>`;
+    $l("licChg").onclick = () => showForm({ title: "Cambiar código de acceso", sub: "Pegá el código nuevo que te pasaron." });
+  }
+  function grant(c) { cur = c; $l("licGate").classList.add("hidden"); chip(); }
+  function blockedMsg(c, st) {
+    const p = c.p, who = p.n ? `, ${p.n.split(" ")[0]}` : "";
+    if (st === "exp") return { title: "Período de prueba terminado", sub: `Gracias por probar TrakMov${who}.`, box: `<div class="lg-exp">⏳ Tu acceso de prueba terminó el <b>${fmt(p.e - 1)}</b>. Para seguir usando la app pedile un código nuevo a ${OWNER} y pegalo acá abajo.<br><span style="font-size:13px">Tus datos no se borraron: vuelven a aparecer al ingresar el código nuevo.</span></div>` };
+    if (st === "rev") return { title: "Acceso dado de baja", sub: "", box: `<div class="lg-exp">Este acceso fue desactivado. Si creés que es un error, consultá con ${OWNER}.</div>` };
+    return { title: "Todavía no está habilitado", sub: "", box: `<div class="lg-exp">Tu acceso empieza el <b>${fmt(p.s)}</b>.</div>` };
+  }
+  async function check() {
+    const c = parse(ls.get(K_LIC));
+    if (!c || !(await verify(c).catch(() => false))) { cur = null; return false; }
+    const st = status(c.p);
+    if (st !== "ok") { cur = null; showForm(blockedMsg(c, st)); return true; }
+    grant(c); return true;
+  }
+  async function submit() {
+    const c = parse($l("lgCode").value);
+    if (!c) return err("El código de acceso no es válido. Revisá que esté completo.");
+    $l("lgGo").disabled = true;
+    try {
+      if (!(await verify(c))) return err("El código de acceso no es válido.");
+      if (c.p.h) {
+        const u = $l("lgUser").value.trim().toLowerCase(), pw = $l("lgPass").value;
+        if (u !== c.p.u || (await pwHash(c.p, u, pw)) !== c.p.h) return err("Usuario o contraseña incorrectos.");
+      }
+      await syncServer();
+      const st = status(c.p);
+      if (st !== "ok") return showForm({ ...blockedMsg(c, st), code: "" });
+      ls.set(K_LIC, c.code); grant(c);
+    } catch (e) { err("No se pudo verificar el acceso: " + (e.message || e)); }
+    finally { $l("lgGo").disabled = false; }
+  }
+  $l("lgGo").onclick = submit;
+  $l("lgPass").onkeydown = e => { if (e.key === "Enter") submit(); };
+  $l("lgCode").oninput = refreshCred;
+  $l("lgPaste").onclick = async () => { try { $l("lgCode").value = (await navigator.clipboard.readText()).trim(); refreshCred(); } catch { err("No pude leer el portapapeles: mantené apretado el cuadro y elegí Pegar."); } };
+
+  async function start() {
+    if (!window.crypto || !crypto.subtle) return showForm({ err: "Abrí TrakMov desde su link (https) para poder verificar el acceso." });
+    // Código que viene en el link: https://…/#lic=TM1.…
+    const m = location.hash.match(/lic=([^&]+)/);
+    const fromLink = m ? decodeURIComponent(m[1]) : "";
+    if (m) history.replaceState(null, "", location.pathname + location.search);
+    const had = await check();
+    if (fromLink && (!cur || parse(fromLink)?.p.id !== cur.p.id)) {
+      // Link nuevo: pedir usuario y contraseña (o entrar directo si el código no los pide)
+      const c = parse(fromLink);
+      showForm({ code: fromLink, err: c ? "" : "El link de acceso está incompleto. Pedí que te lo reenvíen." });
+      if (c && !c.p.h) submit();
+    } else if (!had) showForm();
+    syncServer().then(() => { if (cur) check(); });
+  }
+  // Volver a controlar al retomar la app y cada 10 minutos (por si vence mientras está abierta)
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && cur) syncServer().then(check); });
+  setInterval(() => { if (cur) check(); }, 10 * 60 * 1000);
+  start();
+})();
+</script>
+<!-- =================== fin acceso con código =================== -->
+
 <div id="shell">
   <section id="scrHome" class="scr">
     <div style="display:flex;align-items:center;gap:10px"><img src="tm-icon-192.png?v=3" alt="" style="width:40px;height:40px;border-radius:10px"><span style="font:800 22px Barlow,sans-serif;letter-spacing:.5px;color:#34495E">Trak<span style="color:#5BBF8A">Mov</span></span></div>
@@ -215,6 +431,7 @@
     <p class="sub">¿Cómo querés empezar?</p>
     <button class="bigcard" id="goVideo"><span class="ill" data-fig="squatF"></span><span style="flex:1"><h2>Analizar un video</h2><p>Cargá cualquier video, medí ángulos de todo el cuerpo, recorrelo cuadro a cuadro y miralo en 3D.</p></span><span class="chev">›</span></button>
     <button class="bigcard" id="goEval"><span class="ill" data-fig="ohSquat"></span><span style="flex:1"><h2>Realizar una evaluación</h2><p>Elegí una evaluación guiada: se configura sola, mide lo que corresponde y guarda el resultado en el historial del atleta.</p></span><span class="chev">›</span></button>
+    <button class="bigcard" id="goRun"><span class="ill" data-fig="runP"></span><span style="flex:1"><h2>Análisis de carrera</h2><p>Filmá en la cinta de perfil (derecha e izquierda) y de atrás: fases de la carrera, ángulos de cadera, rodilla y tobillo, pelvis, pronación, tronco y hombros.</p></span><span class="chev">›</span></button>
     <button class="bigcard" id="goAth"><span class="ill" data-fig="standF"></span><span style="flex:1"><h2>Atletas</h2><p>Fichas con datos personales, grupo y posición, buscador y el historial de evaluaciones de cada uno.</p></span><span class="chev">›</span></button>
     <button class="bigcard" id="goLive"><span class="ill" data-fig="armsUpF"></span><span style="flex:1"><h2>Cámara libre</h2><p>Análisis en vivo de todo el cuerpo con la cámara del celular o de la compu.</p></span><span class="chev">›</span></button>
       <p id="appVer" class="sub" style="font-size:13px;text-align:center;margin-top:24px">Versión <span id="verTxt"></span> · iPhone/iPad</p>
@@ -302,6 +519,50 @@
       <label class="btn-o" style="text-align:center;cursor:pointer;position:relative;overflow:hidden">Importar respaldo<input id="pImport" type="file" accept=".json,application/json" style="position:absolute;opacity:0;width:1px"></label>
     </div>
     <p class="sub" style="font-size:14px;margin-top:10px">Para usar el mismo historial en iPhone y iPad: «Enviar respaldo» por AirDrop y en el otro equipo «Importar respaldo». Se combinan sin duplicar. Los videos no viajan en el respaldo (pesan mucho): descargalos desde el detalle de cada evaluación.</p>
+  </section>
+
+  <section id="scrRun" class="scr hidden">
+    <button class="backc" id="runBack" aria-label="Volver">‹</button>
+    <h1 class="lt" id="runTitle">Análisis de carrera en cinta</h1>
+    <p class="sub" id="runSub"></p>
+    <div class="card athcard">
+      <div class="avatar" id="runAv">?</div>
+      <div style="flex:1;min-width:0"><select id="runAth" aria-label="Atleta" style="width:100%"></select><div class="note2" id="runAthInfo" style="margin-top:2px"></div></div>
+      <button class="addbtn" id="runAdd">+ Nuevo</button>
+    </div>
+    <div class="card" id="runSetup">
+      <h3>Datos de la prueba</h3>
+      <div class="rs-opts">
+        <label>Velocidad (km/h)<input id="runSpeed" type="number" inputmode="decimal" step="0.1" min="0" placeholder="Ej.: 12"></label>
+        <label>Inclinación (%)<input id="runIncl" type="number" inputmode="decimal" step="0.5" min="0" placeholder="Ej.: 1"></label>
+        <label style="grid-column:1/-1">Calzado<input id="runShoe" type="text" placeholder="Modelo / tipo de zapatilla"></label>
+      </div>
+      <p class="note2" style="margin:8px 0 0">La altura y el sexo del atleta (en su ficha) mejoran la medición en cm y la referencia de caída pélvica.</p>
+    </div>
+    <div class="card" id="runHowCard">
+      <h3 style="display:flex;justify-content:space-between;align-items:center">Cómo filmar <button class="chip" id="runHowBtn">Ver</button></h3>
+      <div id="runHow" class="hidden">
+        <ol class="steps">
+          <li><b>Entrada en calor:</b> 3–5 min en la cinta antes de filmar, a la velocidad de la prueba.</li>
+          <li><b>Cámara lenta:</b> en el iPhone usá «Cámara lenta» (120 o 240 cps). Si no, al menos 60 cps (Ajustes › Cámara › Grabar video). La app detecta sola la cámara lenta.</li>
+          <li><b>Lateral:</b> trípode a 2–3 m, perpendicular a la cinta, a la altura de la cadera y nivelado. Que se vea el cuerpo entero, los pies y la cinta en todo momento.</li>
+          <li><b>Posterior:</b> trípode detrás, centrado con la cinta y a la altura de la cadera. Talones y zapatillas siempre visibles.</li>
+          <li><b>Ropa:</b> ajustada o short y remera ajustada; sin nadie cruzando por detrás. Buena luz, sin contraluz.</li>
+          <li><b>Duración:</b> filmá 15–20 s corriendo estable (mínimo 8 zancadas). Después elegí el tramo en el video.</li>
+        </ol>
+      </div>
+    </div>
+    <div id="runSlots"></div>
+    <div id="runSym"></div>
+    <div class="card hidden" id="runReport"><h3>Informe</h3>
+      <p>Conclusiones generadas automáticamente: podés editarlas libremente.</p>
+      <textarea class="rnote" id="runConcl" style="min-height:170px"></textarea>
+      <button class="btn-o" id="runReConcl" style="margin-top:8px;padding:10px !important">↻ Volver a generar conclusiones</button>
+      <h3 style="margin-top:14px">Notas del profesional</h3>
+      <textarea class="rnote" id="runNote" placeholder="Molestias, historial de lesiones, calzado, indicaciones…"></textarea>
+      <button class="btn-d wide" id="runSave">💾 Guardar en el historial del atleta</button>
+      <div class="row2" style="margin-top:12px"><button class="btn-o" id="runPdf">📄 Descargar PDF</button><button class="btn-o" id="runPdfShare">📤 Compartir PDF</button></div>
+    </div>
   </section>
 
   <nav class="tabbar" aria-label="Navegación">
@@ -2421,6 +2682,7 @@ const FIGS = {
   ankleP:   { h: [56, 20], l: ["54,34 51,66", "54,34 58,50 62,62", "51,66 66,88 60,112 68,112", "51,66 40,90 30,108 37,110"], a: "M 74 96 A 14 14 0 0 0 66 110" },
   lungeP:   { h: [51, 19], l: ["50,34 50,68", "50,34 50,52 52,66", "50,68 66,84 66,112 74,112", "50,68 40,96 26,108"] },
   postureP: { h: [52, 15], l: [...PF.t, ...PF.arm, ...PF.leg], a: "M 52 26 L 52 114", noArrow: true },
+  runP:     { h: [60, 15], l: ["58,25 52,58", "58,28 66,42 75,36", "58,28 47,40 42,53", "52,58 60,84 54,108 64,110", "52,58 38,74 27,68"], a: "M 12 114 L 88 114", noArrow: true },
 };
 function figSVG(k) {
   const f = FIGS[k] || FIGS.standF;
@@ -2504,7 +2766,7 @@ function buildCatalog() {
   $("catalog").innerHTML = `
     <h3>Flujos de evaluación</h3><div class="hscroll">${FLOWS.map(f => tile(f.id, f.n, f.fig, true)).join("")}</div>
     <h3>Movimientos funcionales</h3><div class="hscroll">${PROTOS.filter(p => p.cat === "func").map(p => tile(p.id, p.n, p.fig)).join("")}</div>
-    <h3>Rendimiento</h3><div class="hscroll">${PROTOS.filter(p => p.cat === "perf").map(p => tile(p.id, p.n, p.fig)).join("")}</div>
+    <h3>Rendimiento</h3><div class="hscroll">${tile("run", "Carrera en cinta", "runP")}${PROTOS.filter(p => p.cat === "perf").map(p => tile(p.id, p.n, p.fig)).join("")}</div>
     <h3>Rango de movimiento</h3><div class="chips">${regs.map(r => `<button class="chip ${r === romFilter ? "on" : ""}" data-reg="${r}">${r}</button>`).join("")}</div>
     <div class="grid2">${PROTOS.filter(p => p.cat === "rom" && (romFilter === "Todos" || p.reg === romFilter)).map(p => tile(p.id, p.n, p.fig)).join("")}</div>`;
 }
@@ -2512,6 +2774,7 @@ $("catalog").onclick = e => {
   const b = e.target.closest("button"); if (!b) return;
   if (b.dataset.reg) { romFilter = b.dataset.reg; buildCatalog(); return; }
   if (b.dataset.flow) { const f = FLOWS.find(x => x.id === b.dataset.flow); flowQueue = f.steps.slice(1); openDetail(f.steps[0], f.n); return; }
+  if (b.dataset.proto === "run") { flowQueue = []; openRun(); return; }
   if (b.dataset.proto) { flowQueue = []; openDetail(b.dataset.proto); }
 };
 
@@ -2568,6 +2831,7 @@ $("afSave").onclick = () => {
   if (a) Object.assign(a, data); else { a = { id: "a" + Date.now(), ...data }; db.ath.push(a); }
   saveDB(); setAth(a.id); $("athModal").classList.add("hidden");
   if (!$("scrDetail").classList.contains("hidden")) fillAthSelect();
+  if (!$("scrRun").classList.contains("hidden")) runFillAth();
   if (!$("scrProgress").classList.contains("hidden")) buildProgress();
   if (!$("scrAthletes").classList.contains("hidden")) buildAthletes();
   if (!$("scrAthlete").classList.contains("hidden")) openAthlete(a.id);
@@ -2659,6 +2923,10 @@ $("dVid").onclick = () => launch(detailProto, false);
 
 // ---- Guardar resultados ----
 function mainVals(r) {
+  if (r.run) {
+    const v = r.run.views || {}, ks = ["R", "L", "P"].filter(k => v[k]), c = ks.map(k => v[k].met && v[k].met.cad && v[k].met.cad.m).find(Number.isFinite);
+    return { txt: `${ks.length} plano${ks.length === 1 ? "" : "s"}${c ? " · cadencia " + Math.round(c) + " ppm" : ""}`, L: Number.isFinite(c) ? c : NaN };
+  }
   const p = PR[r.proto];
   if (r.photo) {
     const k = p && p.key && (r.metrics[p.key] ? p.key : r.metrics[p.key + "L"] ? p.key + "L" : r.metrics[p.key + "R"] ? p.key + "R" : null) || Object.keys(r.metrics)[0];
@@ -2764,6 +3032,17 @@ $("pCsv").onclick = () => {
     const a = athObj(r.ath), base = [a ? a.n : "", a && a.grupo || "", a && a.pos || "", new Date(r.date).toLocaleString("es-AR"), r.name, r.view];
     if (r.metrics) for (const k in r.metrics) rows.push([...base, MK[k] ? MK[k].n + (MK[k].b ? (k.endsWith("L") ? " izq" : " der") : "") : k, num(r.metrics[k].mn), num(r.metrics[k].mx), num(r.metrics[k].rom)]);
     if (r.jumps) r.jumps.forEach((j, i) => rows.push([...base, `salto ${i + 1} altura cm`, "", num(j.altura), ""]));
+    if (r.run) {
+      const V = runRevive(r.run.views || {}), r1 = x => Number.isFinite(x) ? Math.round(x * 10) / 10 : "";
+      for (const k of ["R", "L"]) if (V[k]) {
+        for (const mk in V[k].met) rows.push([...base, `carrera ${runSideName(k).toLowerCase()} · ${runRef(mk) ? runRef(mk).n : mk}`, "", num(r1(V[k].met[mk].m)), ""]);
+        for (const [ph, nm] of RUN_PH) for (const j of ["hip", "knee", "ankle"]) rows.push([...base, `carrera ${runSideName(k).toLowerCase()} · ${nm} · ${{ hip: "cadera", knee: "rodilla", ankle: "tobillo" }[j]}`, "", num(r1(V[k].phases[ph][j].m)), ""]);
+      }
+      if (V.P) {
+        for (const sd of ["L", "R"]) for (const mk of ["drop", "ev", "add", "valg", "lean", "sh", "heel"]) rows.push([...base, `carrera posterior · ${runRef(mk).n} ${sd === "L" ? "izq" : "der"}`, "", num(r1(V.P.sides[sd][mk].m)), ""]);
+        for (const mk in V.P.met) rows.push([...base, `carrera posterior · ${runRef(mk) ? runRef(mk).n : mk}`, "", num(r1(V.P.met[mk].m)), ""]);
+      }
+    }
   });
   const blob = new Blob(["\ufeff" + rows.map(r => r.map(x => /[;"\n]/.test(String(x)) ? `"${String(x).replace(/"/g, '""')}"` : x).join(";")).join("\n")], { type: "text/csv" });
   saveFile(blob, "historial_evaluaciones.csv");
@@ -2817,9 +3096,9 @@ $("pImport").onchange = async e => {
 
 // ---- Navegación ----
 function show(id) {
-  ["scrHome", "scrCatalog", "scrDetail", "scrProgress", "scrResult", "scrAthletes", "scrAthlete"].forEach(x => $(x).classList.toggle("hidden", x !== id));
+  ["scrHome", "scrCatalog", "scrDetail", "scrProgress", "scrResult", "scrAthletes", "scrAthlete", "scrRun"].forEach(x => $(x).classList.toggle("hidden", x !== id));
   $("shell").classList.remove("hidden"); $("scrAnalysis").classList.add("hidden"); document.body.classList.add("light");
-  document.querySelectorAll("[data-tab]").forEach(b => b.classList.toggle("on", b.dataset.tab === id || (id === "scrDetail" && b.dataset.tab === "scrCatalog") || (id === "scrAthlete" && b.dataset.tab === "scrAthletes")));
+  document.querySelectorAll("[data-tab]").forEach(b => b.classList.toggle("on", b.dataset.tab === id || ((id === "scrDetail" || id === "scrRun") && b.dataset.tab === "scrCatalog") || (id === "scrAthlete" && b.dataset.tab === "scrAthletes")));
   if (id === "scrAthletes") buildAthletes();
   if (id === "scrCatalog") buildCatalog();
   if (id === "scrProgress") buildProgress();
@@ -3883,8 +4162,728 @@ function renderCorrectives(r) {
   $("rEx").onchange = () => { r.exSel = [...$("rEx").querySelectorAll("[data-ex]:checked")].map(x => x.dataset.ex); saveDB(); };
 }
 
+// =====================================================================
+// ANÁLISIS DE CARRERA EN CINTA — motor de cálculo
+// Entrada: cuadros con puntos de MediaPipe (ya procesados), plano filmado y datos de la prueba.
+// Salida: eventos (contacto / despegue), fases, ángulos por fase, métricas y curvas del ciclo.
+// =====================================================================
+const RUN_PAIRS = [[11, 12], [13, 14], [15, 16], [23, 24], [25, 26], [27, 28], [29, 30], [31, 32]];
+const RUN_LEGS = [[25, 26], [27, 28], [29, 30], [31, 32]];
+const RD = 180 / Math.PI;
+const rv = (a, b) => ({ x: b.x - a.x, y: b.y - a.y });
+const rAngB = (u, v) => { const n = Math.hypot(u.x, u.y) * Math.hypot(v.x, v.y) || 1; return Math.acos(Math.max(-1, Math.min(1, (u.x * v.x + u.y * v.y) / n))) * RD; };
+const rMed = a => { const b = a.filter(Number.isFinite).sort((x, y) => x - y); if (!b.length) return NaN; const m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; };
+const rPct = (a, p) => { const b = a.filter(Number.isFinite).sort((x, y) => x - y); if (!b.length) return NaN; return b[Math.min(b.length - 1, Math.max(0, Math.round(p * (b.length - 1))))]; };
+const rMean = a => { const b = a.filter(Number.isFinite); return b.length ? b.reduce((s, x) => s + x, 0) / b.length : NaN; };
+const rSD = a => { const b = a.filter(Number.isFinite); if (b.length < 2) return NaN; const m = rMean(b); return Math.sqrt(b.reduce((s, x) => s + (x - m) ** 2, 0) / (b.length - 1)); };
+const rStat = a => ({ m: rMean(a), sd: rSD(a), n: a.filter(Number.isFinite).length });
+function rSwapPairs(f, pairs) { for (const [l, r] of pairs) { [f.lm[l], f.lm[r]] = [f.lm[r], f.lm[l]]; if (f.wl) [f.wl[l], f.wl[r]] = [f.wl[r], f.wl[l]]; } }
+
+// Corrige cuadros en los que el modelo confunde pierna izquierda y derecha (pasa mucho de perfil al cruzarse las piernas)
+function runFixSwaps(raw, W, H, lists = [RUN_PAIRS, RUN_LEGS]) {
+  const D = (a, b) => Math.hypot((a.x - b.x) * W, (a.y - b.y) * H);
+  let prev = null, nSw = 0;
+  for (const f of raw) {
+    if (!f) continue;
+    if (prev) {
+      for (const pairs of lists) {
+        let same = 0, sw = 0;
+        for (const [l, r] of pairs) { same += D(f.lm[l], prev.lm[l]) + D(f.lm[r], prev.lm[r]); sw += D(f.lm[l], prev.lm[r]) + D(f.lm[r], prev.lm[l]); }
+        if (sw < same * 0.6) { rSwapPairs(f, pairs); nSw++; }
+      }
+    }
+    prev = f;
+  }
+  return nSw;
+}
+
+// Detección de los apoyos: el pie toca la cinta cuando su punto más bajo llega al nivel de la cinta
+function runContacts(low, legLen, fps) {
+  // nivel de la cinta y tolerancia según el temblor real de los puntos (ruido cuadro a cuadro)
+  const floor = rPct(low, 0.9);
+  const jit = rMed(low.slice(2).map((y, i) => Math.abs(y - 2 * low[i + 1] + low[i])).filter((d, i) => low[i + 1] >= floor - 0.05 * legLen));
+  const tol = Math.max(0.018 * legLen, Math.min(0.05 * legLen, 2.5 * (jit || 0)));
+  const n = low.length, c = low.map(y => Number.isFinite(y) && y >= floor - tol);
+  // rellena huecos de 1-2 cuadros y elimina apoyos demasiado cortos (ruido)
+  const gap = fps >= 90 ? 3 : 1, minRun = fps >= 90 ? 4 : 2;
+  for (let i = 1; i < n - 1; i++) if (!c[i]) { let j = i; while (j < n && !c[j]) j++; if (j < n && j - i <= gap && c[i - 1]) { for (let k = i; k < j; k++) c[k] = true; } i = j; }
+  const runs = []; let s = -1;
+  for (let i = 0; i <= n; i++) { if (i < n && c[i]) { if (s < 0) s = i; } else if (s >= 0) { if (i - s >= minRun) runs.push({ ic: s, to: i - 1 }); s = -1; } }
+  // los apoyos cortados por el borde del video no sirven
+  return runs.filter(r => r.ic > 0 && r.to < n - 1);
+}
+
+// Elige el factor de cámara lenta: la cadencia real de carrera está entre ~140 y ~210 pasos/min
+function runSlowFactor(cadVideo, forced) {
+  if (forced && forced !== "auto") return +forced;
+  let best = 1, bd = Infinity;
+  for (const f of [1, 2, 4, 8]) { const c = cadVideo * f; const d = c < 135 || c > 220 ? 1000 + Math.abs(c - 172) : Math.abs(c - 172); if (d < bd) { bd = d; best = f; } }
+  return best;
+}
+
+// ---------- Plano lateral ----------
+function runAnalyzeLateral(frames, opt) {
+  const { W, H, fps, side } = opt, n = frames.length;
+  // pierna cercana a la cámara: menor profundidad (z) en promedio
+  const dz = rMed(frames.map(f => ((f.lm[25].z + f.lm[27].z + f.lm[23].z) - (f.lm[26].z + f.lm[28].z + f.lm[24].z)) / 3));
+  const nearL = dz < 0;
+  const S = nearL ? 11 : 12, HP = nearL ? 23 : 24, K = nearL ? 25 : 26, A = nearL ? 27 : 28, E = nearL ? 29 : 30, T = nearL ? 31 : 32;
+  const P = (f, i) => ({ x: f.lm[i].x * W, y: f.lm[i].y * H });
+  const dir = Math.sign(rMed(frames.map(f => (f.lm[T].x - f.lm[E].x)))) || 1;   // +1 = corre hacia la derecha de la imagen
+  const sag = v => Math.atan2(dir * v.x, v.y) * RD;   // ángulo desde la vertical hacia abajo, + = hacia adelante
+  const hip = [], knee = [], ankle = [], tibia = [], foot = [], trunk = [], low = [], hipY = [], heelFwd = [], leg = [];
+  for (const f of frames) {
+    const s = P(f, S), h = P(f, HP), k = P(f, K), a = P(f, A), e = P(f, E), t = P(f, T);
+    trunk.push(Math.atan2(dir * (s.x - h.x), h.y - s.y) * RD);
+    hip.push(sag(rv(h, k)) - sag(rv(s, h)));
+    knee.push(180 - rAngB(rv(k, h), rv(k, a)));
+    ankle.push(90 - rAngB(rv(a, k), rv(e, t)));
+    tibia.push(sag(rv(k, a)));
+    foot.push(Math.atan2(e.y - t.y, dir * (t.x - e.x)) * RD);
+    low.push(Math.max(e.y, t.y)); hipY.push(h.y); heelFwd.push(dir * (e.x - h.x));
+    leg.push(Math.hypot(k.x - h.x, k.y - h.y) + Math.hypot(a.x - k.x, a.y - k.y));
+  }
+  const legPx = rPct(leg, 0.9);
+  // escala cm/píxel: con la altura del atleta (muslo + pierna ≈ 49% de la altura) o con las coordenadas 3D del modelo
+  let cmPx, scaleSrc;
+  if (opt.height > 100) { cmPx = 0.491 * opt.height / legPx; scaleSrc = "altura del atleta"; }
+  else { const lm3 = rMed(frames.map(f => Math.hypot(f.wl[K].x - f.wl[HP].x, f.wl[K].y - f.wl[HP].y, f.wl[K].z - f.wl[HP].z) + Math.hypot(f.wl[A].x - f.wl[K].x, f.wl[A].y - f.wl[K].y, f.wl[A].z - f.wl[K].z))); cmPx = lm3 * 100 / rMed(leg); scaleSrc = "estimación 3D (cargá la altura del atleta para más precisión)"; }
+  const runs = runContacts(low, legPx, fps);
+  if (runs.length < 3) return { error: "No se detectaron suficientes apoyos. Revisá que se vean los pies y la cinta durante todo el tramo, que la cámara esté quieta y nivelada, y analizá un tramo más largo (al menos 8 zancadas)." };
+  let strides = [];
+  for (let i = 0; i + 1 < runs.length; i++) strides.push({ ic: runs[i].ic, to: runs[i].to, nic: runs[i + 1].ic });
+  const stT = rMed(strides.map(s => frames[s.nic].t - frames[s.ic].t));
+  strides = strides.filter(s => { const d = frames[s.nic].t - frames[s.ic].t; return d > stT * 0.75 && d < stT * 1.25 && s.nic - s.to > 1; });
+  if (strides.length < 2) return { error: "Las zancadas detectadas son irregulares. Probá con un tramo en el que la velocidad sea constante." };
+  const cadVideo = 120 / stT;   // pasos por minuto en tiempo de video (zancada = 2 pasos)
+  const slow = runSlowFactor(cadVideo, opt.slow), rf = fps * slow;   // cuadros por segundo reales
+  const pcBack = Math.max(1, Math.round(0.03 * rf));
+  const argmax = (arr, a, b) => { let bi = a, bv = -Infinity; for (let i = a; i <= b; i++) if (arr[i] > bv) { bv = arr[i]; bi = i; } return bi; };
+  const ph = { ic: [], ms: [], to: [], isw: [], msw: [], pc: [] };
+  const per = [];
+  for (const s of strides) {
+    const ms = argmax(knee, s.ic, s.to), isw = argmax(knee, s.to + 1, s.nic - 1), msw = argmax(hip, isw, s.nic - 1);
+    const pc = Math.max(msw, s.nic - pcBack);
+    const idx = { ic: s.ic, ms, to: s.to, isw, msw, pc };
+    for (const k in idx) ph[k].push(idx[k]);
+    let ymin = Infinity, ymax = -Infinity; for (let i = s.ic; i <= s.nic; i++) { ymin = Math.min(ymin, hipY[i]); ymax = Math.max(ymax, hipY[i]); }
+    per.push({
+      idx, kneeIC: knee[s.ic], tibiaIC: tibia[s.ic], footIC: foot[s.ic], over: heelFwd[s.ic] * cmPx,
+      kneeMS: knee[ms], ankleMS: Math.max(...ankle.slice(s.ic, s.to + 1)), hipTO: -hip[s.to], kneeSw: knee[isw], hipSw: hip[msw],
+      contact: (s.to - s.ic + 1) / rf * 1000, stride: (s.nic - s.ic) / rf, vo: ymax > ymin ? (ymax - ymin) * cmPx : NaN,
+      trunk: rMean(trunk.slice(s.ic, s.nic))
+    });
+  }
+  // valores de cadera, rodilla y tobillo en cada fase
+  const PH = ["ic", "ms", "to", "isw", "msw", "pc"];
+  const phases = Object.fromEntries(PH.map(k => [k, { hip: rStat(ph[k].map(i => hip[i])), knee: rStat(ph[k].map(i => knee[i])), ankle: rStat(ph[k].map(i => ankle[i])) }]));
+  // curvas promedio del ciclo (0-100%, desde un contacto al siguiente)
+  const curve = arr => { const out = []; for (let p = 0; p <= 100; p++) { const vs = strides.map(s => { const x = s.ic + (s.nic - s.ic) * p / 100, i0 = Math.floor(x), fr = x - i0; return arr[i0] + (arr[Math.min(s.nic, i0 + 1)] - arr[i0]) * fr; }); out.push([+rMean(vs).toFixed(1), +(rSD(vs) || 0).toFixed(1)]); } return out; };
+  const stance = rMean(strides.map(s => (s.to - s.ic + 1) / (s.nic - s.ic) * 100));
+  const M = k => rStat(per.map(p => p[k]));
+  const strideS = rMean(per.map(p => p.stride)), cad = 120 / strideS;
+  const met = {
+    cad: { m: cad }, contact: M("contact"), stance: { m: stance }, kneeIC: M("kneeIC"), tibiaIC: M("tibiaIC"), footIC: M("footIC"), over: M("over"),
+    kneeMS: M("kneeMS"), ankleMS: M("ankleMS"), hipTO: M("hipTO"), kneeSw: M("kneeSw"), hipSw: M("hipSw"), trunk: M("trunk"), vo: M("vo")
+  };
+  if (opt.speed > 0) met.stepLen = { m: opt.speed / 3.6 / (cad / 60) * 100 };
+  // zancada representativa (la de duración más cercana a la mediana) para las fotos de cada fase
+  const rep = per.reduce((b, p) => Math.abs(p.stride - strideS) < Math.abs(b.stride - strideS) ? p : b, per[0]);
+  return {
+    view: side, near: nearL ? "L" : "R", dir, nStrides: strides.length, slow, fps, rf, scaleSrc, met, phases, stanceEnd: stance,
+    curves: { hip: curve(hip), knee: curve(knee), ankle: curve(ankle) },
+    rep: Object.fromEntries(PH.map(k => [k, { t: frames[rep.idx[k]].t, i: rep.idx[k], hip: hip[rep.idx[k]], knee: knee[rep.idx[k]], ankle: ankle[rep.idx[k]] }])),
+    joints: { S, HP, K, A, E, T }
+  };
+}
+
+// ---------- Plano posterior ----------
+function runAnalyzePosterior(frames, opt) {
+  const { W, H, fps } = opt;
+  const P = (f, i) => ({ x: f.lm[i].x * W, y: f.lm[i].y * H });
+  const obl = [], sh = [], lean = [], legs = [], rotS = [], rotP = [], hw = [];
+  const sideData = { L: { low: [], add: [], valg: [], ev: [], heel: [] }, R: { low: [], add: [], valg: [], ev: [], heel: [] } };
+  for (const f of frames) {
+    const HL = P(f, 23), HR = P(f, 24), SL = P(f, 11), SR = P(f, 12);
+    const MH = { x: (HL.x + HR.x) / 2, y: (HL.y + HR.y) / 2 }, MS = { x: (SL.x + SR.x) / 2, y: (SL.y + SR.y) / 2 };
+    obl.push(Math.atan2(HR.y - HL.y, HR.x - HL.x) * RD);   // + = cadera derecha más baja
+    sh.push(Math.atan2(SR.y - SL.y, SR.x - SL.x) * RD);    // + = hombro derecho más bajo
+    lean.push(Math.atan2(MS.x - MH.x, MH.y - MS.y) * RD);  // + = tronco inclinado hacia la derecha
+    hw.push(Math.hypot(HR.x - HL.x, HR.y - HL.y));
+    if (f.wl) {
+      rotS.push(Math.atan2(f.wl[12].z - f.wl[11].z, f.wl[12].x - f.wl[11].x) * RD);
+      rotP.push(Math.atan2(f.wl[24].z - f.wl[23].z, f.wl[24].x - f.wl[23].x) * RD);
+    }
+    for (const [sd, h, o, k, a, e, sg] of [["L", HL, HR, P(f, 25), P(f, 27), P(f, 29), 1], ["R", HR, HL, P(f, 26), P(f, 28), P(f, 30), -1]]) {
+      const d = sideData[sd];
+      d.low.push(e.y);
+      d.add.push(90 - rAngB(rv(h, o), rv(h, k)));
+      const dev = 180 - rAngB(rv(k, h), rv(k, a)), xl = h.x + (a.x - h.x) * (k.y - h.y) / ((a.y - h.y) || 1);
+      d.valg.push(dev * Math.sign((k.x - xl) * sg || 1));
+      const a1 = Math.atan2(a.x - k.x, a.y - k.y), a2 = Math.atan2(e.x - a.x, e.y - a.y);
+      d.ev.push(-(a2 - a1) * RD * sg);
+      d.heel.push((MH.x - e.x) * sg);
+      legs.push(Math.hypot(k.x - h.x, k.y - h.y) + Math.hypot(a.x - k.x, a.y - k.y));
+    }
+  }
+  const legPx = rPct(legs, 0.9);
+  const hipW3 = rMed(frames.map(f => Math.hypot(f.wl[24].x - f.wl[23].x, f.wl[24].z - f.wl[23].z, f.wl[24].y - f.wl[23].y)));
+  const cmPx = hipW3 * 100 / rMed(hw);
+  const out = { view: "P", sides: {}, fps };
+  const allIC = [];
+  for (const sd of ["L", "R"]) {
+    const d = sideData[sd], runs = runContacts(d.low, legPx, fps);
+    const drop = sd === "L" ? obl : obl.map(x => -x), tl = sd === "L" ? lean.map(x => -x) : lean;
+    const per = runs.map(r => {
+      let pk = r.ic, pv = -Infinity; for (let i = r.ic; i <= r.to; i++) if (drop[i] > pv) { pv = drop[i]; pk = i; }
+      const rng = (arr) => Math.max(...arr.slice(r.ic, r.to + 1));
+      return { ic: r.ic, to: r.to, mid: pk, drop: pv, add: rng(d.add), valg: rng(d.valg), ev: rng(d.ev), evMin: Math.min(...d.ev.slice(r.ic, r.to + 1)), lean: tl[pk], sh: Math.abs(sh[pk]), heel: d.heel[pk] * cmPx };
+    });
+    runs.forEach(r => allIC.push(frames[r.ic].t));
+    if (per.length < 2) return { error: `No se detectaron suficientes apoyos de la pierna ${sd === "L" ? "izquierda" : "derecha"}. Revisá que los talones se vean siempre y que la cámara esté quieta, detrás y a la altura de la cadera.` };
+    const M = k => rStat(per.map(p => p[k]));
+    const mid = per[Math.floor(per.length / 2)];
+    out.sides[sd] = { n: per.length, drop: M("drop"), add: M("add"), valg: M("valg"), ev: M("ev"), evMin: M("evMin"), lean: M("lean"), sh: M("sh"), heel: M("heel"),
+      rep: { ic: { t: frames[mid.ic].t, i: mid.ic }, mid: { t: frames[mid.mid].t, i: mid.mid } } };
+  }
+  allIC.sort((a, b) => a - b);
+  const steps = allIC.slice(1).map((t, i) => t - allIC[i]), stepT = rMed(steps);
+  const slow = runSlowFactor(60 / stepT, opt.slow);
+  out.slow = slow; out.rf = fps * slow;
+  out.met = { cad: { m: 60 / stepT * slow }, rotS: { m: rPct(rotS, 0.95) - rPct(rotS, 0.05) }, rotP: { m: rPct(rotP, 0.95) - rPct(rotP, 0.05) }, shTilt: { m: rPct(sh.map(Math.abs), 0.95) } };
+  out.nStrides = Math.min(out.sides.L.n, out.sides.R.n);
+  return out;
+}
+
+
+// ---------- Valores de referencia (orientativos) ----------
+// Fuentes: análisis 2D de carrera en clínica (IJSPT 2023): rodilla ≈20° en el contacto y ≈40° en el apoyo medio,
+// tibia a menos de 5° de la vertical, tobillo ≈20° de dorsiflexión, caída pélvica 3–5° (varones) y 4–7° (mujeres);
+// patrón de apoyo por ángulo del pie (Altman & Davis 2012); el resto, rangos habituales de la literatura de carrera.
+// t2 = [excelente desde, hasta, bueno desde, hasta, regular desde, hasta]; lo = menor es mejor [exc, bueno, regular]; hi = mayor es mejor.
+const RUN_REF = {
+  kneeIC:  { n: "Flexión de rodilla en el contacto", t2: [15, 25, 10, 30, 5, 35], ref: "≈20° (15–25°)", lo: "contacto con la rodilla casi extendida (más rígida): aumenta el impacto que sube a rodilla y cadera", hi: "mucha flexión de rodilla al contactar" },
+  tibiaIC: { n: "Inclinación de la tibia en el contacto", lo3: [5, 8, 12], ref: "≤5° respecto de la vertical", hi: "la tibia llega inclinada hacia adelante (el pie cae muy por delante de la rodilla): sobre-zancada con efecto freno. Suele mejorar subiendo la cadencia un 5–10% y aterrizando más debajo del cuerpo" },
+  kneeMS:  { n: "Flexión máx. de rodilla en el apoyo", t2: [38, 48, 33, 52, 28, 56], ref: "≈40–45°", lo: "poca amortiguación en el apoyo (rodilla rígida)", hi: "la rodilla se hunde de más en el apoyo: puede indicar déficit de fuerza de cuádriceps/glúteo o fatiga" },
+  ankleMS: { n: "Dorsiflexión máx. del tobillo en el apoyo", t2: [15, 25, 12, 28, 8, 32], ref: "≈20°", lo: "poca dorsiflexión en el apoyo: revisar movilidad de tobillo y gemelos/sóleo", hi: "dorsiflexión elevada en el apoyo (colapso del tobillo)" },
+  hipTO:   { n: "Extensión de cadera en el despegue", hi3: [10, 6, 2], ref: "≥10° (respecto del tronco)", lo: "poca extensión de cadera al despegar: revisar movilidad de flexores de cadera y fuerza de glúteo mayor" },
+  trunk:   { n: "Inclinación del tronco hacia adelante", t2: [4, 12, 2, 15, 0, 18], ref: "≈5–10°", lo: "tronco muy vertical o inclinado hacia atrás", hi: "inclinación del tronco hacia adelante excesiva" },
+  vo:      { n: "Oscilación vertical de la pelvis", lo3: [8, 9.5, 11], u: " cm", ref: "≤8 cm", hi: "oscilación vertical alta: energía que se va hacia arriba en vez de hacia adelante" },
+  cad:     { n: "Cadencia", hi3: [170, 160, 150], u: " ppm", d: 0, ref: "≥170 pasos/min (depende de la velocidad y la talla)", lo: "cadencia baja: subirla un 5–10% suele reducir la sobre-zancada y la carga en la rodilla" },
+  drop:    { n: "Caída pélvica contralateral", lo3: null, ref: "", hi: "caída pélvica contralateral aumentada (control del glúteo medio); en la literatura se asocia a dolor de rodilla, cintilla iliotibial y lesiones por sobrecarga" },
+  add:     { n: "Aducción de cadera", lo3: [10, 13, 16], ref: "≤10°", hi: "aducción de cadera elevada (la rodilla se va hacia adentro desde la cadera)" },
+  valg:    { n: "Valgo dinámico de rodilla", lo3: [5, 8, 12], ref: "≤5°", hi: "valgo dinámico de rodilla en el apoyo" },
+  ev:      { n: "Pronación del retropié (eversión)", t2: [-2, 8, -4, 12, -6, 16], ref: "−2 a 8° (neutro)", hi: "pronación (eversión del retropié) aumentada", lo: "apoyo supinador (retropié en inversión)" },
+  lean:    { n: "Inclinación lateral del tronco", lo3: [3, 5, 8], abs: true, ref: "≤3°", hi: "inclinación lateral del tronco en el apoyo (compensación habitual de una cadera débil)" },
+  sh:      { n: "Inclinación de hombros en el apoyo", lo3: [4, 6, 9], ref: "≤4°", hi: "hombros desnivelados en el apoyo" },
+  heel:    { n: "Talón respecto de la línea media", t2: [2, 7, 0.5, 9, -1, 12], u: " cm", d: 1, ref: "2–7 cm hacia afuera", lo: "el pie cruza o pisa la línea media (crossover): base de apoyo estrecha, más carga en la cadera y la cintilla", hi: "base de apoyo ancha" },
+  shTilt:  { n: "Inclinación máx. de hombros", lo3: [4, 6, 9], ref: "≤4°", hi: "balanceo lateral de hombros marcado" }
+};
+const RUN_INFO = {
+  footIC: { n: "Ángulo del pie en el contacto" }, over: { n: "Talón por delante de la cadera (contacto)", u: " cm", d: 1 },
+  contact: { n: "Tiempo de contacto", u: " ms", d: 0 }, stance: { n: "Apoyo (% del ciclo)", u: "%", d: 0 },
+  kneeSw: { n: "Flexión máx. de rodilla en la oscilación" }, hipSw: { n: "Flexión máx. de cadera en la oscilación" },
+  stepLen: { n: "Longitud de paso", u: " cm", d: 0 }, rotS: { n: "Rotación de hombros (rango)" }, rotP: { n: "Rotación de pelvis (rango)" }
+};
+const RUN_PH = [["ic", "Contacto inicial"], ["ms", "Máx. amortiguación"], ["to", "Propulsión (despegue)"], ["isw", "Oscilación inicial"], ["msw", "Oscilación media"], ["pc", "Pre-contacto"]];
+const RUN_PH_DEF = { ic: "primer cuadro con el pie en la cinta", ms: "máxima flexión de rodilla durante el apoyo", to: "último cuadro con el pie en la cinta", isw: "máxima flexión de rodilla en el aire (talón hacia el glúteo)", msw: "máxima flexión de cadera (rodilla más adelante)", pc: "30 ms antes del contacto siguiente" };
+const runSideName = k => ({ R: "Lateral derecho", L: "Lateral izquierdo", P: "Posterior" })[k];
+function runDropRef() { const a = athObj(curAth), sx = a && a.sexo; const lim = sx === "Femenino" ? 7 : sx === "Masculino" ? 5 : 6; return { lo3: [lim, lim + 1.5, lim + 3], ref: sx === "Femenino" ? "4–7° (mujeres)" : sx === "Masculino" ? "3–5° (varones)" : "3–5° varones · 4–7° mujeres" }; }
+function runRef(k) { const r = RUN_REF[k] || RUN_INFO[k]; return k === "drop" ? { ...r, ...runDropRef() } : r; }
+function runLevel(k, v) {
+  const r = runRef(k); if (!r || !Number.isFinite(v)) return null;
+  if (r.abs) v = Math.abs(v);
+  if (r.t2) { const [a, b, c, d, e, f] = r.t2; return v >= a && v <= b ? "Excelente" : v >= c && v <= d ? "Bueno" : v >= e && v <= f ? "Regular" : "Pobre"; }
+  if (r.lo3) { const [a, b, c] = r.lo3; return v <= a ? "Excelente" : v <= b ? "Bueno" : v <= c ? "Regular" : "Pobre"; }
+  if (r.hi3) { const [a, b, c] = r.hi3; return v >= a ? "Excelente" : v >= b ? "Bueno" : v >= c ? "Regular" : "Pobre"; }
+  return null;
+}
+// dirección del desvío (para elegir el texto de la conclusión)
+function runDir(k, v) { const r = runRef(k); if (r.abs) v = Math.abs(v); if (r.t2) return v < r.t2[0] ? "lo" : "hi"; if (r.lo3) return "hi"; return "lo"; }
+const runZ = (v, d) => Math.abs(v) < 0.5 * Math.pow(10, -d) ? 0 : v;   // evita mostrar «-0»
+const runFmt = (k, v) => { const r = runRef(k) || {}, d = r.d != null ? r.d : 0; return Number.isFinite(v) ? f1(runZ(v, d), d) + (r.u || "°") : "–"; };
+const runPill = (lvl, txt) => { if (!lvl) return `<b>${txt}</b>`; const c = lvlC(lvl); return `<span class="rpill" style="background:${c.bg};border-color:${c.bd};color:${c.tx}">${txt}</span>`; };
+const runStrike = v => !Number.isFinite(v) ? "–" : v > 8 ? "talón (retropié)" : v >= -1.6 ? "mediopié" : "antepié";
+const runPM = s => s && Number.isFinite(s.m) ? f1(runZ(s.m, 0)) + "°" + (Number.isFinite(s.sd) ? ` <small>±${f1(s.sd)}</small>` : "") : "–";
+function runRevive(o) { if (o === null) return NaN; if (Array.isArray(o)) return o.map(runRevive); if (o && typeof o === "object") { const r = {}; for (const k in o) r[k] = runRevive(o[k]); return r; } return o; }
+
+// ---------- Estado de la pantalla ----------
+let RUN = null;
+const RS = {};
+function runNew() {
+  RUN = { meta: { speed: "", incl: "", shoe: "" }, views: {}, imgs: {}, saved: null, readonly: false, concl: null, note: "" };
+  for (const k of ["R", "L", "P"]) { if (RS[k] && RS[k].url) URL.revokeObjectURL(RS[k].url); RS[k] = { busy: false }; }
+}
+function runFillAth() {
+  $("runAth").innerHTML = db.ath.length ? db.ath.map(a => `<option value="${a.id}" ${a.id === curAth ? "selected" : ""}>${esc(a.n)}</option>`).join("") : '<option value="">Sin atletas: tocá «+ Nuevo»</option>';
+  if (db.ath.length && !athObj(curAth)) setAth(db.ath[0].id);
+  const a = athObj(curAth); $("runAv").textContent = a ? a.n[0].toUpperCase() : "?";
+  $("runAthInfo").textContent = a ? [a.altura ? `${a.altura} cm` : "sin altura cargada (se estima)", a.sexo || "sexo sin cargar"].join(" · ") : "";
+}
+function openRun() {
+  runNew(); RUN.meta = { speed: "", incl: "", shoe: "" };
+  $("runSpeed").value = ""; $("runIncl").value = ""; $("runShoe").value = "";
+  runBuildSlots(); runFillAth(); runRenderAll(); show("scrRun");
+}
+async function openRunSaved(r) {
+  runNew();
+  RUN.saved = r; RUN.readonly = true; RUN.meta = r.run.meta || {}; RUN.views = runRevive(r.run.views || {}); RUN.concl = r.concl; RUN.note = r.note || "";
+  const m = await idbGet(r.id); RUN.imgs = (m && m.runImgs) || {};
+  setAth(r.ath);
+  $("runSpeed").value = RUN.meta.speed || ""; $("runIncl").value = RUN.meta.incl || ""; $("runShoe").value = RUN.meta.shoe || "";
+  runBuildSlots(); runFillAth(); runRenderAll(); show("scrRun");
+}
+function runBuildSlots() {
+  const ro = RUN.readonly;
+  $("runTitle").textContent = ro ? "Análisis de carrera" : "Análisis de carrera en cinta";
+  $("runSub").textContent = ro ? `${athObj(RUN.saved.ath) ? athObj(RUN.saved.ath).n : ""} · ${new Date(RUN.saved.date).toLocaleDateString("es-AR")}` : "Filmá cada plano por separado (10–20 s corriendo estable) y analizalo. Podés hacer uno, dos o los tres.";
+  $("runSetup").classList.toggle("hidden", ro); $("runHowCard").classList.toggle("hidden", ro);
+  ["runSpeed", "runIncl", "runShoe"].forEach(id => $(id).disabled = ro);
+  $("runSlots").innerHTML = [["R", "①", "La cámara ve el lado derecho del atleta (pierna derecha cerca de la cámara)."], ["L", "②", "La cámara ve el lado izquierdo del atleta."], ["P", "③", "Cámara detrás del atleta, centrada y a la altura de la cadera: pronación/supinación, pelvis, tronco y hombros."]].map(([k, num, hint]) => {
+    if (ro && !RUN.views[k]) return "";
+    return `<div class="card runslot" id="rs_${k}">
+      <h3>${ro ? "" : num + " "}${runSideName(k)} <span class="rs-st" id="rsSt_${k}"></span></h3>
+      ${ro ? "" : `<p class="note2" style="margin:-2px 0 10px">${hint}</p>
+      <label class="btn-o wide rs-pick" style="display:block;text-align:center;margin-top:0;position:relative;overflow:hidden">🎥 Filmar o elegir video<input type="file" accept="video/*" data-rsfile="${k}" style="position:absolute;opacity:0;width:1px"></label>
+      <div class="rs-body hidden" id="rsBody_${k}">
+        <div class="rs-vwrap"><video id="rsV_${k}" playsinline muted controls preload="auto"></video><canvas id="rsC_${k}"></canvas></div>
+        <div class="rs-opts">
+          <label>Cámara lenta<select id="rsSlow_${k}"><option value="auto">Detectar sola</option><option value="1">No (tiempo real)</option><option value="2">×2</option><option value="4">×4 (120 fps)</option><option value="8">×8 (240 fps)</option></select></label>
+          <label>Cuadros/s del video<select id="rsFps_${k}"><option value="auto">Detectar solo</option><option>30</option><option>60</option><option>120</option><option>240</option></select></label>
+          <label>Tramo a analizar<select id="rsDur_${k}"><option value="6">6 s</option><option value="10" selected>10 s</option><option value="20">20 s</option><option value="40">40 s</option><option value="9999">Hasta el final</option></select></label>
+        </div>
+        <p class="note2" style="margin:6px 0 0">Se analiza desde donde está el video: mové la barra hasta que corra a ritmo estable.</p>
+        <button class="btn-d wide" id="rsGo_${k}">▶ Analizar este plano</button>
+        <div class="rs-prog hidden" id="rsProg_${k}"><div></div><span></span></div>
+      </div>`}
+      <div id="rsRes_${k}"></div></div>`;
+  }).join("") || '<div class="card"><p>Esta evaluación no tiene planos analizados.</p></div>';
+  if (ro) return;
+  $("runSlots").querySelectorAll("[data-rsfile]").forEach(inp => inp.onchange = e => { const f = e.target.files[0]; if (f) runLoadVideo(inp.dataset.rsfile, f); e.target.value = ""; });
+  for (const k of ["R", "L", "P"]) $("rsGo_" + k).onclick = () => runProcess(k);
+}
+async function runLoadVideo(k, file) {
+  const st = RS[k]; if (st.busy) return;
+  if (st.url) URL.revokeObjectURL(st.url);
+  st.url = URL.createObjectURL(file); st.frames = null; st.fpsAuto = null; st.name = file.name;
+  const v = $("rsV_" + k); v.src = st.url; v.muted = true;
+  $("rsBody_" + k).classList.remove("hidden");
+  $("rsSt_" + k).textContent = "Video cargado"; $("rsSt_" + k).className = "rs-st";
+  await new Promise(res => { v.onloadedmetadata = res; v.onerror = res; setTimeout(res, 5000); });
+  try { await v.play(); v.pause(); } catch {}
+  runOverlayBind(k);
+}
+const runSeek = (v, t) => new Promise(res => { let done = false; const h = () => { if (done) return; done = true; v.removeEventListener("seeked", h); res(); }; v.addEventListener("seeked", h); v.currentTime = t; setTimeout(h, 2500); });
+// Cuadros por segundo reales del archivo: se reproduce un instante en cámara lenta y se mira cuánto avanza cada cuadro
+async function runEstFps(v) {
+  if (!v.requestVideoFrameCallback) return 30;
+  const t0 = v.currentTime, ts = [];
+  v.playbackRate = 0.25;
+  await new Promise(res => { let n = 0; const cb = (now, md) => { ts.push(md.mediaTime); if (++n < 18) v.requestVideoFrameCallback(cb); else res(); }; v.requestVideoFrameCallback(cb); v.play().catch(res); setTimeout(res, 4500); });
+  v.pause(); v.playbackRate = 1; await runSeek(v, t0);
+  const d = rMed(ts.slice(1).map((t, i) => t - ts[i]).filter(x => x > 0.0005));
+  if (!Number.isFinite(d)) return 30;
+  const f = 1 / d; return [24, 25, 30, 48, 50, 60, 90, 100, 120, 180, 240].reduce((b, x) => Math.abs(x - f) < Math.abs(b - f) ? x : b, 30);
+}
+// Detección de la pose recortando alrededor del atleta (más resolución donde importa)
+const runCv = document.createElement("canvas"), runCx = runCv.getContext("2d", { willReadFrequently: false });
+let runTs = 0;
+function runDetect(L, v, roi) {
+  const vw = v.videoWidth, vh = v.videoHeight, r = roi || { x: 0, y: 0, w: 1, h: 1 };
+  const sw = r.w * vw, sh = r.h * vh, sc = Math.min(1, 1280 / Math.max(sw, sh));
+  runCv.width = Math.max(1, Math.round(sw * sc)); runCv.height = Math.max(1, Math.round(sh * sc));
+  runCx.drawImage(v, r.x * vw, r.y * vh, sw, sh, 0, 0, runCv.width, runCv.height);
+  runTs = Math.max(runTs + 1, performance.now());
+  const res = L.detectForVideo(runCv, runTs);
+  if (!res.landmarks.length) return null;
+  // si hay varias personas: la más grande (en la cinta suele ser el atleta)
+  let bi = 0, bh = -1;
+  res.landmarks.forEach((l, i) => { const ys = l.map(p => p.y), h = Math.max(...ys) - Math.min(...ys); if (h > bh) { bh = h; bi = i; } });
+  return { lm: res.landmarks[bi].map(p => ({ x: r.x + p.x * r.w, y: r.y + p.y * r.h, z: p.z * r.w, visibility: p.visibility ?? 1 })), wl: res.worldLandmarks[bi].map(p => ({ x: p.x, y: p.y, z: p.z })) };
+}
+function runRoiFrom(lm, vw, vh) {
+  let x0 = 1, x1 = 0, y0 = 1, y1 = 0;
+  for (const i of [0, 11, 12, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]) { const p = lm[i]; if (p.visibility < 0.2) continue; x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
+  if (x1 <= x0 || y1 <= y0) return null;
+  const bhP = (y1 - y0) * vh, bwP = Math.max((x1 - x0) * vw, bhP * 0.6), cx = (x0 + x1) / 2 * vw;
+  const x = (cx - bwP * 0.85) / vw, y = y0 - (y1 - y0) * 0.22, w = bwP * 1.7 / vw, h = (y1 - y0) * 1.42;
+  const X = Math.max(0, x), Y = Math.max(0, y); return { x: X, y: Y, w: Math.min(1, x + w) - X, h: Math.min(1, y + h) - Y };
+}
+async function runProcess(k) {
+  const st = RS[k], v = $("rsV_" + k), btn = $("rsGo_" + k);
+  if (st.busy) { st.cancel = true; return; }
+  if (!v.duration) return;
+  st.busy = true; st.cancel = false; btn.textContent = "■ Cancelar"; v.pause();
+  const prog = $("rsProg_" + k), bar = prog.querySelector("div"), lab = prog.querySelector("span");
+  prog.classList.remove("hidden"); bar.style.width = "0%"; lab.textContent = "Preparando…";
+  $("rsRes_" + k).innerHTML = "";
+  try {
+    keepAwake();
+    const model = isMobile ? "full" : "heavy";
+    lab.textContent = "Cargando el modelo de pose…"; await init(model); const L = LMS[model];
+    const fpsSel = $("rsFps_" + k).value;
+    lab.textContent = "Midiendo los cuadros por segundo del video…";
+    const fps = fpsSel === "auto" ? (st.fpsAuto = st.fpsAuto || await runEstFps(v)) : +fpsSel;
+    let t0 = v.currentTime; if (t0 > v.duration - 2) t0 = 0;
+    const t1 = Math.min(v.duration - 0.02, t0 + +$("rsDur_" + k).value), dt = 1 / fps;
+    let nTot = Math.floor((t1 - t0) / dt) + 1;
+    if (nTot > 3200) nTot = 3200;
+    const raw = []; let roi = null, miss = 0;
+    const vw = v.videoWidth, vh = v.videoHeight;
+    for (let i = 0; i < nTot && !st.cancel; i++) {
+      const t = t0 + i * dt; await runSeek(v, t);
+      let d = null; try { d = runDetect(L, v, roi); if (!d && roi) d = runDetect(L, v, null); } catch {}
+      if (d) { roi = runRoiFrom(d.lm, vw, vh); miss = 0; raw.push({ t, ...d }); } else { if (++miss > 3) roi = null; raw.push({ t, lm: null }); }
+      if (i % 4 === 0) { bar.style.width = (i / nTot * 100).toFixed(0) + "%"; lab.textContent = `Analizando cuadro ${i + 1} de ${nTot} (${fps} cuadros/s)…`; await new Promise(r => requestAnimationFrame(r)); }
+    }
+    if (st.cancel) throw new Error("Análisis cancelado.");
+    const okN = raw.filter(f => f.lm).length;
+    if (okN < raw.length * 0.6) throw new Error("No se reconoce bien al atleta en gran parte del video. Acercá la cámara, mejorá la luz y que se vea el cuerpo entero con los pies.");
+    lab.textContent = "Corrigiendo y suavizando los puntos…";
+    // relleno de cuadros sin detección con el anterior (después se interpolan al suavizar)
+    let last = raw.find(f => f.lm);
+    for (const f of raw) { if (f.lm) last = f; else { f.lm = last.lm.map(p => ({ ...p, visibility: 0 })); f.wl = last.wl; f.miss = true; } }
+    if (k === "P") {
+      // de espaldas: el lado izquierdo del atleta queda a la izquierda de la imagen
+      for (const f of raw) {
+        if (f.lm[23].x > f.lm[24].x) rSwapPairs(f, RUN_PAIRS.filter(([l]) => l >= 23));
+        if (f.lm[11].x > f.lm[12].x) rSwapPairs(f, RUN_PAIRS.filter(([l]) => l < 23));
+      }
+      runFixSwaps(raw, vw, vh, [RUN_LEGS]);
+    } else runFixSwaps(raw, vw, vh);
+    const n = raw.length, sig = Math.max(0.8, fps * 0.006), frames = raw.map(f => ({ t: f.t, lm: [], wl: [] }));
+    for (let j = 0; j < 33; j++) {
+      const ok = raw.map(f => !f.miss && (f.lm[j].visibility ?? 1) > 0.3), okA = raw.map(f => !f.miss);
+      const g = (fld, c) => raw.map(f => f[fld][j][c]);
+      const sx = gaussSmooth(g("lm", "x"), ok, sig), sy = gaussSmooth(g("lm", "y"), ok, sig), sz = gaussSmooth(g("lm", "z"), okA, sig);
+      const wx = gaussSmooth(g("wl", "x"), okA, sig), wy = gaussSmooth(g("wl", "y"), okA, sig), wz = gaussSmooth(g("wl", "z"), okA, sig);
+      for (let i = 0; i < n; i++) { frames[i].lm[j] = { x: sx[i], y: sy[i], z: sz[i], visibility: raw[i].lm[j].visibility }; frames[i].wl[j] = { x: wx[i], y: wy[i], z: wz[i] }; }
+    }
+    const a = athObj(curAth);
+    const opt = { W: vw, H: vh, fps, side: k, slow: $("rsSlow_" + k).value, height: a && +a.altura || 0, speed: +$("runSpeed").value || 0 };
+    const res = k === "P" ? runAnalyzePosterior(frames, opt) : runAnalyzeLateral(frames, opt);
+    if (res.error) throw new Error(res.error);
+    res.t0 = t0; res.t1 = t0 + (nTot - 1) * dt; res.vw = vw; res.vh = vh; res.date = new Date().toISOString();
+    st.frames = frames; RUN.views[k] = res;
+    lab.textContent = "Generando las imágenes de cada fase…"; bar.style.width = "100%";
+    RUN.imgs[k] = await runSnaps(k, v, frames, res);
+    prog.classList.add("hidden");
+    $("rsSt_" + k).textContent = `✓ ${res.nStrides} ${k === "P" ? "ciclos" : "zancadas"}`; $("rsSt_" + k).className = "rs-st ok";
+    RUN.concl = null; runRenderAll();
+    $("rsRes_" + k).scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) {
+    prog.classList.add("hidden");
+    $("rsRes_" + k).innerHTML = `<div class="rs-err">⚠️ ${esc(e.message || String(e))}</div>`;
+  } finally { st.busy = false; btn.textContent = "▶ Analizar este plano"; }
+}
+
+// ---------- Dibujo del esqueleto sobre el cuadro ----------
+const RUN_COL = { L: "#F2A33A", R: "#3FB8A0" };
+function runTag(g, x, y, txt, col = "#0F2233", fs = 15) {
+  g.font = `700 ${fs}px Barlow, sans-serif`; const w = g.measureText(txt).width + 12, h = fs + 9;
+  g.fillStyle = "rgba(15,34,51,.86)"; g.beginPath(); g.roundRect ? g.roundRect(x, y - h + 4, w, h, 6) : g.rect(x, y - h + 4, w, h); g.fill();
+  g.fillStyle = "#fff"; g.fillText(txt, x + 6, y - 2);
+}
+function runDrawPose(g, f, res, sc, info, ox = 0, oy = 0) {
+  const P = i => ({ x: f.lm[i].x * res.vw * sc, y: f.lm[i].y * res.vh * sc });
+  const line = (pts, col, w) => { g.strokeStyle = col; g.lineWidth = w; g.lineCap = g.lineJoin = "round"; g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.stroke(); };
+  const dot = (p, col, r = 5) => { g.fillStyle = col; g.strokeStyle = "#fff"; g.lineWidth = 1.6; g.beginPath(); g.arc(p.x, p.y, r, 0, 7); g.fill(); g.stroke(); };
+  const fs = info ? 17 : Math.max(12, Math.round(res.vh * sc / 34));
+  if (res.view !== "P") {
+    const J = res.joints, far = res.near === "L" ? { S: 12, HP: 24, K: 26, A: 28, E: 30, T: 32 } : { S: 11, HP: 23, K: 25, A: 27, E: 29, T: 31 };
+    line([P(far.HP), P(far.K), P(far.A), P(far.E), P(far.T)], "rgba(255,255,255,.45)", 2);
+    const col = RUN_COL[res.view];
+    line([P(J.S), P(J.HP)], "#fff", 3); line([P(J.HP), P(J.K), P(J.A)], col, 4); line([P(J.A), P(J.E), P(J.T), P(J.A)], col, 3);
+    // referencia vertical en la rodilla (inclinación de la tibia)
+    g.setLineDash([5, 5]); line([P(J.K), { x: P(J.K).x, y: P(J.K).y + (P(J.A).y - P(J.K).y) * 1.15 }], "rgba(255,255,255,.6)", 1.5); g.setLineDash([]);
+    [J.S, J.HP, J.K, J.A, J.E, J.T].forEach(i => dot(P(i), i === J.S ? "#E6EBF0" : col, i === J.E || i === J.T ? 4 : 6));
+    if (info) { const off = res.dir > 0 ? -fs * 7.5 : fs * 1.2;
+      runTag(g, P(J.HP).x + off, P(J.HP).y, `Cadera ${Math.round(info.hip)}°`, "", fs);
+      runTag(g, P(J.K).x + off, P(J.K).y + fs * 0.4, `Rodilla ${Math.round(info.knee)}°`, "", fs);
+      runTag(g, P(J.A).x + off, P(J.A).y + fs * 0.4, `Tobillo ${Math.round(info.ankle)}°`, "", fs); }
+  } else {
+    const HL = P(23), HR = P(24), SL = P(11), SR = P(12), MH = { x: (HL.x + HR.x) / 2, y: (HL.y + HR.y) / 2 }, MS = { x: (SL.x + SR.x) / 2, y: (SL.y + SR.y) / 2 };
+    line([SL, SR], "#fff", 3); line([HL, HR], "#fff", 3.5); line([MH, MS], "#fff", 2.5);
+    g.setLineDash([6, 5]); line([{ x: MH.x, y: MS.y - fs }, { x: MH.x, y: Math.max(P(29).y, P(30).y) + fs * 0.5 }], "rgba(255,255,255,.5)", 1.5);
+    if (info && info.side) { const hs = info.side === "L" ? HL : HR, w = Math.abs(HR.x - HL.x) * 1.4; line([{ x: hs.x - w, y: hs.y }, { x: hs.x + w, y: hs.y }], "rgba(242,163,58,.9)", 1.5); }
+    g.setLineDash([]);
+    for (const [sd, h, k, a, e] of [["L", 23, 25, 27, 29], ["R", 24, 26, 28, 30]]) { line([P(h), P(k), P(a), P(e)], RUN_COL[sd], 4); [h, k, a, e].forEach(i => dot(P(i), RUN_COL[sd], i === e ? 4 : 6)); }
+    [11, 12].forEach(i => dot(P(i), "#E6EBF0"));
+    if (info && info.lines) info.lines.forEach((t, i) => runTag(g, ox + 8, oy + 52 + i * (fs + 12), t, "", fs));
+  }
+}
+async function runSnaps(k, v, frames, res) {
+  // cada foto se recorta alrededor del atleta (proporción 4:5) para que se vean bien los ángulos
+  const out = [], W = 480, Hh = 600;
+  const c = document.createElement("canvas"); c.width = W; c.height = Hh; const g = c.getContext("2d");
+  const crop = f => {
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const i of [0, 11, 12, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]) { const q = f.lm[i]; x0 = Math.min(x0, q.x * res.vw); x1 = Math.max(x1, q.x * res.vw); y0 = Math.min(y0, q.y * res.vh); y1 = Math.max(y1, q.y * res.vh); }
+    let h = (y1 - y0) * 1.32, w = Math.max((x1 - x0) * 1.3, h * W / Hh); h = w * Hh / W;
+    w = Math.min(w, res.vw, res.vh * W / Hh); h = w * Hh / W;
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2 - (y1 - y0) * 0.04;
+    return { sx: Math.max(0, Math.min(res.vw - w, cx - w / 2)), sy: Math.max(0, Math.min(res.vh - h, cy - h / 2)), sw: w, sh: h };
+  };
+  const list = res.view === "P"
+    ? ["L", "R"].flatMap(sd => [["ic", "Contacto"], ["mid", "Apoyo medio"]].map(([ph, nm]) => {
+        const s = res.sides[sd], i = s.rep[ph].i; return { i, t: s.rep[ph].t, title: `${nm} · pierna ${sd === "L" ? "izq." : "der."}`, info: { side: sd, lines: ph === "mid" ? [`Caída pélvica ${f1(s.drop.m)}°`, `Pronación ${f1(s.ev.m)}°`, `Aducción cadera ${f1(s.add.m)}°`] : [] } }; }))
+    : RUN_PH.map(([ph, nm]) => ({ i: res.rep[ph].i, t: res.rep[ph].t, title: nm, info: res.rep[ph] }));
+  for (const it of list) {
+    await runSeek(v, it.t);
+    const cr = crop(frames[it.i]), k2 = W / cr.sw;
+    g.fillStyle = "#0F2233"; g.fillRect(0, 0, W, Hh);
+    g.drawImage(v, cr.sx, cr.sy, cr.sw, cr.sh, 0, 0, W, Hh);
+    g.fillStyle = "rgba(0,0,0,.12)"; g.fillRect(0, 0, W, Hh);
+    g.save(); g.translate(-cr.sx * k2, -cr.sy * k2); runDrawPose(g, frames[it.i], res, k2, it.info, cr.sx * k2, cr.sy * k2); g.restore();
+    const fs = 18;
+    g.fillStyle = "rgba(15,34,51,.9)"; g.fillRect(0, 0, W, fs + 14); g.fillStyle = "#5BBF8A"; g.font = `700 ${fs}px Barlow, sans-serif`; g.fillText(it.title, 10, fs + 4);
+    out.push({ title: it.title, src: c.toDataURL("image/jpeg", 0.82) });
+  }
+  return out;
+}
+// Esqueleto sobre el video mientras se reproduce (para controlar que el seguimiento sea bueno)
+function runOverlayBind(k) {
+  const v = $("rsV_" + k), c = $("rsC_" + k), g = c.getContext("2d");
+  const draw = () => {
+    const st = RS[k], res = RUN.views[k];
+    const w = v.clientWidth, h = v.clientHeight; if (!w) return;
+    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+    g.clearRect(0, 0, w, h);
+    if (!st.frames || !res || !res.vw) return;
+    const t = v.currentTime; if (t < res.t0 - 0.05 || t > res.t1 + 0.05) return;
+    const i = Math.max(0, Math.min(st.frames.length - 1, Math.round((t - res.t0) * res.fps)));
+    // el video se ve con bandas si no coincide la proporción
+    const s = Math.min(w / res.vw, h / res.vh), ox = (w - res.vw * s) / 2, oy = (h - res.vh * s) / 2;
+    g.save(); g.translate(ox, oy); runDrawPose(g, st.frames[i], res, s, null); g.restore();
+  };
+  const loop = () => { draw(); if (!v.paused && !v.ended) requestAnimationFrame(loop); };
+  v.onplay = () => requestAnimationFrame(loop); v.onseeked = draw; v.ontimeupdate = draw;
+}
+
+// ---------- Resultados ----------
+function runKpi(lbl, val) { return `<div class="rkpi"><span>${lbl}</span><b>${val}</b></div>`; }
+function runMetricRows(keys, met) {
+  return keys.filter(k => met[k]).map(k => {
+    const s = met[k], r = runRef(k), lvl = runLevel(k, s.m);
+    const extra = k === "footIC" ? ` · ${runStrike(s.m)}` : "";
+    return `<tr><td>${r.n}</td><td>${runPill(lvl, runFmt(k, s.m))}${Number.isFinite(s.sd) ? ` <small>±${f1(s.sd, r.d || 0)}</small>` : ""}${extra}</td><td>${lvl || "<span class='note2'>dato</span>"}</td><td class="note2">${r.ref || ""}</td></tr>`;
+  }).join("");
+}
+function runViewHTML(k) {
+  const res = RUN.views[k]; if (!res) return "";
+  const imgs = (RUN.imgs[k] || []).map(im => `<figure><img src="${im.src}" alt="${esc(im.title)}"><figcaption>${esc(im.title)}</figcaption></figure>`).join("");
+  const slowTxt = res.slow > 1 ? `×${res.slow}` : "no";
+  if (k !== "P") {
+    const m = res.met;
+    return `<div class="rkpis">${runKpi("Cadencia", f1(m.cad.m) + " ppm")}${runKpi("Contacto", f1(m.contact.m) + " ms")}${runKpi("Apoyo", f1(m.stance.m) + "%")}${m.stepLen ? runKpi("Paso", f1(m.stepLen.m) + " cm") : ""}${runKpi("Zancadas", res.nStrides)}${runKpi("Cámara lenta", slowTxt)}</div>
+      <h4>Fases de la carrera <span class="note2">(zancada representativa)</span></h4><div class="rgrid">${imgs}</div>
+      <h4>Ángulos por fase <span class="note2">(promedio ± desvío de ${res.nStrides} zancadas)</span></h4>
+      <div style="overflow-x:auto"><table class="rtable"><tr><th>Fase</th><th>Cadera</th><th>Rodilla</th><th>Tobillo</th></tr>
+      ${RUN_PH.map(([ph, nm]) => `<tr><td>${nm}<div class="note2" style="font-size:11px">${RUN_PH_DEF[ph]}</div></td><td>${runPM(res.phases[ph].hip)}</td><td>${runPM(res.phases[ph].knee)}</td><td>${runPM(res.phases[ph].ankle)}</td></tr>`).join("")}</table></div>
+      <p class="note2" style="font-size:12px">Cadera: + flexión / − extensión respecto del tronco. Rodilla: 0° = extendida. Tobillo: + dorsiflexión / − flexión plantar.</p>
+      <h4>Indicadores clave</h4>
+      <div style="overflow-x:auto"><table class="rtable rtl"><tr><th>Indicador</th><th>Valor</th><th>Nivel</th><th>Referencia</th></tr>
+      ${runMetricRows(["cad", "kneeIC", "tibiaIC", "kneeMS", "ankleMS", "hipTO", "trunk", "vo"], m)}
+      ${runMetricRows(["footIC", "over", "contact", "kneeSw", "hipSw", "stepLen"], m)}</table></div>
+      <p class="note2" style="font-size:12px">Escala en cm: ${esc(res.scaleSrc || "")}. Cuadros/s del video: ${res.fps}${res.slow > 1 ? ` · cámara lenta ×${res.slow} (${res.fps * res.slow} cuadros/s reales)` : ""}.${res.fps * res.slow < 60 ? " ⚠️ Con menos de 60 cuadros/s reales los eventos y los ángulos del contacto pierden precisión: filmá en 120 o 240 fps." : ""}</p>
+      <h4>Curvas del ciclo <span class="note2">(0% y 100% = contacto)</span></h4>
+      <div class="chips" id="rcSel_${k}">${["knee", "hip", "ankle"].map((j, i) => `<button class="chip ${i ? "" : "on"}" data-rc="${j}">${{ knee: "Rodilla", hip: "Cadera", ankle: "Tobillo" }[j]}</button>`).join("")}</div>
+      <canvas class="rchart" id="rcC_${k}" style="height:190px"></canvas>`;
+  }
+  const L = res.sides.L, R = res.sides.R;
+  const rows = ["drop", "ev", "add", "valg", "lean", "sh", "heel"].map(mk => {
+    const r = runRef(mk), a = L[mk].m, b = R[mk].m, la = runLevel(mk, a), lb = runLevel(mk, b);
+    const diff = Math.abs(a - b), asym = Number.isFinite(diff) && diff > Math.max(mk === "heel" ? 2 : 3, 0.15 * (Math.abs(a) + Math.abs(b)) / 2);
+    return `<tr><td>${r.n}${mk === "ev" ? `<div class="note2" style="font-size:11px">${a > 8 || b > 8 ? "Pronación" : a < -2 || b < -2 ? "Supinación" : "Neutro"} · estimado</div>` : ""}</td><td>${runPill(la, runFmt(mk, a))}</td><td>${runPill(lb, runFmt(mk, b))}</td><td>${Number.isFinite(diff) ? (asym ? "⚠️ " : "") + f1(diff, mk === "heel" ? 1 : 0) + (r.u || "°") : "–"}</td><td class="note2">${r.ref}</td></tr>`;
+  }).join("");
+  const m = res.met;
+  return `<div class="rkpis">${runKpi("Cadencia", f1(m.cad.m) + " ppm")}${runKpi("Apoyos izq / der", `${L.n} / ${R.n}`)}${runKpi("Cámara lenta", slowTxt)}</div>
+    <h4>Apoyo de cada pierna</h4><div class="rgrid g2">${imgs}</div>
+    <h4>Pelvis, rodilla, pie y tronco <span class="note2">(pico durante el apoyo, promedio de los apoyos)</span></h4>
+    <div style="overflow-x:auto"><table class="rtable rtl"><tr><th>Indicador</th><th>Izq</th><th>Der</th><th>Dif.</th><th>Referencia</th></tr>${rows}</table></div>
+    <h4>Hombros y rotaciones</h4>
+    <div style="overflow-x:auto"><table class="rtable rtl"><tr><th>Indicador</th><th>Valor</th><th>Nivel</th><th>Referencia</th></tr>${runMetricRows(["shTilt", "rotS", "rotP"], m)}</table></div>
+    <p class="note2" style="font-size:12px">Caída pélvica: cuánto baja la cadera del lado de la pierna en el aire. Pronación/supinación: ángulo entre la pierna y el talón visto desde atrás (+ pronación, − supinación); es una estimación de baja precisión con una sola cámara, confirmala con la observación del calzado y del pie descalzo. Las rotaciones salen de la profundidad estimada por el modelo: usalas como referencia de simetría.</p>`;
+}
+function runSymHTML() {
+  const a = RUN.views.L, b = RUN.views.R; if (!a || !b) return "";
+  const ks = ["kneeIC", "tibiaIC", "kneeMS", "ankleMS", "hipTO", "kneeSw", "hipSw", "contact", "over"];
+  return `<div class="card"><h3>Simetría izquierda / derecha (planos laterales)</h3><div style="overflow-x:auto"><table class="rtable rtl"><tr><th>Indicador</th><th>Izq</th><th>Der</th><th>Dif.</th><th>Asim.</th></tr>
+    ${ks.map(k => { const r = runRef(k), x = a.met[k] && a.met[k].m, y = b.met[k] && b.met[k].m, d = Math.abs(x - y), p = d / ((Math.abs(x) + Math.abs(y)) / 2) * 100, flag = Number.isFinite(p) && p > 15 && d > (k === "contact" ? 15 : k === "over" ? 3 : 3);
+      return `<tr><td>${r.n}</td><td>${runFmt(k, x)}</td><td>${runFmt(k, y)}</td><td>${Number.isFinite(d) ? f1(d, r.d || 0) + (r.u || "°") : "–"}</td><td>${Number.isFinite(p) ? (flag ? "⚠️ " : "") + f1(p) + "%" : "–"}</td></tr>`; }).join("")}</table></div>
+    <p class="note2" style="font-size:12px">⚠️ = diferencia mayor al 15% (y de más de 3°): vale la pena revisarla.</p></div>`;
+}
+function runFindings() {
+  const out = [], V = RUN.views;
+  const add = (k, v, where) => { const l = runLevel(k, v); if (l === "Regular" || l === "Pobre") { const r = runRef(k), t = r[runDir(k, v)] || r.hi || r.lo; out.push({ lvl: l, txt: `${r.n}${where ? " (" + where + ")" : ""}: ${runFmt(k, v)} — ${t}.` }); } };
+  for (const k of ["R", "L"]) if (V[k]) { const m = V[k].met, w = k === "R" ? "pierna der." : "pierna izq."; ["cad", "kneeIC", "tibiaIC", "kneeMS", "ankleMS", "hipTO", "trunk", "vo"].forEach(x => m[x] && add(x, m[x].m, w)); }
+  if (V.P) { for (const sd of ["L", "R"]) ["drop", "ev", "add", "valg", "lean", "sh", "heel"].forEach(x => add(x, V.P.sides[sd][x].m, sd === "L" ? "izq." : "der.")); add("shTilt", V.P.met.shTilt.m, ""); }
+  return out;
+}
+function runConclusions() {
+  const V = RUN.views, a = athObj(curAth), lines = [];
+  const planes = ["R", "L", "P"].filter(k => V[k]).map(runSideName);
+  lines.push(`Análisis de la carrera en cinta${RUN.meta.speed ? ` a ${RUN.meta.speed} km/h` : ""}${RUN.meta.incl ? ` (${RUN.meta.incl}% de inclinación)` : ""}${a ? ` de ${a.n}` : ""}. Planos analizados: ${planes.join(", ") || "ninguno"}.`);
+  const lat = ["R", "L"].filter(k => V[k]).map(k => V[k]);
+  if (lat.length) {
+    const cad = rMean(lat.map(x => x.met.cad.m)), ct = rMean(lat.map(x => x.met.contact.m)), strike = lat.map(x => runStrike(x.met.footIC.m));
+    lines.push(`Cadencia ${f1(cad)} pasos/min, tiempo de contacto ${f1(ct)} ms. Patrón de apoyo: ${[...new Set(strike)].join(" / ")}.`);
+  }
+  const fnd = runFindings();
+  if (fnd.length) { lines.push("", "Aspectos a mejorar:"); fnd.sort((x, y) => (x.lvl === "Pobre" ? 0 : 1) - (y.lvl === "Pobre" ? 0 : 1)).forEach(f => lines.push(`- ${f.txt}`)); }
+  else if (planes.length) lines.push("", "No se observan desvíos relevantes respecto de los valores de referencia en los indicadores medidos.");
+  if (V.L && V.R) {
+    const asy = ["kneeIC", "kneeMS", "ankleMS", "hipTO", "contact"].filter(k => { const x = V.L.met[k].m, y = V.R.met[k].m, d = Math.abs(x - y); return d / ((Math.abs(x) + Math.abs(y)) / 2) > 0.15 && d > (k === "contact" ? 15 : 3); });
+    if (asy.length) lines.push("", "Asimetrías: " + asy.map(k => `${runRef(k).n} (izq ${runFmt(k, V.L.met[k].m)} / der ${runFmt(k, V.R.met[k].m)})`).join("; ") + ".");
+  }
+  if (V.P) {
+    const d = V.P.sides, asy = ["drop", "ev", "add", "valg"].filter(k => Math.abs(d.L[k].m - d.R[k].m) > 3);
+    if (asy.length) lines.push("", "Asimetrías en el plano posterior: " + asy.map(k => `${runRef(k).n} (izq ${runFmt(k, d.L[k].m)} / der ${runFmt(k, d.R[k].m)})`).join("; ") + ".");
+  }
+  lines.push("", "Valores orientativos medidos con una cámara: interpretarlos junto con la historia clínica, el calzado, la velocidad y la evaluación del profesional. Se recomienda reevaluar en 4–6 semanas.");
+  return lines.join("\n");
+}
+function runDrawCurve(k, joint) {
+  const res = RUN.views[k], c = $("rcC_" + k); if (!res || !c) return;
+  const g = c.getContext("2d"), dpr = devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+  c.width = w * dpr; c.height = h * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  const cv = res.curves[joint], ml = 34, mr = 8, mt = 8, mb = 22;
+  const lo = Math.min(...cv.map(p => p[0] - p[1])), hi = Math.max(...cv.map(p => p[0] + p[1]));
+  const y0 = Math.floor((lo - 5) / 10) * 10, y1 = Math.ceil((hi + 5) / 10) * 10;
+  const X = p => ml + (w - ml - mr) * p / 100, Y = v => mt + (h - mt - mb) * (1 - (v - y0) / (y1 - y0));
+  g.fillStyle = "#EEF6F1"; g.fillRect(X(0), mt, X(res.stanceEnd) - X(0), h - mt - mb);
+  g.font = "11px Barlow, sans-serif"; g.fillStyle = "#7A8896"; g.strokeStyle = "#E8EDF1"; g.lineWidth = 1;
+  for (let v = y0; v <= y1; v += 10) { g.beginPath(); g.moveTo(ml, Y(v)); g.lineTo(w - mr, Y(v)); g.stroke(); g.textAlign = "right"; g.fillText(v + "°", ml - 4, Y(v) + 4); }
+  g.textAlign = "center"; [0, 25, 50, 75, 100].forEach(p => g.fillText(p + "%", X(p), h - 6));
+  g.fillStyle = "#2F7D55"; g.fillText("apoyo", X(res.stanceEnd / 2), mt + 12); g.fillStyle = "#7A8896"; g.fillText("oscilación", X((res.stanceEnd + 100) / 2), mt + 12);
+  const col = RUN_COL[res.view];
+  g.fillStyle = col + "33"; g.beginPath(); cv.forEach((p, i) => i ? g.lineTo(X(i), Y(p[0] + p[1])) : g.moveTo(X(i), Y(p[0] + p[1]))); for (let i = 100; i >= 0; i--) g.lineTo(X(i), Y(cv[i][0] - cv[i][1])); g.fill();
+  g.strokeStyle = col; g.lineWidth = 2.5; g.beginPath(); cv.forEach((p, i) => i ? g.lineTo(X(i), Y(p[0])) : g.moveTo(X(i), Y(p[0]))); g.stroke();
+}
+function runRenderAll() {
+  for (const k of ["R", "L", "P"]) {
+    const el = $("rsRes_" + k); if (!el) continue;
+    if (RUN.views[k]) {
+      el.innerHTML = runViewHTML(k);
+      if (RUN.readonly) { $("rsSt_" + k).textContent = `✓ ${RUN.views[k].nStrides} ${k === "P" ? "ciclos" : "zancadas"}`; $("rsSt_" + k).className = "rs-st ok"; }
+      const sel = $("rcSel_" + k);
+      if (sel) { sel.onclick = e => { const b = e.target.closest("[data-rc]"); if (!b) return; sel.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === b)); runDrawCurve(k, b.dataset.rc); }; setTimeout(() => runDrawCurve(k, "knee"), 30); }
+    }
+  }
+  $("runSym").innerHTML = runSymHTML();
+  const any = Object.keys(RUN.views).length > 0;
+  $("runReport").classList.toggle("hidden", !any);
+  if (any) { $("runConcl").value = RUN.concl != null ? RUN.concl : runConclusions(); $("runNote").value = RUN.note || ""; }
+  $("runSave").textContent = RUN.saved ? "💾 Guardar cambios" : "💾 Guardar en el historial del atleta";
+}
+
+// ---------- Guardar, informe PDF ----------
+function runRecordData() {
+  RUN.meta = { speed: $("runSpeed").value, incl: $("runIncl").value, shoe: $("runShoe").value.trim() };
+  return { meta: RUN.meta, views: JSON.parse(JSON.stringify(RUN.views)) };
+}
+async function runSave() {
+  if (!athObj(curAth)) { openAthForm(null); return; }
+  if (!Object.keys(RUN.views).length) { alert("Analizá al menos un plano antes de guardar."); return; }
+  let r = RUN.saved;
+  if (!r) { r = { id: "r" + Date.now(), ath: curAth, proto: "run", name: "Análisis de carrera", date: new Date().toISOString(), view: "run" }; db.res.push(r); RUN.saved = r; }
+  r.run = runRecordData(); r.concl = $("runConcl").value; r.note = $("runNote").value; r.media = false;
+  saveDB(); await idbPut({ id: r.id, runImgs: RUN.imgs });
+  $("runSave").textContent = "✓ Guardado"; setTimeout(() => $("runSave").textContent = "💾 Guardar cambios", 1600);
+}
+async function runPdf(share) {
+  const btn = $(share ? "runPdfShare" : "runPdf"), old = btn.textContent; btn.textContent = "Generando…"; btn.disabled = true;
+  try {
+    const jsPDF = await loadJsPDF(), a = athObj(curAth), d = RUN.saved ? new Date(RUN.saved.date) : new Date();
+    const doc = new jsPDF({ unit: "mm", format: "a4" }), W = 210, M = 14, CW = W - 2 * M;
+    let y = 0;
+    const san = t => String(t).replace(/[—–−]/g, "-").replace(/≈/g, "~").replace(/≥/g, ">=").replace(/≤/g, "<=").replace(/±/g, "+/-").replace(/×/g, "x").replace(/[^\x00-\xFF]/g, "");
+    const ensure = h => { if (y + h > 280) { doc.addPage(); y = 18; } };
+    const h2 = t => { ensure(14); doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(52, 73, 94); doc.text(san(t), M, y); doc.setDrawColor(91, 191, 138); doc.setLineWidth(0.6); doc.line(M, y + 1.6, M + 22, y + 1.6); y += 7; };
+    const para = (t, size = 9.5, col = [60, 72, 84]) => { doc.setFont("helvetica", "normal"); doc.setFontSize(size); doc.setTextColor(...col); for (const ln of doc.splitTextToSize(san(t), CW)) { ensure(5); doc.text(ln, M, y); y += size * 0.45; } y += 1.5; };
+    const table = (head, rows, widths, lvlCol = []) => {
+      const rowH = 5.6; ensure(rowH * 2);
+      doc.setFillColor(241, 245, 247); doc.rect(M, y - 4, CW, rowH, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(107, 123, 138);
+      let x = M; head.forEach((t, i) => { doc.text(san(t), x + 1.5, y); x += widths[i]; }); y += rowH;
+      doc.setFont("helvetica", "normal");
+      for (const r of rows) {
+        const lines = r.map((c, i) => doc.splitTextToSize(san(c.t != null ? c.t : c), widths[i] - 3));
+        const hh = Math.max(...lines.map(l => l.length)) * 3.8 + 1.8; ensure(hh);
+        x = M; r.forEach((c, i) => {
+          if (c.lvl) { const b = lvlC(c.lvl); doc.setFillColor(...hexRGB(b.bg)); doc.roundedRect(x + 0.5, y - 3.6, Math.min(widths[i] - 1, doc.getTextWidth(lines[i][0]) + 4), 5, 1.2, 1.2, "F"); doc.setTextColor(...hexRGB(b.tx)); }
+          else doc.setTextColor(60, 72, 84);
+          doc.setFontSize(8.5); lines[i].forEach((ln, j) => doc.text(ln, x + 1.5, y + j * 3.8)); x += widths[i];
+        });
+        y += hh; doc.setDrawColor(232, 237, 241); doc.setLineWidth(0.2); doc.line(M, y - 3.8, M + CW, y - 3.8);
+      }
+      y += 2;
+    };
+    const images = async (list, cols, maxH = 52) => {
+      if (!list || !list.length) return;
+      const gap = 3, iw = Math.min((CW - gap * (cols - 1)) / cols, maxH * 0.8);
+      const x0 = M + (CW - (iw * cols + gap * (cols - 1))) / 2;
+      for (let i = 0; i < list.length; i += cols) {
+        const row = list.slice(i, i + cols), dims = await Promise.all(row.map(im => imgSize(im.src)));
+        const ih = Math.max(...dims.map(([w, h]) => iw * h / w)); ensure(ih + 3);
+        row.forEach((im, j) => { const [w, h] = dims[j]; doc.addImage(im.src, "JPEG", x0 + j * (iw + gap), y, iw, iw * h / w); });
+        y += ih + 3;
+      }
+    };
+    doc.setFillColor(15, 34, 51); doc.rect(0, 0, W, 22, "F");
+    const logo = await logoURL(); let lx = M; if (logo) { doc.addImage(logo, "PNG", M, 3.5, 15, 15); lx = M + 19; }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.setTextColor(255, 255, 255); doc.text("Trak", lx, 14.2); doc.setTextColor(91, 191, 138); doc.text("Mov", lx + doc.getTextWidth("Trak"), 14.2);
+    doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.text("Informe de análisis de carrera", W - M, 14, { align: "right" });
+    y = 32; doc.setTextColor(52, 73, 94); doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("Análisis de carrera en cinta", M, y); y += 6.5;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(107, 123, 138);
+    const meta = runRecordData().meta;
+    doc.text(san(`${a ? a.n + (athMeta(a) ? "  ·  " + athMeta(a) : "") : ""}  ·  ${d.toLocaleDateString("es-AR")}`), M, y); y += 5;
+    doc.text(san([meta.speed ? `Velocidad ${meta.speed} km/h` : "", meta.incl ? `Inclinación ${meta.incl}%` : "", meta.shoe ? `Calzado: ${meta.shoe}` : ""].filter(Boolean).join("  ·  ") || "Datos de la prueba sin cargar"), M, y); y += 8;
+    const V = RUN.views;
+    h2("Conclusiones"); para($("runConcl").value || runConclusions());
+    if ($("runNote").value.trim()) { h2("Notas del profesional"); para($("runNote").value); }
+    for (const k of ["R", "L"]) {
+      const res = V[k]; if (!res) continue;
+      doc.addPage(); y = 18; h2(`Plano ${runSideName(k).toLowerCase()} · ${res.nStrides} zancadas`);
+      para(`Cadencia ${f1(res.met.cad.m)} ppm  ·  contacto ${f1(res.met.contact.m)} ms  ·  apoyo ${f1(res.met.stance.m)}% del ciclo${res.met.stepLen ? `  ·  paso ${f1(res.met.stepLen.m)} cm` : ""}  ·  patrón: ${runStrike(res.met.footIC.m)}`, 9.5);
+      await images(RUN.imgs[k], 3, 60);
+      table(["Fase", "Cadera", "Rodilla", "Tobillo"], RUN_PH.map(([ph, nm]) => [nm, ...["hip", "knee", "ankle"].map(j => { const s = res.phases[ph][j]; return Number.isFinite(s.m) ? `${f1(runZ(s.m, 0))}° ± ${f1(s.sd)}` : "-"; })]), [60, 40, 41, 41]);
+      table(["Indicador", "Valor", "Nivel", "Referencia"], ["cad", "kneeIC", "tibiaIC", "kneeMS", "ankleMS", "hipTO", "trunk", "vo", "over", "kneeSw", "hipSw"].filter(x => res.met[x]).map(x => { const l = runLevel(x, res.met[x].m); return [runRef(x).n, { t: runFmt(x, res.met[x].m), lvl: l }, l || "dato", runRef(x).ref || ""]; }), [66, 28, 24, 64]);
+    }
+    if (V.L && V.R) {
+      ensure(40); h2("Simetría izquierda / derecha");
+      table(["Indicador", "Izq", "Der", "Dif."], ["kneeIC", "tibiaIC", "kneeMS", "ankleMS", "hipTO", "kneeSw", "contact"].map(x => { const p = V.L.met[x].m, q = V.R.met[x].m; return [runRef(x).n, runFmt(x, p), runFmt(x, q), runFmt(x, Math.abs(p - q))]; }), [80, 34, 34, 34]);
+    }
+    if (V.P) {
+      const res = V.P; doc.addPage(); y = 18; h2(`Plano posterior · ${res.sides.L.n} apoyos izq / ${res.sides.R.n} der`);
+      para(`Cadencia ${f1(res.met.cad.m)} ppm.`, 9.5);
+      await images(RUN.imgs.P, 4, 62);
+      table(["Indicador", "Izq", "Der", "Referencia"], ["drop", "ev", "add", "valg", "lean", "sh", "heel"].map(x => [runRef(x).n, { t: runFmt(x, res.sides.L[x].m), lvl: runLevel(x, res.sides.L[x].m) }, { t: runFmt(x, res.sides.R[x].m), lvl: runLevel(x, res.sides.R[x].m) }, runRef(x).ref]), [66, 28, 28, 60]);
+      table(["Indicador", "Valor", "Referencia"], ["shTilt", "rotS", "rotP"].map(x => [runRef(x).n, { t: runFmt(x, res.met[x].m), lvl: runLevel(x, res.met[x].m) }, runRef(x).ref || "dato"]), [80, 40, 62]);
+      para("Pronación/supinación: estimación de baja precisión con una sola cámara. Rotaciones: a partir de la profundidad estimada por el modelo.", 8, [122, 136, 150]);
+    }
+    const pages = doc.getNumberOfPages();
+    for (let i = 1; i <= pages; i++) { doc.setPage(i); doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(150, 160, 170);
+      doc.text(`Generado con ${APP_NAME} · ${new Date().toLocaleDateString("es-AR")}`, M, 287); doc.text("Mediciones estimadas por visión computacional con una cámara: complementan, no reemplazan, la evaluación clínica.", M, 291); doc.text(`${i}/${pages}`, W - M, 287, { align: "right" }); }
+    await saveFile(doc.output("blob"), `Informe_carrera_${(a ? a.n : "atleta").replace(/\s+/g, "_")}_${d.toISOString().slice(0, 10)}.pdf`, share);
+  } catch (e) { alert("No se pudo generar el informe: " + (e.message || e)); }
+  btn.textContent = old; btn.disabled = false;
+}
+$("runBack").onclick = () => { if (RUN && RUN.readonly && RUN.saved) { const a = RUN.saved.ath; if (athObj(a)) { openAthlete(a); return; } } show("scrCatalog"); };
+$("runAth").onchange = e => { setAth(e.target.value); runFillAth(); };
+$("runAdd").onclick = () => openAthForm(null);
+$("runSave").onclick = runSave;
+$("runPdf").onclick = () => runPdf(false);
+$("runPdfShare").onclick = () => runPdf(true);
+$("runConcl").oninput = () => { RUN.concl = $("runConcl").value; };
+$("runNote").oninput = () => { RUN.note = $("runNote").value; };
+$("runReConcl").onclick = () => { if (RUN.concl == null || confirm("¿Reemplazar las conclusiones por las automáticas?")) { RUN.concl = null; $("runConcl").value = runConclusions(); } };
+$("runHowBtn").onclick = () => $("runHow").classList.toggle("hidden");
+$("goRun").onclick = openRun;
+
+
 // ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
-const APP_VERSION = "10 oct 2026";
+const APP_VERSION = "23 oct 2026 (b)";
 $("verTxt").textContent = APP_VERSION;
 async function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
@@ -3940,7 +4939,7 @@ function idb() {
   return idbP = idbP || new Promise((res, rej) => { const q = indexedDB.open("am_media", 1); q.onupgradeneeded = () => q.result.createObjectStore("media", { keyPath: "id" }); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
 }
 async function idbPut(o) {
-  if (!o.video && !o.image && !o.series) return;
+  if (!o.video && !o.image && !o.series && !o.runImgs) return;
   // el video puede tardar un instante en cerrarse después de detener
   try { const d = await idb(); d.transaction("media", "readwrite").objectStore("media").put(o); } catch { $("status").textContent = "No se pudo guardar el video en este dispositivo (espacio lleno)."; }
 }
@@ -3956,6 +4955,7 @@ const mkUrl = b => { const u = URL.createObjectURL(b); urls.push(u); return u; }
 const keyName = k => MK[k] ? MK[k].n + (MK[k].b ? (k.endsWith("L") ? " izq" : " der") : "") : k;
 async function openResult(id, scrollToReport = false) {
   const r = db.res.find(x => x.id === id); if (!r) return;
+  if (r.run) { openRunSaved(r); return; }
   curRes = r; freeUrls();
   const a = athObj(r.ath), d = new Date(r.date);
   $("rTitle").textContent = r.name;
