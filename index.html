@@ -209,6 +209,8 @@
   .rs-st{font:600 13px Barlow,sans-serif;color:#7A8896;background:#EEF1F4;border-radius:999px;padding:3px 10px}
   .rs-st.ok{background:#E3F4EA;color:#2F7D55}
   .rs-st:empty{display:none}
+  .rs-step{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:4px 0 10px}
+  .rs-step button{font:700 14px Barlow,sans-serif;background:#fff;color:#34495E;border:1px solid #D5DCE2;border-radius:10px;padding:10px 4px}
   .rs-vwrap{position:relative;margin:12px 0 8px;background:#0F2233;border-radius:14px;overflow:hidden}
   .rs-vwrap video{display:block;position:static !important;width:100% !important;height:auto !important;max-height:62vh;opacity:1 !important;background:#0F2233}
   .rs-vwrap canvas{position:absolute !important;left:0;top:0;right:0;bottom:0;width:100% !important;height:100% !important;max-height:none !important;pointer-events:none;z-index:2;touch-action:manipulation}
@@ -542,13 +544,25 @@
     <div class="card" id="runHowCard">
       <h3 style="display:flex;justify-content:space-between;align-items:center">Cómo filmar <button class="chip" id="runHowBtn">Ver</button></h3>
       <div id="runHow" class="hidden">
+        <p style="margin:0 0 6px"><b>5 tomas estandarizadas</b>, siempre con la cámara quieta (trípode) y perpendicular (90°) al plano que se analiza:</p>
+        <ol class="steps">
+          <li><b>Frontal 1 · cuerpo completo</b> (cámara detrás, centrada con la cinta, de la cabeza a los pies) → slot ③ Posterior: alineación global, tronco, hombros, ancho de paso.</li>
+          <li><b>Frontal 2 · medio cuerpo</b> (de la pelvis a los pies): pelvic drop, aducción de cadera y rodilla. El reconocimiento automático necesita ver el cuerpo entero, así que usala para mirar en detalle y medir con el goniómetro del análisis de video.</li>
+          <li><b>Frontal 3 · retropié</b> (pies y tobillos, cámara a la altura de los tobillos) → slot ④: pronación/supinación con la línea de Helbing.</li>
+          <li><b>Lateral derecho</b> y <b>5. lateral izquierdo</b> (cámara a 2–3 m, a la altura de la cadera, cuerpo entero con los pies y la cinta) → slots ① y ②.</li>
+        </ol>
+        <p style="margin:10px 0 6px"><b>Marcas a colocar</b> (cinta o stickers que contrasten con la piel/ropa):</p>
+        <ul class="steps">
+          <li><b>Lateral:</b> trocánter mayor · cóndilo externo / cabeza del peroné · maléolo externo.</li>
+          <li><b>Posterior:</b> C7 · T7 · espinas ilíacas posterosuperiores (izq. y der.).</li>
+          <li><b>Retropié:</b> línea de Helbing: una línea en el centro de la pantorrilla/Aquiles y otra en el centro del calcáneo (también sobre la zapatilla si corre calzado).</li>
+        </ul>
+        <p class="note2" style="margin:6px 0 10px">Las marcas no las usa el reconocimiento automático, pero te sirven para controlar que los puntos caigan en el lugar correcto y para medir a mano con mucha precisión.</p>
         <ol class="steps">
           <li><b>Entrada en calor:</b> 3–5 min en la cinta antes de filmar, a la velocidad de la prueba.</li>
-          <li><b>Cámara lenta:</b> en el iPhone usá «Cámara lenta» (120 o 240 cps). Si no, al menos 60 cps (Ajustes › Cámara › Grabar video). La app detecta sola la cámara lenta.</li>
-          <li><b>Lateral:</b> trípode a 2–3 m, perpendicular a la cinta, a la altura de la cadera y nivelado. Que se vea el cuerpo entero, los pies y la cinta en todo momento.</li>
-          <li><b>Posterior:</b> trípode detrás, centrado con la cinta y a la altura de la cadera. Talones y zapatillas siempre visibles.</li>
-          <li><b>Ropa:</b> ajustada o short y remera ajustada; sin nadie cruzando por detrás. Buena luz, sin contraluz.</li>
-          <li><b>Duración:</b> filmá 15–20 s corriendo estable (mínimo 8 zancadas). Después elegí el tramo en el video.</li>
+          <li><b>Cámara lenta:</b> en el iPhone usá «Cámara lenta» (120 o 240 cps). Si no, al menos 60 cps. La app detecta sola la cámara lenta.</li>
+          <li><b>Ropa:</b> short y remera ajustada; nadie cruzando por detrás y sin pósters de personas en el fondo. Buena luz, sin contraluz.</li>
+          <li><b>Duración:</b> 15–20 s corriendo estable (mínimo 8 zancadas). Después elegí el tramo en el video.</li>
         </ol>
       </div>
     </div>
@@ -3039,9 +3053,10 @@ $("pCsv").onclick = () => {
         for (const [ph, nm] of RUN_PH) for (const j of ["hip", "knee", "ankle"]) rows.push([...base, `carrera ${runSideName(k).toLowerCase()} · ${nm} · ${{ hip: "cadera", knee: "rodilla", ankle: "tobillo" }[j]}`, "", num(r1(V[k].phases[ph][j].m)), ""]);
       }
       if (V.P) {
-        for (const sd of ["L", "R"]) for (const mk of ["drop", "ev", "add", "valg", "lean", "sh", "heel"]) rows.push([...base, `carrera posterior · ${runRef(mk).n} ${sd === "L" ? "izq" : "der"}`, "", num(r1(V.P.sides[sd][mk].m)), ""]);
+        for (const sd of ["L", "R"]) for (const mk of ["drop", "bas", "add", "thl", "valg", "ev", "cal", "lean", "sh", "heel"].filter(x => V.P.sides[sd][x])) rows.push([...base, `carrera posterior · ${runRef(mk).n} ${sd === "L" ? "izq" : "der"}`, "", num(r1(V.P.sides[sd][mk].m)), ""]);
         for (const mk in V.P.met) rows.push([...base, `carrera posterior · ${runRef(mk) ? runRef(mk).n : mk}`, "", num(r1(V.P.met[mk].m)), ""]);
       }
+      if (V.M) for (const q of V.M.meas) { rows.push([...base, `carrera retropié · ${q.lab} · pierna-talón`, "", num(r1(q.shk)), ""]); rows.push([...base, `carrera retropié · ${q.lab} · calcáneo vs suelo`, "", num(r1(q.cal)), ""]); }
     }
   });
   const blob = new Blob(["\ufeff" + rows.map(r => r.map(x => /[;"\n]/.test(String(x)) ? `"${String(x).replace(/"/g, '""')}"` : x).join(";")).join("\n")], { type: "text/csv" });
@@ -4231,7 +4246,7 @@ function runAnalyzeLateral(frames, opt) {
   const P = (f, i) => ({ x: f.lm[i].x * W, y: f.lm[i].y * H });
   const dir = Math.sign(rMed(frames.map(f => (f.lm[T].x - f.lm[E].x)))) || 1;   // +1 = corre hacia la derecha de la imagen
   const sag = v => Math.atan2(dir * v.x, v.y) * RD;   // ángulo desde la vertical hacia abajo, + = hacia adelante
-  const hip = [], knee = [], ankle = [], tibia = [], foot = [], trunk = [], low = [], hipY = [], heelFwd = [], leg = [];
+  const hip = [], knee = [], ankle = [], tibia = [], thigh = [], foot = [], trunk = [], low = [], hipY = [], heelFwd = [], leg = [];
   for (const f of frames) {
     const s = P(f, S), h = P(f, HP), k = P(f, K), a = P(f, A), e = P(f, E), t = P(f, T);
     trunk.push(Math.atan2(dir * (s.x - h.x), h.y - s.y) * RD);
@@ -4239,6 +4254,7 @@ function runAnalyzeLateral(frames, opt) {
     knee.push(180 - rAngB(rv(k, h), rv(k, a)));
     ankle.push(90 - rAngB(rv(a, k), rv(e, t)));
     tibia.push(sag(rv(k, a)));
+    thigh.push(sag(rv(h, k)));   // vector del muslo respecto de la vertical (+ = rodilla por delante de la cadera)
     foot.push(Math.atan2(e.y - t.y, dir * (t.x - e.x)) * RD);
     low.push(Math.max(e.y, t.y)); hipY.push(h.y); heelFwd.push(dir * (e.x - h.x));
     leg.push(Math.hypot(k.x - h.x, k.y - h.y) + Math.hypot(a.x - k.x, a.y - k.y));
@@ -4271,7 +4287,8 @@ function runAnalyzeLateral(frames, opt) {
       idx, kneeIC: knee[s.ic], tibiaIC: tibia[s.ic], footIC: foot[s.ic], over: heelFwd[s.ic] * cmPx,
       kneeMS: knee[ms], ankleMS: Math.max(...ankle.slice(s.ic, s.to + 1)), hipTO: -hip[s.to], kneeSw: knee[isw], hipSw: hip[msw],
       contact: (s.to - s.ic + 1) / rf * 1000, stride: (s.nic - s.ic) / rf, vo: ymax > ymin ? (ymax - ymin) * cmPx : NaN,
-      trunk: rMean(trunk.slice(s.ic, s.nic))
+      trunk: rMean(trunk.slice(s.ic, s.nic)),
+      thighIC: thigh[s.ic], thighMS: thigh[ms], thighTO: -thigh[s.to], tibiaMS: -tibia[ms], tibiaTO: -tibia[s.to], kneeTO: knee[s.to], footTO: -foot[s.to]
     });
   }
   // valores de cadera, rodilla y tobillo en cada fase
@@ -4284,7 +4301,8 @@ function runAnalyzeLateral(frames, opt) {
   const strideS = rMean(per.map(p => p.stride)), cad = 120 / strideS;
   const met = {
     cad: { m: cad }, contact: M("contact"), stance: { m: stance }, kneeIC: M("kneeIC"), tibiaIC: M("tibiaIC"), footIC: M("footIC"), over: M("over"),
-    kneeMS: M("kneeMS"), ankleMS: M("ankleMS"), hipTO: M("hipTO"), kneeSw: M("kneeSw"), hipSw: M("hipSw"), trunk: M("trunk"), vo: M("vo")
+    kneeMS: M("kneeMS"), ankleMS: M("ankleMS"), hipTO: M("hipTO"), kneeSw: M("kneeSw"), hipSw: M("hipSw"), trunk: M("trunk"), vo: M("vo"),
+    thighIC: M("thighIC"), thighMS: M("thighMS"), thighTO: M("thighTO"), tibiaMS: M("tibiaMS"), tibiaTO: M("tibiaTO"), kneeTO: M("kneeTO"), footTO: M("footTO")
   };
   if (opt.speed > 0) met.stepLen = { m: opt.speed / 3.6 / (cad / 60) * 100 };
   // zancada representativa (la de duración más cercana a la mediana) para las fotos de cada fase
@@ -4302,7 +4320,7 @@ function runAnalyzePosterior(frames, opt) {
   const { W, H, fps } = opt;
   const P = (f, i) => ({ x: f.lm[i].x * W, y: f.lm[i].y * H });
   const obl = [], sh = [], lean = [], legs = [], rotS = [], rotP = [], hw = [];
-  const sideData = { L: { low: [], add: [], valg: [], ev: [], heel: [] }, R: { low: [], add: [], valg: [], ev: [], heel: [] } };
+  const sideData = { L: { low: [], add: [], valg: [], ev: [], heel: [], thl: [], cal: [] }, R: { low: [], add: [], valg: [], ev: [], heel: [], thl: [], cal: [] } };
   for (const f of frames) {
     const HL = P(f, 23), HR = P(f, 24), SL = P(f, 11), SR = P(f, 12);
     const MH = { x: (HL.x + HR.x) / 2, y: (HL.y + HR.y) / 2 }, MS = { x: (SL.x + SR.x) / 2, y: (SL.y + SR.y) / 2 };
@@ -4323,6 +4341,8 @@ function runAnalyzePosterior(frames, opt) {
       const a1 = Math.atan2(a.x - k.x, a.y - k.y), a2 = Math.atan2(e.x - a.x, e.y - a.y);
       d.ev.push(-(a2 - a1) * RD * sg);
       d.heel.push((MH.x - e.x) * sg);
+      d.thl.push(Math.atan2((k.x - h.x) * sg, k.y - h.y) * RD);          // muslo hacia adentro respecto de la vertical
+      d.cal.push(-Math.atan2(e.x - a.x, e.y - a.y) * RD * sg);            // calcáneo inclinado hacia la eversión respecto de la vertical
       legs.push(Math.hypot(k.x - h.x, k.y - h.y) + Math.hypot(a.x - k.x, a.y - k.y));
     }
   }
@@ -4337,13 +4357,14 @@ function runAnalyzePosterior(frames, opt) {
     const per = runs.map(r => {
       let pk = r.ic, pv = -Infinity; for (let i = r.ic; i <= r.to; i++) if (drop[i] > pv) { pv = drop[i]; pk = i; }
       const rng = (arr) => Math.max(...arr.slice(r.ic, r.to + 1));
-      return { ic: r.ic, to: r.to, mid: pk, drop: pv, add: rng(d.add), valg: rng(d.valg), ev: rng(d.ev), evMin: Math.min(...d.ev.slice(r.ic, r.to + 1)), lean: tl[pk], sh: Math.abs(sh[pk]), heel: d.heel[pk] * cmPx };
+      return { ic: r.ic, to: r.to, mid: pk, drop: pv, add: rng(d.add), valg: rng(d.valg), ev: rng(d.ev), evMin: Math.min(...d.ev.slice(r.ic, r.to + 1)), lean: tl[pk], sh: Math.abs(sh[pk]), heel: d.heel[pk] * cmPx,
+        thl: rng(d.thl), cal: 90 - rng(d.cal), bas: 90 - pv };
     });
     runs.forEach(r => allIC.push(frames[r.ic].t));
     if (per.length < 2) return { error: `No se detectaron suficientes apoyos de la pierna ${sd === "L" ? "izquierda" : "derecha"}. Revisá que los talones se vean siempre y que la cámara esté quieta, detrás y a la altura de la cadera.` };
     const M = k => rStat(per.map(p => p[k]));
     const mid = per[Math.floor(per.length / 2)];
-    out.sides[sd] = { n: per.length, drop: M("drop"), add: M("add"), valg: M("valg"), ev: M("ev"), evMin: M("evMin"), lean: M("lean"), sh: M("sh"), heel: M("heel"),
+    out.sides[sd] = { n: per.length, drop: M("drop"), add: M("add"), valg: M("valg"), ev: M("ev"), evMin: M("evMin"), lean: M("lean"), sh: M("sh"), heel: M("heel"), thl: M("thl"), cal: M("cal"), bas: M("bas"),
       rep: { ic: { t: frames[mid.ic].t, i: mid.ic }, mid: { t: frames[mid.mid].t, i: mid.mid } } };
   }
   allIC.sort((a, b) => a - b);
@@ -4362,12 +4383,12 @@ function runAnalyzePosterior(frames, opt) {
 // patrón de apoyo por ángulo del pie (Altman & Davis 2012); el resto, rangos habituales de la literatura de carrera.
 // t2 = [excelente desde, hasta, bueno desde, hasta, regular desde, hasta]; lo = menor es mejor [exc, bueno, regular]; hi = mayor es mejor.
 const RUN_REF = {
-  kneeIC:  { n: "Flexión de rodilla en el contacto", t2: [15, 25, 10, 30, 5, 35], ref: "≈20° (15–25°)", lo: "contacto con la rodilla casi extendida (más rígida): aumenta el impacto que sube a rodilla y cadera", hi: "mucha flexión de rodilla al contactar" },
-  tibiaIC: { n: "Inclinación de la tibia en el contacto", lo3: [5, 8, 12], ref: "≤5° respecto de la vertical", hi: "la tibia llega inclinada hacia adelante (el pie cae muy por delante de la rodilla): sobre-zancada con efecto freno. Suele mejorar subiendo la cadencia un 5–10% y aterrizando más debajo del cuerpo" },
-  kneeMS:  { n: "Flexión máx. de rodilla en el apoyo", t2: [38, 48, 33, 52, 28, 56], ref: "≈40–45°", lo: "poca amortiguación en el apoyo (rodilla rígida)", hi: "la rodilla se hunde de más en el apoyo: puede indicar déficit de fuerza de cuádriceps/glúteo o fatiga" },
+  kneeIC:  { n: "Flexión de rodilla en el contacto", t2: [5, 20, 3, 24, 0, 28], ref: "5–20°", lo: "contacto con la rodilla casi extendida (más rígida): aumenta el impacto que sube a rodilla y cadera", hi: "mucha flexión de rodilla al contactar" },
+  tibiaIC: { n: "Vector tibia en el contacto", lo3: [5, 8, 12], ref: "≤5° (hasta 7–8°: el resto lo absorbe el muslo)", hi: "la tibia llega inclinada hacia adelante (el pie cae muy por delante de la rodilla): sobre-zancada con efecto freno. Suele mejorar subiendo la cadencia un 5–10% y aterrizando más debajo del cuerpo" },
+  kneeMS:  { n: "Flexión de rodilla al final de la amortiguación", t2: [30, 45, 27, 50, 24, 55], ref: "30–45° (pico ≈45°)", lo: "poca excursión de flexión en el apoyo (menor absorción activa; se asocia a mayor shock tibial)", hi: "la rodilla se hunde de más en el apoyo: puede indicar déficit de fuerza de cuádriceps/glúteo o fatiga" },
   ankleMS: { n: "Dorsiflexión máx. del tobillo en el apoyo", t2: [15, 25, 12, 28, 8, 32], ref: "≈20°", lo: "poca dorsiflexión en el apoyo: revisar movilidad de tobillo y gemelos/sóleo", hi: "dorsiflexión elevada en el apoyo (colapso del tobillo)" },
   hipTO:   { n: "Extensión de cadera en el despegue", hi3: [10, 6, 2], ref: "≥10° (respecto del tronco)", lo: "poca extensión de cadera al despegar: revisar movilidad de flexores de cadera y fuerza de glúteo mayor" },
-  trunk:   { n: "Inclinación del tronco hacia adelante", t2: [4, 12, 2, 15, 0, 18], ref: "≈5–10°", lo: "tronco muy vertical o inclinado hacia atrás", hi: "inclinación del tronco hacia adelante excesiva" },
+  trunk:   { n: "Flexión del tronco (hacia adelante)", t2: [3.7, 10.9, 2, 13, 0, 16], ref: "7,3° ± 3,6 (Teng & Powers)", lo: "tronco muy vertical: aumenta el momento extensor de rodilla y el estrés femoropatelar", hi: "flexión de tronco aumentada: baja la carga femoropatelar pero sube la demanda de los extensores de cadera" },
   vo:      { n: "Oscilación vertical de la pelvis", lo3: [8, 9.5, 11], u: " cm", ref: "≤8 cm", hi: "oscilación vertical alta: energía que se va hacia arriba en vez de hacia adelante" },
   cad:     { n: "Cadencia", hi3: [170, 160, 150], u: " ppm", d: 0, ref: "≥170 pasos/min (depende de la velocidad y la talla)", lo: "cadencia baja: subirla un 5–10% suele reducir la sobre-zancada y la carga en la rodilla" },
   drop:    { n: "Caída pélvica contralateral", lo3: null, ref: "", hi: "caída pélvica contralateral aumentada (control del glúteo medio); en la literatura se asocia a dolor de rodilla, cintilla iliotibial y lesiones por sobrecarga" },
@@ -4377,18 +4398,28 @@ const RUN_REF = {
   lean:    { n: "Inclinación lateral del tronco", lo3: [3, 5, 8], abs: true, ref: "≤3°", hi: "inclinación lateral del tronco en el apoyo (compensación habitual de una cadera débil)" },
   sh:      { n: "Inclinación de hombros en el apoyo", lo3: [4, 6, 9], ref: "≤4°", hi: "hombros desnivelados en el apoyo" },
   heel:    { n: "Talón respecto de la línea media", t2: [2, 7, 0.5, 9, -1, 12], u: " cm", d: 1, ref: "2–7 cm hacia afuera", lo: "el pie cruza o pisa la línea media (crossover): base de apoyo estrecha, más carga en la cadera y la cintilla", hi: "base de apoyo ancha" },
-  shTilt:  { n: "Inclinación máx. de hombros", lo3: [4, 6, 9], ref: "≤4°", hi: "balanceo lateral de hombros marcado" }
+  shTilt:  { n: "Inclinación máx. de hombros", lo3: [4, 6, 9], ref: "≤4°", hi: "balanceo lateral de hombros marcado" },
+  // Rangos orientativos de observación (plano sagital y frontal)
+  thighIC: { n: "Vector muslo en el contacto", t2: [10, 25, 7, 28, 4, 31], ref: "10–25° (adelante)", lo: "el muslo llega muy vertical al contacto", hi: "el muslo llega muy adelantado al contacto (más demanda del aparato extensor)" },
+  thighMS: { n: "Vector muslo al final de la amortiguación", t2: [11, 17, 8, 20, 5, 23], ref: "11–17°", lo: "muslo muy vertical al final de la amortiguación", hi: "muslo muy inclinado al final de la amortiguación: más demanda de extensores de cadera y rodilla" },
+  thighTO: { n: "Vector muslo al final de la propulsión", t2: [10, 25, 7, 28, 4, 31], ref: "10–25° (atrás)", lo: "poco desplazamiento posterior del muslo en la propulsión (glúteo / isquiosurales)", hi: "muslo muy atrás en la propulsión" },
+  kneeTO:  { n: "Flexión de rodilla al final de la propulsión", t2: [5, 20, 3, 24, 0, 28], ref: "5–20°", lo: "rodilla casi extendida al despegar", hi: "rodilla muy flexionada al despegar (propulsión incompleta)" },
+  footIC:  { n: "Ángulo del pie en el contacto", t2: [5, 15, 2, 18, -2, 22], ref: "5–15° (apoyo de talón)", lo: "el pie llega plano o de antepié", hi: "el pie llega muy inclinado (punta muy arriba)" },
+  footTO:  { n: "Ángulo del pie al final de la propulsión", t2: [50, 70, 45, 75, 40, 80], ref: "50–70°", lo: "poca flexión plantar al despegar (menor aporte del tríceps sural)", hi: "despegue con el pie muy vertical" },
+  thl:     { n: "Inclinación lateral del muslo", t2: [7, 13, 5, 15, 2, 18], ref: "9–13°", lo: "muslo muy vertical en el plano frontal", hi: "inclinación lateral del muslo (aducción) aumentada: más demanda del glúteo medio y riesgo de inestabilidad" },
+  cal:     { n: "Inclinación lateral del calcáneo", t2: [87, 93, 85, 95, 83, 97], ref: "87–93° (<90 eversión)", lo: "calcáneo en eversión (pronación del retropié)", hi: "calcáneo en inversión (supinación del retropié)" },
+  shk:     { n: "Ángulo pierna–talón (Helbing)", t2: [-2, 8, -4, 12, -6, 16], ref: "−2 a 8° (+ pronación)", hi: "pronación del retropié aumentada (eversión)", lo: "supinación del retropié (inversión)" }
 };
 const RUN_INFO = {
-  footIC: { n: "Ángulo del pie en el contacto" }, over: { n: "Talón por delante de la cadera (contacto)", u: " cm", d: 1 },
+  over: { n: "Distancia talón – centro de masa (cadera) en el contacto", u: " cm", d: 1 }, tibiaMS: { n: "Vector tibia al final de la amortiguación (adelante)" }, tibiaTO: { n: "Vector tibia al final de la propulsión (adelante)" },
   contact: { n: "Tiempo de contacto", u: " ms", d: 0 }, stance: { n: "Apoyo (% del ciclo)", u: "%", d: 0 },
   kneeSw: { n: "Flexión máx. de rodilla en la oscilación" }, hipSw: { n: "Flexión máx. de cadera en la oscilación" },
-  stepLen: { n: "Longitud de paso", u: " cm", d: 0 }, rotS: { n: "Rotación de hombros (rango)" }, rotP: { n: "Rotación de pelvis (rango)" }
+  stepLen: { n: "Longitud de paso", u: " cm", d: 0 }, bas: { n: "Báscula pelviana (ángulo)", ref: "83–88°" }, rotS: { n: "Rotación de hombros (rango)" }, rotP: { n: "Rotación de pelvis (rango)" }
 };
 const RUN_PH = [["ic", "Contacto inicial"], ["ms", "Máx. amortiguación"], ["to", "Propulsión (despegue)"], ["isw", "Oscilación inicial"], ["msw", "Oscilación media"], ["pc", "Pre-contacto"]];
 const RUN_PH_DEF = { ic: "primer cuadro con el pie en la cinta", ms: "máxima flexión de rodilla durante el apoyo", to: "último cuadro con el pie en la cinta", isw: "máxima flexión de rodilla en el aire (talón hacia el glúteo)", msw: "máxima flexión de cadera (rodilla más adelante)", pc: "30 ms antes del contacto siguiente" };
-const runSideName = k => ({ R: "Lateral derecho", L: "Lateral izquierdo", P: "Posterior" })[k];
-function runDropRef() { const a = athObj(curAth), sx = a && a.sexo; const lim = sx === "Femenino" ? 7 : sx === "Masculino" ? 5 : 6; return { lo3: [lim, lim + 1.5, lim + 3], ref: sx === "Femenino" ? "4–7° (mujeres)" : sx === "Masculino" ? "3–5° (varones)" : "3–5° varones · 4–7° mujeres" }; }
+const runSideName = k => ({ R: "Lateral derecho", L: "Lateral izquierdo", P: "Posterior", M: "Retropié (medición manual)" })[k];
+function runDropRef() { const a = athObj(curAth), sx = a && a.sexo; const lim = sx === "Femenino" ? 7 : sx === "Masculino" ? 5 : 6; return { lo3: [lim, lim + 1.5, lim + 3], ref: (sx === "Femenino" ? "4–7° (mujeres)" : sx === "Masculino" ? "3–5° (varones)" : "3–5° varones · 4–7° mujeres") + " · báscula 83–88° · ≈4° en sanos" }; }
 function runRef(k) { const r = RUN_REF[k] || RUN_INFO[k]; return k === "drop" ? { ...r, ...runDropRef() } : r; }
 function runLevel(k, v) {
   const r = runRef(k); if (!r || !Number.isFinite(v)) return null;
@@ -4412,7 +4443,8 @@ let RUN = null;
 const RS = {};
 function runNew() {
   RUN = { meta: { speed: "", incl: "", shoe: "" }, views: {}, imgs: {}, saved: null, readonly: false, concl: null, note: "" };
-  for (const k of ["R", "L", "P"]) { if (RS[k] && RS[k].url) URL.revokeObjectURL(RS[k].url); RS[k] = { busy: false }; }
+  for (const k of ["R", "L", "P", "M"]) { if (RS[k] && RS[k].url) URL.revokeObjectURL(RS[k].url); RS[k] = { busy: false }; }
+  RS.M.side = "L"; RS.M.ph = "mid"; RS.M.pts = [];
 }
 function runFillAth() {
   $("runAth").innerHTML = db.ath.length ? db.ath.map(a => `<option value="${a.id}" ${a.id === curAth ? "selected" : ""}>${esc(a.n)}</option>`).join("") : '<option value="">Sin atletas: tocá «+ Nuevo»</option>';
@@ -4459,9 +4491,10 @@ function runBuildSlots() {
         <div class="rs-prog hidden" id="rsProg_${k}"><div></div><span></span></div>
       </div>`}
       <div id="rsRes_${k}"></div></div>`;
-  }).join("") || '<div class="card"><p>Esta evaluación no tiene planos analizados.</p></div>';
+  }).join("") + runMSlotHTML(ro) || '<div class="card"><p>Esta evaluación no tiene planos analizados.</p></div>';
   if (ro) return;
-  $("runSlots").querySelectorAll("[data-rsfile]").forEach(inp => inp.onchange = e => { const f = e.target.files[0]; if (f) runLoadVideo(inp.dataset.rsfile, f); e.target.value = ""; });
+  runMBind();
+  $("runSlots").querySelectorAll("[data-rsfile]").forEach(inp => inp.onchange = e => { const f = e.target.files[0]; if (f) (inp.dataset.rsfile === "M" ? runMLoad(f) : runLoadVideo(inp.dataset.rsfile, f)); e.target.value = ""; });
   for (const k of ["R", "L", "P"]) { $("rsGo_" + k).onclick = () => runProcess(k); $("rsPick_" + k).onclick = () => runPickMode(k); }
 }
 async function runLoadVideo(k, file) {
@@ -4748,6 +4781,115 @@ function runPickMode(k) {
   msg.textContent = st.picking ? "Pausá en un cuadro donde se vea bien al corredor y tocalo sobre el video." : (st.pick ? "✓ Atleta marcado." : "");
 }
 
+// ---------- Retropié: medición manual con la línea de Helbing (lo más preciso para pronación/supinación) ----------
+const RUN_MPH = { ic: "Contacto", mid: "Apoyo medio", to: "Despegue" };
+function runMSlotHTML(ro) {
+  if (ro && !RUN.views.M) return "";
+  return `<div class="card runslot" id="rs_M">
+    <h3>${ro ? "" : "④ "}Retropié · medición manual <span class="rs-st" id="rsSt_M"></span></h3>
+    ${ro ? "" : `<p class="note2" style="margin:-2px 0 10px">Toma 3 del plano frontal: cámara detrás, a la altura de los tobillos, encuadre de pies y tobillos. Marcá la línea de Helbing (centro de la pantorrilla/Aquiles y centro del calcáneo) y medí cuadro a cuadro: es la forma más precisa de medir pronación y supinación.</p>
+    <label class="btn-o wide rs-pick" style="display:block;text-align:center;margin-top:0;position:relative;overflow:hidden">🎥 Filmar o elegir video de los pies<input type="file" accept="video/*" data-rsfile="M" style="position:absolute;opacity:0;width:1px"></label>
+    <div class="rs-body hidden" id="rsBody_M">
+      <div class="rs-vwrap"><video id="rsV_M" playsinline muted controls preload="auto"></video><canvas id="rsC_M"></canvas></div>
+      <div class="rs-step"><button data-mstep="-10">⏮ −10</button><button data-mstep="-1">◀ cuadro</button><button data-mstep="1">cuadro ▶</button><button data-mstep="10">+10 ⏭</button></div>
+      <div class="rs-opts"><label>Cuadros/s del video<select id="rsFps_M"><option value="auto">Detectar solo</option><option>30</option><option>60</option><option>120</option><option>240</option></select></label></div>
+      <p class="note2" style="margin:10px 0 4px">¿Qué pie y qué momento?</p>
+      <div class="chips"><button class="chip on" data-mside="L">Pie izquierdo</button><button class="chip" data-mside="R">Pie derecho</button></div>
+      <div class="chips"><button class="chip" data-mph="ic">Contacto</button><button class="chip on" data-mph="mid">Apoyo medio</button><button class="chip" data-mph="to">Despegue</button></div>
+      <button class="btn-d wide" id="rsMeasure_M">📐 Medir en este cuadro</button>
+      <p class="note2" id="rsMMsg" style="margin:8px 0 0">Buscá el cuadro (con los botones de cuadro a cuadro), elegí pie y momento, y tocá «Medir».</p>
+    </div>`}
+    <div id="rsRes_M"></div></div>`;
+}
+function runMViewHTML(res) {
+  const ro = RUN.readonly, imgs = RUN.imgs.M || [];
+  const rows = res.meas.map((q, i) => `<tr><td>${esc(q.lab)}</td><td>${runPill(runLevel("shk", q.shk), runFmt("shk", q.shk))}<div class="note2" style="font-size:11px">${q.shk > 8 ? "pronación" : q.shk < -2 ? "supinación" : "neutro"}</div></td><td>${runPill(runLevel("cal", q.cal), runFmt("cal", q.cal))}</td>${ro ? "" : `<td><button class="chip" data-mdel="${i}" aria-label="Borrar">🗑</button></td>`}</tr>`).join("");
+  return `<h4>Mediciones</h4><div class="rgrid">${imgs.map(im => `<figure><img src="${im.src}" alt="${esc(im.title)}"><figcaption>${esc(im.title)}</figcaption></figure>`).join("")}</div>
+    <div style="overflow-x:auto"><table class="rtable rtl"><tr><th>Momento</th><th>Pierna–talón</th><th>Calcáneo vs suelo</th>${ro ? "" : "<th></th>"}</tr>${rows}</table></div>
+    <p class="note2" style="font-size:12px">Pierna–talón (línea de Helbing): ángulo entre el eje de la pierna y el del calcáneo; + pronación (eversión), − supinación (inversión). Referencia ${runRef("shk").ref}. Calcáneo vs suelo: ${runRef("cal").ref}.</p>`;
+}
+async function runMLoad(file) {
+  const st = RS.M; if (st.url) URL.revokeObjectURL(st.url);
+  st.url = URL.createObjectURL(file); st.pts = []; st.measuring = false; st.fpsAuto = null;
+  const v = $("rsV_M"); v.src = st.url; v.muted = true;
+  $("rsBody_M").classList.remove("hidden");
+  await new Promise(res => { v.onloadedmetadata = res; v.onerror = res; setTimeout(res, 5000); });
+  try { await v.play(); v.pause(); } catch {}
+  st.fpsAuto = await runEstFps(v);
+  $("rsMMsg").textContent = `Video cargado (${st.fpsAuto} cuadros/s). Buscá el cuadro, elegí pie y momento, y tocá «Medir».`;
+  runMDraw();
+}
+const runMFps = () => { const s = $("rsFps_M").value; return s === "auto" ? (RS.M.fpsAuto || 30) : +s; };
+// coordenadas del video <-> pantalla (el video puede verse con bandas)
+function runMMap() { const v = $("rsV_M"), c = $("rsC_M"), w = c.clientWidth, h = c.clientHeight, vw = v.videoWidth || 1, vh = v.videoHeight || 1, s = Math.min(w / vw, h / vh); return { v, c, w, h, vw, vh, s, ox: (w - vw * s) / 2, oy: (h - vh * s) / 2 }; }
+function runMLines(g, pts, s, ox, oy, lw = 3) {
+  const P = q => ({ x: ox + q.x * s, y: oy + q.y * s });
+  const seg = (a, b, col) => { const A = P(a), B = P(b), dx = B.x - A.x, dy = B.y - A.y; g.strokeStyle = col; g.lineWidth = lw; g.lineCap = "round"; g.beginPath(); g.moveTo(A.x - dx * 0.25, A.y - dy * 0.25); g.lineTo(B.x + dx * 0.25, B.y + dy * 0.25); g.stroke(); };
+  if (pts.length >= 2) seg(pts[0], pts[1], "#F2A33A");
+  if (pts.length >= 4) seg(pts[2], pts[3], "#3FB8A0");
+  if (pts.length >= 3) { const A = P(pts[2]); g.setLineDash([5, 5]); g.strokeStyle = "rgba(255,255,255,.7)"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(A.x, A.y - 30 * lw / 3); g.lineTo(A.x, A.y + 90 * lw / 3); g.stroke(); g.setLineDash([]); }
+  pts.forEach((q, i) => { const A = P(q); g.fillStyle = i < 2 ? "#F2A33A" : "#3FB8A0"; g.strokeStyle = "#fff"; g.lineWidth = 2; g.beginPath(); g.arc(A.x, A.y, 6 * lw / 3, 0, 7); g.fill(); g.stroke(); });
+}
+function runMDraw() {
+  const m = runMMap(), g = m.c.getContext("2d");
+  if (m.c.width !== m.w || m.c.height !== m.h) { m.c.width = m.w; m.c.height = m.h; }
+  g.clearRect(0, 0, m.w, m.h); runMLines(g, RS.M.pts, m.s, m.ox, m.oy);
+}
+function runMCalc(pts, side) {
+  const a1 = Math.atan2(pts[1].x - pts[0].x, pts[1].y - pts[0].y), a2 = Math.atan2(pts[3].x - pts[2].x, pts[3].y - pts[2].y);
+  const sg = side === "L" ? -1 : 1;   // visto desde atrás: el lado externo del pie izquierdo queda a la izquierda de la imagen
+  return { shk: (a2 - a1) * RD * sg, cal: 90 - a2 * RD * sg };
+}
+async function runMSnap(q, pts) {
+  const v = $("rsV_M"), W = 480, Hh = 600, c = document.createElement("canvas"); c.width = W; c.height = Hh; const g = c.getContext("2d");
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y), vw = v.videoWidth, vh = v.videoHeight;
+  let h = Math.max((Math.max(...ys) - Math.min(...ys)) * 1.8, vh * 0.35), w = h * W / Hh; if (w > vw) { w = vw; h = w * Hh / W; } if (h > vh) { h = vh; w = h * W / Hh; }
+  const sx = Math.max(0, Math.min(vw - w, (Math.min(...xs) + Math.max(...xs)) / 2 - w / 2)), sy = Math.max(0, Math.min(vh - h, (Math.min(...ys) + Math.max(...ys)) / 2 - h / 2)), k = W / w;
+  g.fillStyle = "#0F2233"; g.fillRect(0, 0, W, Hh); g.drawImage(v, sx, sy, w, h, 0, 0, W, Hh);
+  runMLines(g, pts, k, -sx * k, -sy * k, 4);
+  g.fillStyle = "rgba(15,34,51,.9)"; g.fillRect(0, 0, W, 32); g.fillStyle = "#5BBF8A"; g.font = "700 18px Barlow, sans-serif"; g.fillText(q.lab, 10, 22);
+  runTag(g, 8, 62, `Pierna–talón ${f1(runZ(q.shk, 0))}°`, "", 17); runTag(g, 8, 92, `Calcáneo ${f1(q.cal)}°`, "", 17);
+  return c.toDataURL("image/jpeg", 0.85);
+}
+function runMBind() {
+  const st = RS.M, v = $("rsV_M"), c = $("rsC_M"); if (!v) return;
+  v.onseeked = runMDraw; v.ontimeupdate = runMDraw; window.addEventListener("resize", runMDraw);
+  document.querySelectorAll("[data-mstep]").forEach(b => b.onclick = () => { v.pause(); v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + (+b.dataset.mstep) / runMFps())); });
+  document.querySelectorAll("[data-mside]").forEach(b => b.onclick = () => { st.side = b.dataset.mside; document.querySelectorAll("[data-mside]").forEach(x => x.classList.toggle("on", x === b)); });
+  document.querySelectorAll("[data-mph]").forEach(b => b.onclick = () => { st.ph = b.dataset.mph; document.querySelectorAll("[data-mph]").forEach(x => x.classList.toggle("on", x === b)); });
+  const HELP = ["1/4 · Tocá ARRIBA del eje de la pierna (centro de la pantorrilla, sobre el Aquiles)", "2/4 · Tocá ABAJO del eje de la pierna (Aquiles a la altura de los maléolos)", "3/4 · Tocá ARRIBA del calcáneo (inserción del Aquiles en el talón)", "4/4 · Tocá ABAJO del calcáneo (centro de la base del talón)"];
+  $("rsMeasure_M").onclick = () => {
+    if (!v.videoWidth) return;
+    st.measuring = !st.measuring; st.pts = []; v.pause();
+    c.style.pointerEvents = st.measuring ? "auto" : "none"; c.style.cursor = st.measuring ? "crosshair" : "";
+    $("rsMeasure_M").textContent = st.measuring ? "✕ Cancelar medición" : "📐 Medir en este cuadro";
+    $("rsMMsg").textContent = st.measuring ? HELP[0] : "Medición cancelada."; runMDraw();
+  };
+  c.onclick = async e => {
+    if (!st.measuring) return;
+    const m = runMMap(), r = c.getBoundingClientRect();
+    const x = ((e.clientX - r.left) - m.ox) / m.s, y = ((e.clientY - r.top) - m.oy) / m.s;
+    if (x < 0 || y < 0 || x > m.vw || y > m.vh) return;
+    st.pts.push({ x, y }); runMDraw();
+    if (st.pts.length < 4) { $("rsMMsg").textContent = HELP[st.pts.length]; return; }
+    st.measuring = false; c.style.pointerEvents = "none"; $("rsMeasure_M").textContent = "📐 Medir en este cuadro";
+    const pts = st.pts.slice(), val = runMCalc(pts, st.side);
+    const q = { lab: `${RUN_MPH[st.ph]} · pie ${st.side === "L" ? "izq." : "der."}`, side: st.side, ph: st.ph, t: +v.currentTime.toFixed(3), shk: +val.shk.toFixed(1), cal: +val.cal.toFixed(1), pts };
+    const img = await runMSnap(q, pts);
+    RUN.views.M = RUN.views.M || { view: "M", meas: [], nStrides: 0 };
+    RUN.views.M.meas.push(q); RUN.views.M.nStrides = RUN.views.M.meas.length;
+    (RUN.imgs.M = RUN.imgs.M || []).push({ title: q.lab, src: img });
+    $("rsMMsg").textContent = `✓ ${q.lab}: pierna–talón ${f1(runZ(q.shk, 0))}°, calcáneo ${f1(q.cal)}°. Podés medir otro momento u otro pie.`;
+    st.pts = []; runMDraw(); RUN.concl = null; runRenderAll();
+  };
+  $("rsRes_M").onclick = e => {
+    const b = e.target.closest("[data-mdel]"); if (!b || !RUN.views.M) return;
+    const i = +b.dataset.mdel; RUN.views.M.meas.splice(i, 1); (RUN.imgs.M || []).splice(i, 1);
+    RUN.views.M.nStrides = RUN.views.M.meas.length; if (!RUN.views.M.meas.length) { delete RUN.views.M; $("rsRes_M").innerHTML = ""; $("rsSt_M").textContent = ""; }
+    RUN.concl = null; runRenderAll();
+  };
+}
+
 // ---------- Resultados ----------
 function runKpi(lbl, val) { return `<div class="rkpi"><span>${lbl}</span><b>${val}</b></div>`; }
 function runMetricRows(keys, met) {
@@ -4759,6 +4901,7 @@ function runMetricRows(keys, met) {
 }
 function runViewHTML(k) {
   const res = RUN.views[k]; if (!res) return "";
+  if (k === "M") return runMViewHTML(res);
   const imgs = (RUN.imgs[k] || []).map(im => `<figure><img src="${im.src}" alt="${esc(im.title)}"><figcaption>${esc(im.title)}</figcaption></figure>`).join("");
   const slowTxt = res.slow > 1 ? `×${res.slow}` : "no";
   if (k !== "P") {
@@ -4769,20 +4912,24 @@ function runViewHTML(k) {
       <div style="overflow-x:auto"><table class="rtable"><tr><th>Fase</th><th>Cadera</th><th>Rodilla</th><th>Tobillo</th></tr>
       ${RUN_PH.map(([ph, nm]) => `<tr><td>${nm}<div class="note2" style="font-size:11px">${RUN_PH_DEF[ph]}</div></td><td>${runPM(res.phases[ph].hip)}</td><td>${runPM(res.phases[ph].knee)}</td><td>${runPM(res.phases[ph].ankle)}</td></tr>`).join("")}</table></div>
       <p class="note2" style="font-size:12px">Cadera: + flexión / − extensión respecto del tronco. Rodilla: 0° = extendida. Tobillo: + dorsiflexión / − flexión plantar.</p>
+      <h4>Rangos orientativos de observación <span class="note2">(orientación segmentaria)</span></h4>
+      ${runObsHTML(m)}
       <h4>Indicadores clave</h4>
       <div style="overflow-x:auto"><table class="rtable rtl"><tr><th>Indicador</th><th>Valor</th><th>Nivel</th><th>Referencia</th></tr>
-      ${runMetricRows(["cad", "kneeIC", "tibiaIC", "kneeMS", "ankleMS", "hipTO", "trunk", "vo"], m)}
-      ${runMetricRows(["footIC", "over", "contact", "kneeSw", "hipSw", "stepLen"], m)}</table></div>
+      ${runMetricRows(["cad", "trunk", "ankleMS", "hipTO", "vo"], m)}
+      <tr><td>Patrón de apoyo</td><td><b>${runStrike(m.footIC.m)}</b></td><td><span class='note2'>dato</span></td><td class="note2">Retropié 80–90% · mediopié 5–15% · antepié 1–5% de los corredores</td></tr>
+      ${runMetricRows(["over", "contact", "kneeSw", "hipSw", "stepLen"], m)}</table></div>
       <p class="note2" style="font-size:12px">Escala en cm: ${esc(res.scaleSrc || "")}. Cuadros/s del video: ${res.fps}${res.slow > 1 ? ` · cámara lenta ×${res.slow} (${res.fps * res.slow} cuadros/s reales)` : ""}.${res.fps * res.slow < 60 ? " ⚠️ Con menos de 60 cuadros/s reales los eventos y los ángulos del contacto pierden precisión: filmá en 120 o 240 fps." : ""}</p>
       <h4>Curvas del ciclo <span class="note2">(0% y 100% = contacto)</span></h4>
       <div class="chips" id="rcSel_${k}">${["knee", "hip", "ankle"].map((j, i) => `<button class="chip ${i ? "" : "on"}" data-rc="${j}">${{ knee: "Rodilla", hip: "Cadera", ankle: "Tobillo" }[j]}</button>`).join("")}</div>
       <canvas class="rchart" id="rcC_${k}" style="height:190px"></canvas>`;
   }
   const L = res.sides.L, R = res.sides.R;
-  const rows = ["drop", "ev", "add", "valg", "lean", "sh", "heel"].map(mk => {
+  const rows = ["drop", "bas", "add", "thl", "valg", "ev", "cal", "lean", "sh", "heel"].filter(mk => L[mk]).map(mk => {
     const r = runRef(mk), a = L[mk].m, b = R[mk].m, la = runLevel(mk, a), lb = runLevel(mk, b);
     const diff = Math.abs(a - b), asym = Number.isFinite(diff) && diff > Math.max(mk === "heel" ? 2 : 3, 0.15 * (Math.abs(a) + Math.abs(b)) / 2);
-    return `<tr><td>${r.n}${mk === "ev" ? `<div class="note2" style="font-size:11px">${a > 8 || b > 8 ? "Pronación" : a < -2 || b < -2 ? "Supinación" : "Neutro"} · estimado</div>` : ""}</td><td>${runPill(la, runFmt(mk, a))}</td><td>${runPill(lb, runFmt(mk, b))}</td><td>${Number.isFinite(diff) ? (asym ? "⚠️ " : "") + f1(diff, mk === "heel" ? 1 : 0) + (r.u || "°") : "–"}</td><td class="note2">${r.ref}</td></tr>`;
+    const sub = mk === "ev" ? `${a > 8 || b > 8 ? "Pronación" : a < -2 || b < -2 ? "Supinación" : "Neutro"} · estimado` : mk === "valg" ? "+ valgo / − varo" : mk === "cal" ? "estimado · confirmá con la medición manual" : "";
+    return `<tr><td>${r.n}${sub ? `<div class="note2" style="font-size:11px">${sub}</div>` : ""}</td><td>${runPill(la, runFmt(mk, a))}</td><td>${runPill(lb, runFmt(mk, b))}</td><td>${Number.isFinite(diff) ? (asym ? "⚠️ " : "") + f1(diff, mk === "heel" ? 1 : 0) + (r.u || "°") : "–"}</td><td class="note2">${r.ref}</td></tr>`;
   }).join("");
   const m = res.met;
   return `<div class="rkpis">${runKpi("Cadencia", f1(m.cad.m) + " ppm")}${runKpi("Apoyos izq / der", `${L.n} / ${R.n}`)}${runKpi("Cámara lenta", slowTxt)}</div>
@@ -4793,9 +4940,21 @@ function runViewHTML(k) {
     <div style="overflow-x:auto"><table class="rtable rtl"><tr><th>Indicador</th><th>Valor</th><th>Nivel</th><th>Referencia</th></tr>${runMetricRows(["shTilt", "rotS", "rotP"], m)}</table></div>
     <p class="note2" style="font-size:12px">Caída pélvica: cuánto baja la cadera del lado de la pierna en el aire. Pronación/supinación: ángulo entre la pierna y el talón visto desde atrás (+ pronación, − supinación); es una estimación de baja precisión con una sola cámara, confirmala con la observación del calzado y del pie descalzo. Las rotaciones salen de la profundidad estimada por el modelo: usalas como referencia de simetría.</p>`;
 }
+// Tabla como la de rangos orientativos: vector muslo, flexión de rodilla, ángulo del pie y vector tibia en 3 momentos del apoyo
+const RUN_OBS = [["Vector muslo", ["thighIC", "thighMS", "thighTO"]], ["Flexión de rodilla", ["kneeIC", "kneeMS", "kneeTO"]], ["Ángulo del pie", ["footIC", null, "footTO"]], ["Vector tibia", ["tibiaIC", "tibiaMS", "tibiaTO"]]];
+function runObsHTML(m) {
+  const cell = k => {
+    if (!k || !m[k]) return `<td class="note2">–</td>`;
+    const s = m[k], r = runRef(k), lvl = runLevel(k, s.m);
+    return `<td>${runPill(lvl, runFmt(k, s.m))}${Number.isFinite(s.sd) ? ` <small>±${f1(s.sd)}</small>` : ""}<div class="note2" style="font-size:11px">${r.ref || "dato"}</div></td>`;
+  };
+  return `<div style="overflow-x:auto"><table class="rtable rtl"><tr><th></th><th>Contacto talón/suelo</th><th>Final de amortiguación</th><th>Final de propulsión</th></tr>
+    ${RUN_OBS.map(([n, ks]) => `<tr><td><b>${n}</b></td>${ks.map(cell).join("")}</tr>`).join("")}</table></div>
+    <p class="note2" style="font-size:12px">Vectores: ángulo del segmento (cadera→rodilla, rodilla→tobillo) con la vertical. Ángulo del pie: respecto de la cinta (contacto: punta arriba; propulsión: talón arriba). Final de amortiguación = máxima flexión de rodilla; final de propulsión = último cuadro de apoyo.</p>`;
+}
 function runSymHTML() {
   const a = RUN.views.L, b = RUN.views.R; if (!a || !b) return "";
-  const ks = ["kneeIC", "tibiaIC", "kneeMS", "ankleMS", "hipTO", "kneeSw", "hipSw", "contact", "over"];
+  const ks = ["thighIC", "kneeIC", "tibiaIC", "footIC", "thighMS", "kneeMS", "ankleMS", "thighTO", "kneeTO", "footTO", "hipTO", "kneeSw", "hipSw", "contact", "over"];
   return `<div class="card"><h3>Simetría izquierda / derecha (planos laterales)</h3><div style="overflow-x:auto"><table class="rtable rtl"><tr><th>Indicador</th><th>Izq</th><th>Der</th><th>Dif.</th><th>Asim.</th></tr>
     ${ks.map(k => { const r = runRef(k), x = a.met[k] && a.met[k].m, y = b.met[k] && b.met[k].m, d = Math.abs(x - y), p = d / ((Math.abs(x) + Math.abs(y)) / 2) * 100, flag = Number.isFinite(p) && p > 15 && d > (k === "contact" ? 15 : k === "over" ? 3 : 3);
       return `<tr><td>${r.n}</td><td>${runFmt(k, x)}</td><td>${runFmt(k, y)}</td><td>${Number.isFinite(d) ? f1(d, r.d || 0) + (r.u || "°") : "–"}</td><td>${Number.isFinite(p) ? (flag ? "⚠️ " : "") + f1(p) + "%" : "–"}</td></tr>`; }).join("")}</table></div>
@@ -4804,13 +4963,14 @@ function runSymHTML() {
 function runFindings() {
   const out = [], V = RUN.views;
   const add = (k, v, where) => { const l = runLevel(k, v); if (l === "Regular" || l === "Pobre") { const r = runRef(k), t = r[runDir(k, v)] || r.hi || r.lo; out.push({ lvl: l, txt: `${r.n}${where ? " (" + where + ")" : ""}: ${runFmt(k, v)} — ${t}.` }); } };
-  for (const k of ["R", "L"]) if (V[k]) { const m = V[k].met, w = k === "R" ? "pierna der." : "pierna izq."; ["cad", "kneeIC", "tibiaIC", "kneeMS", "ankleMS", "hipTO", "trunk", "vo"].forEach(x => m[x] && add(x, m[x].m, w)); }
-  if (V.P) { for (const sd of ["L", "R"]) ["drop", "ev", "add", "valg", "lean", "sh", "heel"].forEach(x => add(x, V.P.sides[sd][x].m, sd === "L" ? "izq." : "der.")); add("shTilt", V.P.met.shTilt.m, ""); }
+  for (const k of ["R", "L"]) if (V[k]) { const m = V[k].met, w = k === "R" ? "pierna der." : "pierna izq."; ["cad", "thighIC", "kneeIC", "tibiaIC", "footIC", "thighMS", "kneeMS", "ankleMS", "thighTO", "kneeTO", "footTO", "hipTO", "trunk", "vo"].forEach(x => m[x] && add(x, m[x].m, w)); }
+  if (V.P) { for (const sd of ["L", "R"]) ["drop", "add", "thl", "valg", "ev", "cal", "lean", "sh", "heel"].forEach(x => V.P.sides[sd][x] && add(x, V.P.sides[sd][x].m, sd === "L" ? "izq." : "der.")); add("shTilt", V.P.met.shTilt.m, ""); }
+  if (V.M) for (const q of V.M.meas) { add("shk", q.shk, q.lab); add("cal", q.cal, q.lab + ", manual"); }
   return out;
 }
 function runConclusions() {
   const V = RUN.views, a = athObj(curAth), lines = [];
-  const planes = ["R", "L", "P"].filter(k => V[k]).map(runSideName);
+  const planes = ["R", "L", "P", "M"].filter(k => V[k]).map(runSideName);
   lines.push(`Análisis de la carrera en cinta${RUN.meta.speed ? ` a ${RUN.meta.speed} km/h` : ""}${RUN.meta.incl ? ` (${RUN.meta.incl}% de inclinación)` : ""}${a ? ` de ${a.n}` : ""}. Planos analizados: ${planes.join(", ") || "ninguno"}.`);
   const lat = ["R", "L"].filter(k => V[k]).map(k => V[k]);
   if (lat.length) {
@@ -4849,11 +5009,11 @@ function runDrawCurve(k, joint) {
   g.strokeStyle = col; g.lineWidth = 2.5; g.beginPath(); cv.forEach((p, i) => i ? g.lineTo(X(i), Y(p[0])) : g.moveTo(X(i), Y(p[0]))); g.stroke();
 }
 function runRenderAll() {
-  for (const k of ["R", "L", "P"]) {
+  for (const k of ["R", "L", "P", "M"]) {
     const el = $("rsRes_" + k); if (!el) continue;
     if (RUN.views[k]) {
       el.innerHTML = runViewHTML(k);
-      if (RUN.readonly) { $("rsSt_" + k).textContent = `✓ ${RUN.views[k].nStrides} ${k === "P" ? "ciclos" : "zancadas"}`; $("rsSt_" + k).className = "rs-st ok"; }
+      if (RUN.readonly || k === "M") { $("rsSt_" + k).textContent = `✓ ${RUN.views[k].nStrides} ${k === "P" ? "ciclos" : k === "M" ? "mediciones" : "zancadas"}`; $("rsSt_" + k).className = "rs-st ok"; }
       const sel = $("rcSel_" + k);
       if (sel) { sel.onclick = e => { const b = e.target.closest("[data-rc]"); if (!b) return; sel.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === b)); runDrawCurve(k, b.dataset.rc); }; setTimeout(() => runDrawCurve(k, "knee"), 30); }
     }
@@ -4936,7 +5096,8 @@ async function runPdf(share) {
       para(`Cadencia ${f1(res.met.cad.m)} ppm  ·  contacto ${f1(res.met.contact.m)} ms  ·  apoyo ${f1(res.met.stance.m)}% del ciclo${res.met.stepLen ? `  ·  paso ${f1(res.met.stepLen.m)} cm` : ""}  ·  patrón: ${runStrike(res.met.footIC.m)}`, 9.5);
       await images(RUN.imgs[k], 3, 60);
       table(["Fase", "Cadera", "Rodilla", "Tobillo"], RUN_PH.map(([ph, nm]) => [nm, ...["hip", "knee", "ankle"].map(j => { const s = res.phases[ph][j]; return Number.isFinite(s.m) ? `${f1(runZ(s.m, 0))}° ± ${f1(s.sd)}` : "-"; })]), [60, 40, 41, 41]);
-      table(["Indicador", "Valor", "Nivel", "Referencia"], ["cad", "kneeIC", "tibiaIC", "kneeMS", "ankleMS", "hipTO", "trunk", "vo", "over", "kneeSw", "hipSw"].filter(x => res.met[x]).map(x => { const l = runLevel(x, res.met[x].m); return [runRef(x).n, { t: runFmt(x, res.met[x].m), lvl: l }, l || "dato", runRef(x).ref || ""]; }), [66, 28, 24, 64]);
+      table(["", "Contacto", "Final amortiguación", "Final propulsión"], RUN_OBS.map(([n, ks]) => [n, ...ks.map(x => x && res.met[x] ? { t: runFmt(x, res.met[x].m) + "  (" + (runRef(x).ref || "dato") + ")", lvl: runLevel(x, res.met[x].m) } : "-")]), [34, 50, 50, 48]);
+      table(["Indicador", "Valor", "Nivel", "Referencia"], ["cad", "trunk", "ankleMS", "hipTO", "vo", "over", "kneeSw", "hipSw"].filter(x => res.met[x]).map(x => { const l = runLevel(x, res.met[x].m); return [runRef(x).n, { t: runFmt(x, res.met[x].m), lvl: l }, l || "dato", runRef(x).ref || ""]; }), [66, 28, 24, 64]);
     }
     if (V.L && V.R) {
       ensure(40); h2("Simetría izquierda / derecha");
@@ -4946,9 +5107,15 @@ async function runPdf(share) {
       const res = V.P; doc.addPage(); y = 18; h2(`Plano posterior · ${res.sides.L.n} apoyos izq / ${res.sides.R.n} der`);
       para(`Cadencia ${f1(res.met.cad.m)} ppm.`, 9.5);
       await images(RUN.imgs.P, 4, 62);
-      table(["Indicador", "Izq", "Der", "Referencia"], ["drop", "ev", "add", "valg", "lean", "sh", "heel"].map(x => [runRef(x).n, { t: runFmt(x, res.sides.L[x].m), lvl: runLevel(x, res.sides.L[x].m) }, { t: runFmt(x, res.sides.R[x].m), lvl: runLevel(x, res.sides.R[x].m) }, runRef(x).ref]), [66, 28, 28, 60]);
+      table(["Indicador", "Izq", "Der", "Referencia"], ["drop", "bas", "add", "thl", "valg", "ev", "cal", "lean", "sh", "heel"].filter(x => res.sides.L[x]).map(x => [runRef(x).n, { t: runFmt(x, res.sides.L[x].m), lvl: runLevel(x, res.sides.L[x].m) }, { t: runFmt(x, res.sides.R[x].m), lvl: runLevel(x, res.sides.R[x].m) }, runRef(x).ref]), [66, 28, 28, 60]);
       table(["Indicador", "Valor", "Referencia"], ["shTilt", "rotS", "rotP"].map(x => [runRef(x).n, { t: runFmt(x, res.met[x].m), lvl: runLevel(x, res.met[x].m) }, runRef(x).ref || "dato"]), [80, 40, 62]);
       para("Pronación/supinación: estimación de baja precisión con una sola cámara. Rotaciones: a partir de la profundidad estimada por el modelo.", 8, [122, 136, 150]);
+    }
+    if (V.M && V.M.meas.length) {
+      doc.addPage(); y = 18; h2("Retropié · medición manual (línea de Helbing)");
+      await images(RUN.imgs.M, 3, 60);
+      table(["Momento", "Pierna-talón", "Calcáneo vs suelo"], V.M.meas.map(q => [q.lab, { t: runFmt("shk", q.shk), lvl: runLevel("shk", q.shk) }, { t: runFmt("cal", q.cal), lvl: runLevel("cal", q.cal) }]), [70, 56, 56]);
+      para(`Pierna-talón: + pronación (eversión), - supinación (inversión); referencia ${runRef("shk").ref}. Calcáneo vs suelo: ${runRef("cal").ref}. Medición manual sobre el video, cuadro a cuadro.`, 8, [122, 136, 150]);
     }
     const pages = doc.getNumberOfPages();
     for (let i = 1; i <= pages; i++) { doc.setPage(i); doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(150, 160, 170);
@@ -4971,7 +5138,7 @@ $("goRun").onclick = openRun;
 
 
 // ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
-const APP_VERSION = "23 oct 2026 (c)";
+const APP_VERSION = "23 oct 2026 (d)";
 $("verTxt").textContent = APP_VERSION;
 async function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
