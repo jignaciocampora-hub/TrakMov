@@ -210,8 +210,8 @@
   .rs-st.ok{background:#E3F4EA;color:#2F7D55}
   .rs-st:empty{display:none}
   .rs-vwrap{position:relative;margin:12px 0 8px;background:#0F2233;border-radius:14px;overflow:hidden}
-  .rs-vwrap video{display:block;width:100%;max-height:62vh;background:#0F2233}
-  .rs-vwrap canvas{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+  .rs-vwrap video{display:block;position:static !important;width:100% !important;height:auto !important;max-height:62vh;opacity:1 !important;background:#0F2233}
+  .rs-vwrap canvas{position:absolute !important;left:0;top:0;right:0;bottom:0;width:100% !important;height:100% !important;max-height:none !important;pointer-events:none;z-index:2;touch-action:manipulation}
   .rs-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
   .rs-opts label{display:flex;flex-direction:column;gap:4px;font:600 13px Barlow,sans-serif;color:#6B7B8A}
   .rs-opts select,.rs-opts input{font:400 16px Barlow,sans-serif;padding:9px 10px;border:1px solid #D5DCE2;border-radius:10px;background:#fff;color:#34495E;width:100%;box-sizing:border-box}
@@ -4453,6 +4453,8 @@ function runBuildSlots() {
           <label>Tramo a analizar<select id="rsDur_${k}"><option value="6">6 s</option><option value="10" selected>10 s</option><option value="20">20 s</option><option value="40">40 s</option><option value="9999">Hasta el final</option></select></label>
         </div>
         <p class="note2" style="margin:6px 0 0">Se analiza desde donde está el video: mové la barra hasta que corra a ritmo estable.</p>
+        <button class="btn-o wide" id="rsPick_${k}" style="padding:12px !important">👆 Elegir al atleta</button>
+        <p class="note2 hidden" id="rsPickMsg_${k}" style="margin:6px 0 0"></p>
         <button class="btn-d wide" id="rsGo_${k}">▶ Analizar este plano</button>
         <div class="rs-prog hidden" id="rsProg_${k}"><div></div><span></span></div>
       </div>`}
@@ -4460,12 +4462,13 @@ function runBuildSlots() {
   }).join("") || '<div class="card"><p>Esta evaluación no tiene planos analizados.</p></div>';
   if (ro) return;
   $("runSlots").querySelectorAll("[data-rsfile]").forEach(inp => inp.onchange = e => { const f = e.target.files[0]; if (f) runLoadVideo(inp.dataset.rsfile, f); e.target.value = ""; });
-  for (const k of ["R", "L", "P"]) $("rsGo_" + k).onclick = () => runProcess(k);
+  for (const k of ["R", "L", "P"]) { $("rsGo_" + k).onclick = () => runProcess(k); $("rsPick_" + k).onclick = () => runPickMode(k); }
 }
 async function runLoadVideo(k, file) {
   const st = RS[k]; if (st.busy) return;
   if (st.url) URL.revokeObjectURL(st.url);
-  st.url = URL.createObjectURL(file); st.frames = null; st.fpsAuto = null; st.name = file.name;
+  st.url = URL.createObjectURL(file); st.frames = null; st.fpsAuto = null; st.name = file.name; st.pick = null; st.preview = null; st.picking = false;
+  $("rsPickMsg_" + k).classList.add("hidden"); $("rsPick_" + k).textContent = "👆 Elegir al atleta";
   const v = $("rsV_" + k); v.src = st.url; v.muted = true;
   $("rsBody_" + k).classList.remove("hidden");
   $("rsSt_" + k).textContent = "Video cargado"; $("rsSt_" + k).className = "rs-st";
@@ -4488,18 +4491,58 @@ async function runEstFps(v) {
 // Detección de la pose recortando alrededor del atleta (más resolución donde importa)
 const runCv = document.createElement("canvas"), runCx = runCv.getContext("2d", { willReadFrequently: false });
 let runTs = 0;
-function runDetect(L, v, roi) {
+function runBox(lm) {
+  let x0 = 1, x1 = 0, y0 = 1, y1 = 0;
+  for (const i of [0, 11, 12, 23, 24, 25, 26, 27, 28]) { const p = lm[i]; if ((p.visibility ?? 1) < 0.2) continue; x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
+  return { x0, x1, y0, y1, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, h: Math.max(0.01, y1 - y0) };
+}
+// Todas las personas que ve el modelo (con coordenadas del cuadro completo)
+function runDetectAll(L, v, roi) {
   const vw = v.videoWidth, vh = v.videoHeight, r = roi || { x: 0, y: 0, w: 1, h: 1 };
   const sw = r.w * vw, sh = r.h * vh, sc = Math.min(1, 1280 / Math.max(sw, sh));
   runCv.width = Math.max(1, Math.round(sw * sc)); runCv.height = Math.max(1, Math.round(sh * sc));
   runCx.drawImage(v, r.x * vw, r.y * vh, sw, sh, 0, 0, runCv.width, runCv.height);
   runTs = Math.max(runTs + 1, performance.now());
   const res = L.detectForVideo(runCv, runTs);
-  if (!res.landmarks.length) return null;
-  // si hay varias personas: la más grande (en la cinta suele ser el atleta)
-  let bi = 0, bh = -1;
-  res.landmarks.forEach((l, i) => { const ys = l.map(p => p.y), h = Math.max(...ys) - Math.min(...ys); if (h > bh) { bh = h; bi = i; } });
-  return { lm: res.landmarks[bi].map(p => ({ x: r.x + p.x * r.w, y: r.y + p.y * r.h, z: p.z * r.w, visibility: p.visibility ?? 1 })), wl: res.worldLandmarks[bi].map(p => ({ x: p.x, y: p.y, z: p.z })) };
+  return res.landmarks.map((l, i) => {
+    const lm = l.map(p => ({ x: r.x + p.x * r.w, y: r.y + p.y * r.h, z: p.z * r.w, visibility: p.visibility ?? 1 }));
+    return { lm, wl: res.worldLandmarks[i].map(p => ({ x: p.x, y: p.y, z: p.z })), box: runBox(lm) };
+  });
+}
+// La persona más parecida (posición y tamaño) a la que venimos siguiendo; si ninguna se parece, se considera perdida
+function runChoose(cands, target) {
+  let best = null, bd = Infinity;
+  for (const c of cands) { const d = Math.hypot(c.box.cx - target.cx, c.box.cy - target.cy) / target.h + Math.abs(Math.log(c.box.h / target.h)); if (d < bd) { bd = d; best = c; } }
+  return bd < 0.6 ? best : null;
+}
+// Elige al atleta antes de analizar: el que tocaste o, si no, el que se MUEVE como corredor
+// (un póster, una foto o alguien quieto en el fondo no mueve las piernas)
+async function runPickTarget(L, v, t0, t1, pick) {
+  const span = Math.min(2, Math.max(0.3, t1 - t0)), N = 10, tracks = [];
+  for (let s = 0; s < N; s++) {
+    await runSeek(v, t0 + span * s / (N - 1));
+    let cands = []; try { cands = runDetectAll(L, v, null); } catch {}
+    if (s === 0 && pick) {
+      let best = null, bd = Infinity;
+      for (const c of cands) { const b = c.box, inside = pick.x >= b.x0 - 0.04 && pick.x <= b.x1 + 0.04 && pick.y >= b.y0 - 0.08 && pick.y <= b.y1 + 0.05; const d = Math.hypot(b.cx - pick.x, b.cy - pick.y) - (inside ? 1 : 0); if (d < bd) { bd = d; best = c; } }
+      if (best) return { cand: best, picked: true };
+    }
+    for (const c of cands) {
+      let tr = null, bd = Infinity;
+      for (const t of tracks) { if (t.last === s) continue; const d = Math.hypot(c.box.cx - t.box.cx, c.box.cy - t.box.cy) / t.box.h; if (d < bd) { bd = d; tr = t; } }
+      if (tr && bd < 0.5) { tr.items.push(c); tr.box = c.box; tr.last = s; } else tracks.push({ items: [c], box: c.box, last: s });
+    }
+  }
+  const score = t => {
+    if (t.items.length < 4) return -1;
+    const h = rMed(t.items.map(c => c.box.h));
+    const sd = j => { const xs = t.items.map(c => c.lm[j].x), ys = t.items.map(c => c.lm[j].y); return (rSD(xs) + rSD(ys)) / h; };
+    return rMean([25, 26, 27, 28, 31, 32].map(sd)) * Math.min(1, t.items.length / 7) * (0.5 + Math.min(1, h * 2));
+  };
+  tracks.forEach(t => t.score = score(t));
+  tracks.sort((a, b) => b.score - a.score);
+  if (!tracks.length || tracks[0].score < 0) return null;
+  return { cand: tracks[0].items[0], score: tracks[0].score, n: tracks.length };
 }
 function runRoiFrom(lm, vw, vh) {
   let x0 = 1, x1 = 0, y0 = 1, y1 = 0;
@@ -4530,10 +4573,16 @@ async function runProcess(k) {
     if (nTot > 3200) nTot = 3200;
     const raw = []; let roi = null, miss = 0;
     const vw = v.videoWidth, vh = v.videoHeight;
+    lab.textContent = st.pick ? "Buscando al atleta que marcaste…" : "Buscando al atleta (la persona que corre)…";
+    const tg = await runPickTarget(L, v, t0, t1, st.pick);
+    if (!tg) throw new Error("No encontré a ninguna persona corriendo. Revisá que el atleta se vea entero (con los pies) y no esté cortado por el borde del video.");
+    let target = tg.cand.box; roi = runRoiFrom(tg.cand.lm, vw, vh);
     for (let i = 0; i < nTot && !st.cancel; i++) {
       const t = t0 + i * dt; await runSeek(v, t);
-      let d = null; try { d = runDetect(L, v, roi); if (!d && roi) d = runDetect(L, v, null); } catch {}
-      if (d) { roi = runRoiFrom(d.lm, vw, vh); miss = 0; raw.push({ t, ...d }); } else { if (++miss > 3) roi = null; raw.push({ t, lm: null }); }
+      let d = null;
+      try { d = runChoose(runDetectAll(L, v, roi), target); if (!d && roi) d = runChoose(runDetectAll(L, v, null), target); } catch {}
+      if (d) { target = { cx: target.cx * 0.4 + d.box.cx * 0.6, cy: target.cy * 0.4 + d.box.cy * 0.6, h: target.h * 0.4 + d.box.h * 0.6 }; roi = runRoiFrom(d.lm, vw, vh); miss = 0; raw.push({ t, lm: d.lm, wl: d.wl }); }
+      else { if (++miss > 3) roi = null; raw.push({ t, lm: null }); }
       if (i % 4 === 0) { bar.style.width = (i / nTot * 100).toFixed(0) + "%"; lab.textContent = `Analizando cuadro ${i + 1} de ${nTot} (${fps} cuadros/s)…`; await new Promise(r => requestAnimationFrame(r)); }
     }
     if (st.cancel) throw new Error("Análisis cancelado.");
@@ -4558,6 +4607,11 @@ async function runProcess(k) {
       const sx = gaussSmooth(g("lm", "x"), ok, sig), sy = gaussSmooth(g("lm", "y"), ok, sig), sz = gaussSmooth(g("lm", "z"), okA, sig);
       const wx = gaussSmooth(g("wl", "x"), okA, sig), wy = gaussSmooth(g("wl", "y"), okA, sig), wz = gaussSmooth(g("wl", "z"), okA, sig);
       for (let i = 0; i < n; i++) { frames[i].lm[j] = { x: sx[i], y: sy[i], z: sz[i], visibility: raw[i].lm[j].visibility }; frames[i].wl[j] = { x: wx[i], y: wy[i], z: wz[i] }; }
+    }
+    {
+      const legH = rMed(frames.map(f => Math.abs(((f.lm[27].y + f.lm[28].y) - (f.lm[23].y + f.lm[24].y)) / 2))) || 0.1;
+      const mov = Math.max(...[27, 28, 29, 30].map(j => (rPct(frames.map(f => f.lm[j].y), 0.95) - rPct(frames.map(f => f.lm[j].y), 0.05)) / legH));
+      if (mov < 0.07) throw new Error("La persona detectada casi no mueve las piernas: puede ser un póster, una foto o alguien quieto en el fondo. Tocá «👆 Elegir al atleta», tocá sobre el corredor y volvé a analizar. Si el corredor sale cortado por el borde, alejá la cámara (2–3 m) para que se vea entero.");
     }
     const a = athObj(curAth);
     const opt = { W: vw, H: vh, fps, side: k, slow: $("rsSlow_" + k).value, height: a && +a.altura || 0, speed: +$("runSpeed").value || 0 };
@@ -4649,6 +4703,14 @@ function runOverlayBind(k) {
     const w = v.clientWidth, h = v.clientHeight; if (!w) return;
     if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
     g.clearRect(0, 0, w, h);
+    if (st.preview && (!st.frames || !res)) {
+      const vw = v.videoWidth, vh = v.videoHeight, s = Math.min(w / vw, h / vh), ox = (w - vw * s) / 2, oy = (h - vh * s) / 2;
+      const P = i => ({ x: ox + st.preview[i].x * vw * s, y: oy + st.preview[i].y * vh * s });
+      g.strokeStyle = "#5BBF8A"; g.lineWidth = 3; g.lineCap = "round";
+      for (const [a, b] of BONES) { g.beginPath(); g.moveTo(P(a).x, P(a).y); g.lineTo(P(b).x, P(b).y); g.stroke(); }
+      const bx = runBox(st.preview); g.setLineDash([6, 5]); g.strokeRect(ox + bx.x0 * vw * s - 10, oy + bx.y0 * vh * s - 24, (bx.x1 - bx.x0) * vw * s + 20, (bx.y1 - bx.y0) * vh * s + 40); g.setLineDash([]);
+      return;
+    }
     if (!st.frames || !res || !res.vw) return;
     const t = v.currentTime; if (t < res.t0 - 0.05 || t > res.t1 + 0.05) return;
     const i = Math.max(0, Math.min(st.frames.length - 1, Math.round((t - res.t0) * res.fps)));
@@ -4658,6 +4720,32 @@ function runOverlayBind(k) {
   };
   const loop = () => { draw(); if (!v.paused && !v.ended) requestAnimationFrame(loop); };
   v.onplay = () => requestAnimationFrame(loop); v.onseeked = draw; v.ontimeupdate = draw;
+  RS[k].redraw = draw;
+  c.onclick = async e => {
+    const st = RS[k]; if (!st.picking) return;
+    st.picking = false; c.style.pointerEvents = "none"; $("rsPick_" + k).textContent = "👆 Elegir al atleta";
+    const r = c.getBoundingClientRect(), vw = v.videoWidth, vh = v.videoHeight, s = Math.min(r.width / vw, r.height / vh);
+    const x = ((e.clientX - r.left) - (r.width - vw * s) / 2) / (vw * s), y = ((e.clientY - r.top) - (r.height - vh * s) / 2) / (vh * s);
+    const msg = $("rsPickMsg_" + k); msg.classList.remove("hidden"); msg.textContent = "Buscando a la persona que tocaste…";
+    try {
+      const model = isMobile ? "full" : "heavy"; await init(model);
+      const cands = runDetectAll(LMS[model], v, null);
+      let best = null, bd = Infinity;
+      for (const cd of cands) { const b = cd.box, inside = x >= b.x0 - 0.04 && x <= b.x1 + 0.04 && y >= b.y0 - 0.08 && y <= b.y1 + 0.05; const d = Math.hypot(b.cx - x, b.cy - y) - (inside ? 1 : 0); if (d < bd) { bd = d; best = cd; } }
+      if (!best || bd > 0.25) { st.pick = null; st.preview = null; msg.textContent = "⚠️ No reconocí a una persona en ese lugar. Probá en otro cuadro del video, donde el atleta se vea entero."; }
+      else { st.pick = { x, y }; st.preview = best.lm; st.frames = null; msg.textContent = `✓ Atleta marcado (en verde). Se va a seguir a esta persona e ignorar al resto${cands.length > 1 ? ` (hay ${cands.length} personas en la imagen)` : ""}.`; }
+    } catch (err) { msg.textContent = "No se pudo buscar a la persona: " + (err.message || err); }
+    draw();
+  };
+}
+function runPickMode(k) {
+  const st = RS[k], c = $("rsC_" + k), v = $("rsV_" + k);
+  if (st.busy) return;
+  st.picking = !st.picking; v.pause();
+  c.style.pointerEvents = st.picking ? "auto" : "none"; c.style.cursor = st.picking ? "crosshair" : "";
+  $("rsPick_" + k).textContent = st.picking ? "✋ Tocá al atleta en el video…" : "👆 Elegir al atleta";
+  const msg = $("rsPickMsg_" + k); msg.classList.remove("hidden");
+  msg.textContent = st.picking ? "Pausá en un cuadro donde se vea bien al corredor y tocalo sobre el video." : (st.pick ? "✓ Atleta marcado." : "");
 }
 
 // ---------- Resultados ----------
@@ -4883,7 +4971,7 @@ $("goRun").onclick = openRun;
 
 
 // ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
-const APP_VERSION = "23 oct 2026 (b)";
+const APP_VERSION = "23 oct 2026 (c)";
 $("verTxt").textContent = APP_VERSION;
 async function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
