@@ -549,11 +549,11 @@
           <li><b>Frontal 1 · cuerpo completo</b> (cámara detrás, centrada con la cinta, de la cabeza a los pies) → slot ③ Posterior: alineación global, tronco, hombros, ancho de paso.</li>
           <li><b>Frontal 2 · medio cuerpo</b> (de la pelvis a los pies): pelvic drop, aducción de cadera y rodilla. El reconocimiento automático necesita ver el cuerpo entero, así que usala para mirar en detalle y medir con el goniómetro del análisis de video.</li>
           <li><b>Frontal 3 · retropié</b> (pies y tobillos, cámara a la altura de los tobillos) → slot ④: pronación/supinación con la línea de Helbing.</li>
-          <li><b>Lateral derecho</b> y <b>5. lateral izquierdo</b> (cámara a 2–3 m, a la altura de la cadera, cuerpo entero con los pies y la cinta) → slots ① y ②.</li>
+          <li><b>Lateral derecho</b> y <b>5. lateral izquierdo</b> → slots ① y ②. Pueden ser <b>de la cadera para abajo</b> (modo «marcar 5 puntos») o de cuerpo entero (reconocimiento automático). Cámara perpendicular, a la altura de la rodilla/cadera, con los pies y la cinta siempre en cuadro.</li>
         </ol>
         <p style="margin:10px 0 6px"><b>Marcas a colocar</b> (cinta o stickers que contrasten con la piel/ropa):</p>
         <ul class="steps">
-          <li><b>Lateral:</b> trocánter mayor · cóndilo externo / cabeza del peroné · maléolo externo.</li>
+          <li><b>Lateral:</b> trocánter mayor · cóndilo externo / cabeza del peroné · maléolo externo · <b>talón y punta de la zapatilla</b>. Stickers redondos de ~2 cm de un color fuerte que no esté en la ropa ni en la zapatilla (amarillo, verde o fucsia): la app los sigue por color y la precisión mejora muchísimo.</li>
           <li><b>Posterior:</b> C7 · T7 · espinas ilíacas posterosuperiores (izq. y der.).</li>
           <li><b>Retropié:</b> línea de Helbing: una línea en el centro de la pantorrilla/Aquiles y otra en el centro del calcáneo (también sobre la zapatilla si corre calzado).</li>
         </ul>
@@ -4484,7 +4484,9 @@ function runBuildSlots() {
           <label>Cuadros/s del video<select id="rsFps_${k}"><option value="auto">Detectar solo</option><option>30</option><option>60</option><option>120</option><option>240</option></select></label>
           <label>Tramo a analizar<select id="rsDur_${k}"><option value="6">6 s</option><option value="10" selected>10 s</option><option value="20">20 s</option><option value="40">40 s</option><option value="9999">Hasta el final</option></select></label>
         </div>
-        <p class="note2" style="margin:6px 0 0">Se analiza desde donde está el video: mové la barra hasta que corra a ritmo estable.</p>
+        ${k === "P" ? "" : `<div class="rs-opts" style="margin-top:10px"><label style="grid-column:1/-1">Encuadre del video<select id="rsMode_${k}"><option value="mk">De la cadera para abajo · marcar 5 puntos</option><option value="auto">Cuerpo entero · reconocimiento automático</option></select></label></div>`}
+        <p class="note2" style="margin:6px 0 0" id="rsHint_${k}">Se analiza desde donde está el video: mové la barra hasta que corra a ritmo estable.</p>
+        ${k === "P" ? "" : `<button class="btn-o wide" id="rsMk_${k}" style="padding:12px !important">📍 Marcar los 5 puntos</button>`}
         <button class="btn-o wide" id="rsPick_${k}" style="padding:12px !important">👆 Elegir al atleta</button>
         <p class="note2 hidden" id="rsPickMsg_${k}" style="margin:6px 0 0"></p>
         <button class="btn-d wide" id="rsGo_${k}">▶ Analizar este plano</button>
@@ -4495,12 +4497,27 @@ function runBuildSlots() {
   if (ro) return;
   runMBind();
   $("runSlots").querySelectorAll("[data-rsfile]").forEach(inp => inp.onchange = e => { const f = e.target.files[0]; if (f) (inp.dataset.rsfile === "M" ? runMLoad(f) : runLoadVideo(inp.dataset.rsfile, f)); e.target.value = ""; });
-  for (const k of ["R", "L", "P"]) { $("rsGo_" + k).onclick = () => runProcess(k); $("rsPick_" + k).onclick = () => runPickMode(k); }
+  for (const k of ["R", "L", "P"]) { $("rsGo_" + k).onclick = () => (runIsMk(k) ? runProcessMarkers(k) : runProcess(k)); $("rsPick_" + k).onclick = () => runPickMode(k); }
+  for (const k of ["R", "L"]) {
+    let md = "mk"; try { md = localStorage.getItem("am_runmode") || "mk"; } catch {}
+    $("rsMode_" + k).value = md; $("rsMk_" + k).onclick = () => runMkMode(k);
+    $("rsMode_" + k).onchange = () => { try { localStorage.setItem("am_runmode", $("rsMode_" + k).value); } catch {} runModeUI(k); };
+    runModeUI(k);
+  }
+}
+const runIsMk = k => k !== "P" && $("rsMode_" + k) && $("rsMode_" + k).value === "mk";
+function runModeUI(k) {
+  const mkm = runIsMk(k);
+  $("rsMk_" + k).classList.toggle("hidden", !mkm); $("rsPick_" + k).classList.toggle("hidden", mkm);
+  $("rsHint_" + k).textContent = mkm
+    ? "Pausá en un cuadro donde corra estable y se vea bien la pierna, tocá «📍 Marcar los 5 puntos» y marcá cadera, rodilla, tobillo, talón y punta del pie. Si pusiste marcas (stickers), tocá justo sobre ellas: el seguimiento es mucho más preciso."
+    : "Se analiza desde donde está el video: mové la barra hasta que corra a ritmo estable. Tiene que verse el cuerpo entero, con la cabeza y los pies.";
 }
 async function runLoadVideo(k, file) {
   const st = RS[k]; if (st.busy) return;
   if (st.url) URL.revokeObjectURL(st.url);
-  st.url = URL.createObjectURL(file); st.frames = null; st.fpsAuto = null; st.name = file.name; st.pick = null; st.preview = null; st.picking = false;
+  st.url = URL.createObjectURL(file); st.frames = null; st.fpsAuto = null; st.name = file.name; st.pick = null; st.preview = null; st.picking = false; st.mk = null; st.trk = null; st.marking = false; st.mkNew = null;
+  if ($("rsMk_" + k)) $("rsMk_" + k).textContent = "📍 Marcar los 5 puntos";
   $("rsPickMsg_" + k).classList.add("hidden"); $("rsPick_" + k).textContent = "👆 Elegir al atleta";
   const v = $("rsV_" + k); v.src = st.url; v.muted = true;
   $("rsBody_" + k).classList.remove("hidden");
@@ -4641,6 +4658,11 @@ async function runProcess(k) {
       const wx = gaussSmooth(g("wl", "x"), okA, sig), wy = gaussSmooth(g("wl", "y"), okA, sig), wz = gaussSmooth(g("wl", "z"), okA, sig);
       for (let i = 0; i < n; i++) { frames[i].lm[j] = { x: sx[i], y: sy[i], z: sz[i], visibility: raw[i].lm[j].visibility }; frames[i].wl[j] = { x: wx[i], y: wy[i], z: wz[i] }; }
     }
+    if (k !== "P") {
+      const vis = rMed(raw.filter(f => !f.miss).map(f => (f.lm[0].visibility + f.lm[11].visibility + f.lm[12].visibility) / 3));
+      const headIn = rMed(frames.map(f => f.lm[0].y)) > 0.01 && rMed(frames.map(f => Math.min(f.lm[11].y, f.lm[12].y))) > 0.01;
+      if (!(vis > 0.5) || !headIn) throw new Error("En este video no se ve el cuerpo entero (cabeza y hombros), y así el reconocimiento automático inventa los puntos. Elegí «Encuadre: de la cadera para abajo · marcar 5 puntos» y marcá cadera, rodilla, tobillo, talón y punta del pie.");
+    }
     {
       const legH = rMed(frames.map(f => Math.abs(((f.lm[27].y + f.lm[28].y) - (f.lm[23].y + f.lm[24].y)) / 2))) || 0.1;
       const mov = Math.max(...[27, 28, 29, 30].map(j => (rPct(frames.map(f => f.lm[j].y), 0.95) - rPct(frames.map(f => f.lm[j].y), 0.05)) / legH));
@@ -4664,6 +4686,335 @@ async function runProcess(k) {
   } finally { st.busy = false; btn.textContent = "▶ Analizar este plano"; }
 }
 
+// =====================================================================
+// MODO PUNTOS MARCADOS (filmación de la cadera para abajo)
+// El reconocimiento automático necesita ver el cuerpo entero. Si el video es de la cadera para abajo,
+// se marcan 5 puntos en un cuadro y se siguen cuadro a cuadro por imagen (como Kinovea):
+// búsqueda por correlación del parche alrededor de cada punto + longitudes de segmento constantes.
+// =====================================================================
+const MK_NAMES = ["Cadera (trocánter mayor)", "Rodilla (cóndilo externo)", "Tobillo (maléolo externo)", "Talón (atrás de la zapatilla)", "Punta del pie (punta de la zapatilla)"];
+const MK_SHORT = ["Cadera", "Rodilla", "Tobillo", "Talón", "Punta"];
+const mkCv = document.createElement("canvas"), mkCx = mkCv.getContext("2d", { willReadFrequently: true });
+function mkGray(v, sc) {
+  const w = Math.max(16, Math.round(v.videoWidth * sc)), h = Math.max(16, Math.round(v.videoHeight * sc));
+  mkCv.width = w; mkCv.height = h; mkCx.drawImage(v, 0, 0, w, h);
+  const d = mkCx.getImageData(0, 0, w, h).data, g = new Float32Array(w * h);
+  for (let i = 0, j = 0; i < g.length; i++, j += 4) g[i] = 0.299 * d[j] + 0.587 * d[j + 1] + 0.114 * d[j + 2];
+  return { g, d, w, h };
+}
+// ---------- Núcleo del seguimiento de puntos (color del marcador + parches de imagen + restricciones) ----------
+function mkPatch(G, cx, cy, T) {
+  const n = (2 * T + 1) * (2 * T + 1), a = new Float32Array(n);
+  let k = 0, s = 0;
+  for (let y = -T; y <= T; y++) { const yy = Math.min(G.h - 1, Math.max(0, Math.round(cy) + y)); for (let x = -T; x <= T; x++) { const xx = Math.min(G.w - 1, Math.max(0, Math.round(cx) + x)); const v = G.g[yy * G.w + xx]; a[k++] = v; s += v; } }
+  const m = s / n; let q = 0; for (let i = 0; i < n; i++) { a[i] -= m; q += a[i] * a[i]; }
+  return { a, nrm: Math.sqrt(q) || 1, T };
+}
+function mkNcc(G, tp, cx, cy) {
+  const T = tp.T, n = (2 * T + 1) * (2 * T + 1); let s = 0, s2 = 0, dot = 0, k = 0;
+  const x0 = Math.round(cx), y0 = Math.round(cy);
+  if (x0 - T < 0 || y0 - T < 0 || x0 + T >= G.w || y0 + T >= G.h) return -1;
+  for (let y = -T; y <= T; y++) { let o = (y0 + y) * G.w + x0 - T; for (let x = -T; x <= T; x++, o++, k++) { const v = G.g[o]; s += v; s2 += v * v; dot += v * tp.a[k]; } }
+  const m = s / n, varr = s2 - n * m * m; if (varr <= 1e-6) return -1;
+  return dot / (Math.sqrt(varr) * tp.nrm);
+}
+const mkCol = (G, x, y) => { const o = (Math.min(G.h - 1, Math.max(0, Math.round(y))) * G.w + Math.min(G.w - 1, Math.max(0, Math.round(x)))) * 4; return [G.d[o], G.d[o + 1], G.d[o + 2]]; };
+const mkCd = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+function mkMean(G, cx, cy, r0, r1) {
+  let s = [0, 0, 0], n = 0;
+  for (let y = -r1; y <= r1; y++) for (let x = -r1; x <= r1; x++) { const d = Math.hypot(x, y); if (d < r0 || d > r1) continue; const c = mkCol(G, cx + x, cy + y); s[0] += c[0]; s[1] += c[1]; s[2] += c[2]; n++; }
+  return s.map(v => v / (n || 1));
+}
+// ¿Hay un marcador (sticker) de color en el punto tocado? Se guarda su color y su tamaño
+function mkMarker(G, p) {
+  const mc = mkMean(G, p.x, p.y, 0, 2), ring = mkMean(G, p.x, p.y, 9, 13), con = mkCd(mc, ring);
+  if (con < 55) return null;
+  const thr = Math.min(85, Math.max(30, con * 0.35)); let n = 0;
+  for (let y = -12; y <= 12; y++) for (let x = -12; x <= 12; x++) if (mkCd(mkCol(G, p.x + x, p.y + y), mc) < thr) n++;
+  return { mc, thr, rm: Math.max(2, Math.sqrt(n / Math.PI)) };
+}
+// Busca el marcador más cercano a la predicción y centra en su mancha (sirve aunque la imagen esté movida)
+function mkFindColor(G, mk, pred, R) {
+  let best = null, bd = Infinity;
+  const x0 = Math.max(0, Math.round(pred.x - R)), x1 = Math.min(G.w - 1, Math.round(pred.x + R)), y0 = Math.max(0, Math.round(pred.y - R)), y1 = Math.min(G.h - 1, Math.round(pred.y + R));
+  for (let y = y0; y <= y1; y += 1) for (let x = x0; x <= x1; x += 1) {
+    const o = (y * G.w + x) * 4, dd = Math.hypot(G.d[o] - mk.mc[0], G.d[o + 1] - mk.mc[1], G.d[o + 2] - mk.mc[2]);
+    if (dd < mk.thr) { const d = Math.hypot(x - pred.x, y - pred.y); if (d < bd) { bd = d; best = { x, y }; } }
+  }
+  if (!best) return null;
+  let c = best, n = 0;
+  for (let it = 0; it < 5; it++) {
+    const W = Math.max(4, mk.rm * 2.2); let sx = 0, sy = 0; n = 0;
+    for (let y = Math.round(c.y - W); y <= c.y + W; y++) for (let x = Math.round(c.x - W); x <= c.x + W; x++) {
+      if (x < 0 || y < 0 || x >= G.w || y >= G.h || Math.hypot(x - c.x, y - c.y) > W) continue;
+      const o = (y * G.w + x) * 4; if (Math.hypot(G.d[o] - mk.mc[0], G.d[o + 1] - mk.mc[1], G.d[o + 2] - mk.mc[2]) < mk.thr) { sx += x; sy += y; n++; }
+    }
+    if (!n) return null; c = { x: sx / n, y: sy / n };
+  }
+  return n >= Math.max(2, mk.rm * mk.rm * 0.3) ? c : null;
+}
+// Recuperación: busca el marcador en todo el anillo alrededor de la articulación anterior (a la distancia del segmento)
+function mkFindRing(G, mk, center, L, pred) {
+  const R1 = L * 1.3, R0 = L * 0.7;
+  const x0 = Math.max(0, Math.round(center.x - R1)), x1 = Math.min(G.w - 1, Math.round(center.x + R1)), y0 = Math.max(0, Math.round(center.y - R1)), y1 = Math.min(G.h - 1, Math.round(center.y + R1));
+  let best = null, bd = Infinity;
+  for (let y = y0; y <= y1; y += 2) for (let x = x0; x <= x1; x += 2) {
+    const r = Math.hypot(x - center.x, y - center.y); if (r < R0 || r > R1) continue;
+    const o = (y * G.w + x) * 4; if (Math.hypot(G.d[o] - mk.mc[0], G.d[o + 1] - mk.mc[1], G.d[o + 2] - mk.mc[2]) >= mk.thr) continue;
+    const d = Math.hypot(x - pred.x, y - pred.y) + Math.abs(r - L) * 2; if (d < bd) { bd = d; best = { x, y }; }
+  }
+  return best ? mkFindColor(G, mk, best, 6) : null;
+}
+// Manchas de color de marcador en una zona (centroide y tamaño)
+function mkBlobs(G, mks, c, rad) {
+  const x0 = Math.max(0, Math.round(c.x - rad)), x1 = Math.min(G.w - 1, Math.round(c.x + rad)), y0 = Math.max(0, Math.round(c.y - rad)), y1 = Math.min(G.h - 1, Math.round(c.y + rad));
+  const pts = [];
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const o = (y * G.w + x) * 4; for (const m of mks) if (Math.hypot(G.d[o] - m.mc[0], G.d[o + 1] - m.mc[1], G.d[o + 2] - m.mc[2]) < m.thr) { pts.push(x, y); break; } }
+  const rm = Math.max(...mks.map(m => m.rm)), cell = Math.max(3, rm * 1.6), lab = new Int32Array(pts.length / 2).fill(-1), bl = [];
+  for (let i = 0; i < lab.length; i++) {
+    if (lab[i] >= 0) continue;
+    const st = [i]; lab[i] = bl.length; let sx = 0, sy = 0, n = 0;
+    while (st.length) { const k = st.pop(); sx += pts[2 * k]; sy += pts[2 * k + 1]; n++;
+      for (let q = 0; q < lab.length; q++) if (lab[q] < 0 && Math.abs(pts[2 * q] - pts[2 * k]) <= cell && Math.abs(pts[2 * q + 1] - pts[2 * k + 1]) <= cell) { lab[q] = bl.length; st.push(q); } }
+    if (n >= 3) bl.push({ x: sx / n, y: sy / n, n }); else bl.push(null);
+    if (bl.length > 40) break;
+  }
+  return bl.filter(Boolean).sort((a, b) => b.n - a.n).slice(0, 9);
+}
+// Etiqueta tobillo, talón y punta entre las manchas por la forma del triángulo del pie
+function mkLabelFoot(S, blobs, knee, predA) {
+  const F = S.tri, R = S.R;
+  const d = (p, q) => Math.hypot(p.x - q.x, p.y - q.y), cr = (a, h, t) => Math.sign((h.x - a.x) * (t.y - a.y) - (h.y - a.y) * (t.x - a.x));
+  const cand = [...blobs, null]; let best = null;
+  for (const a of blobs) {
+    if (Math.abs(d(a, knee) - S.L[2]) / S.L[2] > 0.3 || (predA && d(a, predA) > R * 1.4) || (S.hipNow && !mkKneeOk(S, S.hipNow, knee, a))) continue;
+    for (const h of cand) for (const t of cand) {
+      if (h === a || t === a || (h && h === t)) continue;
+      if (!h && !t) continue;
+      let cost = predA ? 0.5 * d(a, predA) / R : 0;
+      if (h) cost += Math.abs(d(a, h) - F.ah) / F.ah; else cost += 0.7;
+      if (t) cost += Math.abs(d(a, t) - F.at) / F.at; else cost += 0.7;
+      if (h && t) { cost += Math.abs(d(h, t) - F.ht) / F.ht; if (cr(a, h, t) !== F.chir) continue; }
+      const fv = h && t ? Math.atan2(t.y - h.y, t.x - h.x) : null, aS = Math.atan2(a.y - knee.y, a.x - knee.x);
+      if (fv !== null && Math.abs(mkWrap(fv - aS - S.foot.rel0)) > 1.13) continue;
+      if (!best || cost < best.cost) best = { a, h, t, cost };
+    }
+  }
+  if (!best || best.cost > (predA ? 0.9 : 0.25)) return null;
+  // completar el punto que falte con el triángulo rígido
+  const { a } = best; let { h, t } = best;
+  const ang = (p, q) => Math.atan2(q.y - p.y, q.x - p.x);
+  if (!h) { const th = ang(a, t) - F.angT + F.angH; h = { x: a.x + F.ah * Math.cos(th), y: a.y + F.ah * Math.sin(th) }; }
+  if (!t) { const th = ang(a, h) - F.angH + F.angT; t = { x: a.x + F.at * Math.cos(th), y: a.y + F.at * Math.sin(th) }; }
+  return { a, h, t, full: !!(best.h && best.t), cost: best.cost };
+}
+function mkNccSearch(G, tpls, pred, R, parent, L) {
+  const score = (x, y) => { let c = -1; for (const tp of tpls) c = Math.max(c, mkNcc(G, tp, x, y)); if (parent && L) c -= 1.6 * Math.abs(Math.hypot(x - parent.x, y - parent.y) - L) / L; return c; };
+  let best = { x: pred.x, y: pred.y, s: score(pred.x, pred.y) };
+  const st = Math.max(2, Math.round(R / 10));
+  for (let dy = -R; dy <= R; dy += st) for (let dx = -R; dx <= R; dx += st) { const s = score(pred.x + dx, pred.y + dy); if (s > best.s) best = { x: pred.x + dx, y: pred.y + dy, s }; }
+  const c0 = { ...best };
+  for (let dy = -st; dy <= st; dy++) for (let dx = -st; dx <= st; dx++) { const s = score(c0.x + dx, c0.y + dy); if (s > best.s) best = { x: c0.x + dx, y: c0.y + dy, s }; }
+  return best;
+}
+// Estado inicial (P = puntos tocados, en la escala de trabajo)
+function mkInit(G, P, fps) {
+  const T = Math.max(7, Math.round(Math.min(G.w, G.h) * 0.03));
+  const L = [0, ...[1, 2, 3, 4].map(j => Math.hypot(P[j].x - P[j - 1].x, P[j].y - P[j - 1].y))];
+  const R = Math.max(10, Math.min(90, Math.round((L[1] + L[2]) * 0.32 * 30 / Math.min(fps, 240))));
+  const foot = { h: { x: P[3].x - P[2].x, y: P[3].y - P[2].y }, t: { x: P[4].x - P[2].x, y: P[4].y - P[2].y } };
+  // ángulo neutro pie–tibia: el pie no puede girar más de ~65° desde ahí (rango del tobillo)
+  const dd = (p, q) => Math.hypot(p.x - q.x, p.y - q.y);
+  var tri = { ah: dd(P[2], P[3]), at: dd(P[2], P[4]), ht: dd(P[3], P[4]), chir: Math.sign((P[3].x - P[2].x) * (P[4].y - P[2].y) - (P[3].y - P[2].y) * (P[4].x - P[2].x)), angH: Math.atan2(P[3].y - P[2].y, P[3].x - P[2].x), angT: Math.atan2(P[4].y - P[2].y, P[4].x - P[2].x) };
+  foot.rel0 = Math.atan2(P[4].y - P[3].y, P[4].x - P[3].x) - Math.atan2(P[2].y - P[1].y, P[2].x - P[1].x);
+  const dir = Math.sign(P[4].x - P[3].x) || 1, relK0 = Math.atan2(P[2].y - P[1].y, P[2].x - P[1].x) - Math.atan2(P[1].y - P[0].y, P[1].x - P[0].x);
+  return { T, L, R, foot, tri, dir, relK0, rot: 0, omF: 0, P: P.map(p => ({ ...p })), vel: P.map(() => ({ x: 0, y: 0 })), lib: P.map(p => [mkPatch(G, p.x, p.y, T)]), mk: P.map(p => mkMarker(G, p)), n: 0 };
+}
+// La rodilla solo flexiona hacia un lado: el tobillo no puede quedar "del otro lado" (rango −20° a 155°)
+function mkKneeOk(S, hip, knee, a) { const rel = Math.atan2(a.y - knee.y, a.x - knee.x) - Math.atan2(knee.y - hip.y, knee.x - hip.x), d = mkWrap(rel - S.relK0) * S.dir; return d > -0.35 && d < 2.7; }
+// Un cuadro más. La cadera se predice con su velocidad; cada punto siguiente, girando alrededor del anterior
+// (la tibia gira alrededor de la rodilla, el pie alrededor del tobillo) con su velocidad angular.
+const mkWrap = a => Math.atan2(Math.sin(a), Math.cos(a));
+function mkStep(G, S) {
+  S.n++; S.om = S.om || [0, 0, 0, 0, 0];
+  const NP = [], conf = [], how = [];
+  let footDone = null;
+  for (let j = 0; j < 3; j++) {
+    const prev = S.P[j], L = S.L[j];
+    let pred, R;
+    if (j === 0) { pred = { x: prev.x + S.vel[0].x * 0.8, y: prev.y + S.vel[0].y * 0.8 }; R = Math.max(8, Math.round(S.R * 0.45)); }
+    else {
+      const a0 = Math.atan2(prev.y - S.P[j - 1].y, prev.x - S.P[j - 1].x) + S.om[j] * 0.8;
+      pred = { x: NP[j - 1].x + L * Math.cos(a0), y: NP[j - 1].y + L * Math.sin(a0) };
+      R = Math.min(S.R, Math.max(8, Math.round(L * 0.55)));
+    }
+    if (j === 2 && S.mk[2] && S.mk[3] && S.mk[4]) {
+      S.hipNow = NP[0];
+      const lost = (S.lost || 0) >= 2;
+      const bl = lost ? mkBlobs(G, [S.mk[2], S.mk[3], S.mk[4]], NP[1], L * 1.3 + S.tri.at) : mkBlobs(G, [S.mk[2], S.mk[3], S.mk[4]], pred, R + Math.max(S.tri.at, S.tri.ah) * 1.1);
+      const lf = mkLabelFoot(S, bl, NP[1], lost ? null : pred);
+      if (lf) {
+        footDone = lf; const an = Math.atan2(lf.a.y - NP[1].y, lf.a.x - NP[1].x), ap = Math.atan2(prev.y - S.P[1].y, prev.x - S.P[1].x);
+        S.om[2] = Math.max(-0.6, Math.min(0.6, mkWrap(an - ap)));
+        NP.push(lf.a); conf.push(lf.full ? 0.95 : 0.75); how.push("marcas");
+        continue;
+      }
+    }
+    const parent = j ? NP[j - 1] : null;
+    const okLen = q => (!parent || Math.abs(Math.hypot(q.x - parent.x, q.y - parent.y) - L) / L < 0.3) && (j !== 2 || mkKneeOk(S, NP[0], NP[1], q));
+    let q = null, c = 0, h = "";
+    if (S.mk[j]) { const f = mkFindColor(G, S.mk[j], pred, R); if (f && okLen(f)) { q = f; c = 0.95; h = "color"; } }
+    // con marcador: primero se lo busca por color también alrededor de la articulación anterior; la imagen solo si es muy clara
+    if (!q && j && S.mk[j]) { const f = mkFindRing(G, S.mk[j], NP[j - 1], L, pred); if (f && okLen(f) && Math.hypot(f.x - pred.x, f.y - pred.y) < L * 0.9) { q = f; c = 0.7; h = "recuperado"; } }
+    if (!q) {
+      const b = mkNccSearch(G, S.lib[j], pred, R, parent, L);
+      if (b.s >= (S.mk[j] ? 0.8 : 0.3) && okLen(b)) { q = { x: b.x, y: b.y }; c = b.s; h = "imagen"; }
+    }
+    if (!q) { q = j === 2 && !mkKneeOk(S, NP[0], NP[1], pred) ? { x: NP[1].x + (prev.x - S.P[1].x), y: NP[1].y + (prev.y - S.P[1].y) } : pred; c = 0.1; h = "previsto"; }
+    if (j) { const an = Math.atan2(q.y - NP[j - 1].y, q.x - NP[j - 1].x), ap = Math.atan2(prev.y - S.P[j - 1].y, prev.x - S.P[j - 1].x); S.om[j] = c < 0.3 ? 0 : Math.max(-0.6, Math.min(0.6, mkWrap(an - ap))); }
+    NP.push(q); conf.push(c); how.push(h);
+    // biblioteca de imágenes del punto en distintas posiciones (la carrera es cíclica)
+    if (h !== "previsto" && c > 0.55 && S.n % 3 === 0 && S.lib[j].length < 14) {
+      const np = mkPatch(G, q.x, q.y, S.T);
+      if (Math.max(...S.lib[j].map(tp => { let d = 0; for (let k = 0; k < tp.a.length; k++) d += tp.a[k] * np.a[k]; return d / (tp.nrm * np.nrm); })) < 0.85) S.lib[j].push(np);
+    }
+  }
+  if (footDone) {
+    const f0 = Math.atan2(S.foot.t.y - S.foot.h.y, S.foot.t.x - S.foot.h.x), th = Math.atan2(footDone.t.y - footDone.h.y, footDone.t.x - footDone.h.x) - f0;
+    S.omF = Math.max(-0.6, Math.min(0.6, mkWrap(th - S.rot))); S.rot = th;
+    NP.push(footDone.h, footDone.t); const c = footDone.full ? 0.95 : 0.7; conf.push(c, c); how.push("marcas", "marcas");
+  } else
+  // Pie como cuerpo rígido: se busca la rotación del triángulo tobillo–talón–punta que mejor coincide
+  {
+    const A = NP[2], rotp = (v, th) => ({ x: v.x * Math.cos(th) - v.y * Math.sin(th), y: v.x * Math.sin(th) + v.y * Math.cos(th) });
+    const cs = (j, q) => { let sc = 0; const m = S.mk[j]; if (m) { let n = 0, k = 0; const r = Math.max(2, Math.round(m.rm)); for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) { if (x * x + y * y > r * r) continue; k++; if (mkCd(mkCol(G, q.x + x, q.y + y), m.mc) < m.thr) n++; } sc = n / k; } let c = -1; for (const tp of S.lib[j]) c = Math.max(c, mkNcc(G, tp, q.x, q.y)); return (m ? 1.4 * sc : 0) + 0.6 * Math.max(0, c); };
+    const th0 = S.rot + S.omF * 0.8; let best = null;
+    const aS = Math.atan2(A.y - NP[1].y, A.x - NP[1].x), f0 = Math.atan2(S.foot.t.y - S.foot.h.y, S.foot.t.x - S.foot.h.x);
+    for (let d = -Math.PI; d < Math.PI; d += 0.035) { const th = th0 + d; if (Math.abs(mkWrap(f0 + th - aS - S.foot.rel0)) > 1.13) continue; const H = rotp(S.foot.h, th), Tt = rotp(S.foot.t, th); const h = { x: A.x + H.x, y: A.y + H.y }, t = { x: A.x + Tt.x, y: A.y + Tt.y }; const sc = cs(3, h) + cs(4, t) - 0.35 * Math.abs(d); if (!best || sc > best.sc) best = { th, h, t, sc }; }
+    if (!best) { const th = th0, H = rotp(S.foot.h, th), Tt = rotp(S.foot.t, th); best = { th, h: { x: A.x + H.x, y: A.y + H.y }, t: { x: A.x + Tt.x, y: A.y + Tt.y }, sc: 0 }; }
+    let h = best.h, t = best.t;
+    // ajuste fino de cada punto sobre su marcador (la zapatilla se flexiona un poco)
+    for (const [j, key] of [[3, "h"], [4, "t"]]) if (S.mk[j]) { const f = mkFindColor(G, S.mk[j], key === "h" ? h : t, Math.max(4, Math.round(S.mk[j].rm * 2))); if (f) { if (key === "h") h = f; else t = f; } }
+    const okF = best.sc > 0.5;
+    S.omF = Math.max(-0.6, Math.min(0.6, mkWrap(best.th - S.rot))) * (okF ? 1 : 0.5); S.rot = best.th;
+    NP.push(h, t); conf.push(okF ? Math.min(0.95, best.sc / 2) : 0.2, okF ? Math.min(0.95, best.sc / 2) : 0.2); how.push(okF ? "pie" : "previsto", okF ? "pie" : "previsto");
+  }
+  S.lost = how[2] === "previsto" || how[3] === "previsto" ? (S.lost || 0) + 1 : 0;
+  const v0 = { x: NP[0].x - S.P[0].x, y: NP[0].y - S.P[0].y }; S.vel[0] = conf[0] < 0.3 ? { x: v0.x * 0.5, y: v0.y * 0.5 } : v0;
+  S.P = NP;
+  return { P: NP, conf, how };
+}
+
+// Sigue los 5 puntos desde el cuadro i0 (posiciones p0 en píxeles del video) hasta el final del tramo
+async function mkTrack(st, v, i0, p0, onProg) {
+  const tr = st.trk, sc = Math.min(1, 720 / Math.max(v.videoWidth, v.videoHeight));
+  await runSeek(v, tr.t0 + i0 * tr.dt);
+  let G = mkGray(v, sc);
+  const S = mkInit(G, p0.map(p => ({ x: p.x * sc, y: p.y * sc })), tr.fps);
+  tr.markers = S.mk.map(m => !!m);
+  tr.pts[i0] = p0.map(p => ({ ...p })); tr.conf[i0] = [1, 1, 1, 1, 1];
+  for (let i = i0 + 1; i < tr.n; i++) {
+    if (st.cancel) throw new Error("Análisis cancelado.");
+    await runSeek(v, tr.t0 + i * tr.dt); G = mkGray(v, sc);
+    const r = mkStep(G, S);
+    tr.pts[i] = r.P.map(p => ({ x: p.x / sc, y: p.y / sc })); tr.conf[i] = r.conf;
+    if (onProg && i % 3 === 0) { onProg(i); await new Promise(rr => requestAnimationFrame(rr)); }
+  }
+}
+// Pasa los puntos seguidos al formato de puntos del cuerpo que usa el motor de carrera
+function mkToFrames(tr, k, vw, vh) {
+  const near = k === "R" ? [24, 26, 28, 30, 32] : [23, 25, 27, 29, 31], far = k === "R" ? [23, 25, 27, 29, 31] : [24, 26, 28, 30, 32];
+  const sig = Math.max(0.8, tr.fps * 0.006), n = tr.n;
+  const sm = [0, 1, 2, 3, 4].map(j => { const ok = tr.conf.map(c => c[j] >= 0.25); return { x: gaussSmooth(tr.pts.map(p => p[j].x), ok, sig), y: gaussSmooth(tr.pts.map(p => p[j].y), ok, sig) }; });
+  const legPx = rMed(tr.pts.map(p => Math.hypot(p[1].x - p[0].x, p[1].y - p[0].y) + Math.hypot(p[2].x - p[1].x, p[2].y - p[1].y)));
+  const m = 0.88 / (legPx || 1);   // metros por píxel aproximados (pierna ≈ 88 cm) si no hay altura cargada
+  const frames = [];
+  for (let i = 0; i < n; i++) {
+    const pt = j => ({ x: sm[j].x[i], y: sm[j].y[i] });
+    const hip = pt(0), lm = Array.from({ length: 33 }, () => ({ x: hip.x / vw, y: hip.y / vh, z: 0, visibility: 1 })), wl = Array.from({ length: 33 }, () => ({ x: 0, y: 0, z: 0 }));
+    [0, 1, 2, 3, 4].forEach(j => { const p = pt(j); for (const [ids, z] of [[near, -0.1], [far, 0.1]]) { lm[ids[j]] = { x: p.x / vw, y: p.y / vh, z, visibility: 1 }; wl[ids[j]] = { x: (p.x - hip.x) * m, y: (p.y - hip.y) * m, z }; } });
+    frames.push({ t: tr.t0 + i * tr.dt, lm, wl });
+  }
+  return frames;
+}
+async function runProcessMarkers(k) {
+  const st = RS[k], v = $("rsV_" + k), btn = $("rsGo_" + k);
+  if (st.busy) { st.cancel = true; return; }
+  if (!st.mk || st.mk.pts.length < 5) { runMkMode(k, true); return; }
+  st.busy = true; st.cancel = false; btn.textContent = "■ Cancelar"; v.pause();
+  const prog = $("rsProg_" + k), bar = prog.querySelector("div"), lab = prog.querySelector("span");
+  prog.classList.remove("hidden"); bar.style.width = "0%"; $("rsRes_" + k).innerHTML = "";
+  try {
+    keepAwake();
+    const fpsSel = $("rsFps_" + k).value;
+    lab.textContent = "Midiendo los cuadros por segundo del video…";
+    const fps = fpsSel === "auto" ? (st.fpsAuto = st.fpsAuto || await runEstFps(v)) : +fpsSel;
+    const corr = st.trk && st.mk.fix;   // corrección: se vuelve a seguir desde el cuadro corregido
+    if (!corr) {
+      const t0 = st.mk.t, t1 = Math.min(v.duration - 0.02, t0 + +$("rsDur_" + k).value), dt = 1 / fps;
+      const n = Math.min(3200, Math.floor((t1 - t0) / dt) + 1);
+      st.trk = { t0, dt, fps, n, pts: new Array(n), conf: new Array(n) };
+    }
+    const tr = st.trk, i0 = corr ? Math.max(0, Math.min(tr.n - 2, Math.round((st.mk.t - tr.t0) / tr.dt))) : 0;
+    await mkTrack(st, v, i0, st.mk.pts, i => { bar.style.width = (i / tr.n * 100).toFixed(0) + "%"; lab.textContent = `Siguiendo los puntos: cuadro ${i + 1} de ${tr.n} (${tr.fps} cuadros/s)…`; });
+    const lowConf = rMean(tr.conf.slice(i0).map(c => rMin(c)));
+    const vw = v.videoWidth, vh = v.videoHeight, frames = mkToFrames(tr, k, vw, vh);
+    const a = athObj(curAth);
+    const opt = { W: vw, H: vh, fps: tr.fps, side: k, slow: $("rsSlow_" + k).value, height: a && +a.altura || 0, speed: +$("runSpeed").value || 0 };
+    const res = runAnalyzeLateral(frames, opt);
+    if (res.error) throw new Error(res.error + " Si algún punto se despegó, pausá donde se ve mal, tocá «📍 Corregir desde este cuadro» y volvé a analizar.");
+    res.markers = true; res.trackQ = lowConf;
+    if (!(a && +a.altura)) res.scaleSrc = "estimada (cargá la altura del atleta para medir en cm con precisión)";
+    delete res.met.trunk; delete res.met.hipTO;   // sin tronco en el cuadro: la cadera se expresa como vector del muslo
+    res.t0 = tr.t0; res.t1 = tr.t0 + (tr.n - 1) * tr.dt; res.vw = vw; res.vh = vh; res.date = new Date().toISOString();
+    st.frames = frames; RUN.views[k] = res; st.mk.fix = false;
+    lab.textContent = "Generando las imágenes de cada fase…"; bar.style.width = "100%";
+    RUN.imgs[k] = await runSnaps(k, v, frames, res);
+    prog.classList.add("hidden");
+    $("rsSt_" + k).textContent = `✓ ${res.nStrides} zancadas`; $("rsSt_" + k).className = "rs-st ok";
+    $("rsPickMsg_" + k).classList.remove("hidden");
+    $("rsPickMsg_" + k).textContent = (lowConf < 0.45 ? "⚠️ El seguimiento tuvo cuadros dudosos (imagen movida o puntos poco visibles). " : "✓ Seguimiento estable. ") + "Reproducí el video y controlá que los puntos sigan a la pierna; si alguno se despega, pausá ahí y tocá «📍 Corregir desde este cuadro».";
+    $("rsMk_" + k).textContent = "📍 Corregir desde este cuadro";
+    RUN.concl = null; runRenderAll();
+    $("rsRes_" + k).scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) {
+    prog.classList.add("hidden");
+    $("rsRes_" + k).innerHTML = `<div class="rs-err">⚠️ ${esc(e.message || String(e))}</div>`;
+  } finally { st.busy = false; btn.textContent = "▶ Analizar este plano"; }
+}
+const rMin = a => Math.min(...a.filter(Number.isFinite));
+// Marcar los 5 puntos tocando sobre el video (también sirve para corregir un cuadro)
+function runMkMode(k, force) {
+  const st = RS[k], c = $("rsC_" + k), v = $("rsV_" + k);
+  if (st.busy) return;
+  st.marking = force ? true : !st.marking; v.pause();
+  c.style.pointerEvents = st.marking ? "auto" : "none"; c.style.cursor = st.marking ? "crosshair" : "";
+  const msg = $("rsPickMsg_" + k); msg.classList.remove("hidden");
+  if (st.marking) { st.mkNew = []; msg.textContent = `Pausá en un cuadro donde se vea bien la pierna (ideal: en el apoyo). Tocá 1/5 · ${MK_NAMES[0]}`; $("rsMk_" + k).textContent = "✕ Cancelar"; }
+  else { st.mkNew = null; msg.textContent = st.mk ? "Puntos marcados." : ""; $("rsMk_" + k).textContent = st.trk ? "📍 Corregir desde este cuadro" : "📍 Marcar los 5 puntos"; }
+  st.redraw && st.redraw();
+}
+function runMkTap(k, x, y) {
+  const st = RS[k], v = $("rsV_" + k), msg = $("rsPickMsg_" + k);
+  st.mkNew.push({ x, y });
+  if (st.mkNew.length < 5) { msg.textContent = `Tocá ${st.mkNew.length + 1}/5 · ${MK_NAMES[st.mkNew.length]}`; st.redraw && st.redraw(); return; }
+  const fix = !!(st.trk && RUN.views[k] && v.currentTime >= st.trk.t0 && v.currentTime <= st.trk.t0 + st.trk.n * st.trk.dt);
+  st.mk = { t: v.currentTime, pts: st.mkNew, fix }; st.mkNew = null; st.marking = false;
+  if (!fix) { st.trk = null; st.frames = null; }
+  $("rsC_" + k).style.pointerEvents = "none";
+  $("rsMk_" + k).textContent = st.trk ? "📍 Corregir desde este cuadro" : "📍 Marcar los 5 puntos";
+  msg.textContent = fix ? "✓ Cuadro corregido. Tocá «▶ Analizar este plano» para volver a seguir los puntos desde acá." : "✓ 5 puntos marcados. Tocá «▶ Analizar este plano». El análisis empieza en este cuadro.";
+  st.redraw && st.redraw();
+}
+function runMkDraw(g, st, s, ox, oy) {
+  const pts = st.mkNew || (st.mk && !st.frames ? st.mk.pts : null); if (!pts) return;
+  const P = q => ({ x: ox + q.x * s, y: oy + q.y * s });
+  g.strokeStyle = "#5BBF8A"; g.lineWidth = 3; g.lineCap = "round";
+  if (pts.length > 1) { g.beginPath(); pts.slice(0, 3).forEach((q, i) => i ? g.lineTo(P(q).x, P(q).y) : g.moveTo(P(q).x, P(q).y)); g.stroke(); }
+  if (pts.length > 3) { g.beginPath(); [pts[2], pts[3], pts[4] || pts[3], pts[2]].forEach((q, i) => i ? g.lineTo(P(q).x, P(q).y) : g.moveTo(P(q).x, P(q).y)); g.stroke(); }
+  pts.forEach((q, i) => { const A = P(q); g.fillStyle = "#5BBF8A"; g.strokeStyle = "#fff"; g.lineWidth = 2; g.beginPath(); g.arc(A.x, A.y, 7, 0, 7); g.fill(); g.stroke(); runTag(g, A.x + 10, A.y + 6, MK_SHORT[i], "", 12); });
+}
+
 // ---------- Dibujo del esqueleto sobre el cuadro ----------
 const RUN_COL = { L: "#F2A33A", R: "#3FB8A0" };
 function runTag(g, x, y, txt, col = "#0F2233", fs = 15) {
@@ -4678,14 +5029,15 @@ function runDrawPose(g, f, res, sc, info, ox = 0, oy = 0) {
   const fs = info ? 17 : Math.max(12, Math.round(res.vh * sc / 34));
   if (res.view !== "P") {
     const J = res.joints, far = res.near === "L" ? { S: 12, HP: 24, K: 26, A: 28, E: 30, T: 32 } : { S: 11, HP: 23, K: 25, A: 27, E: 29, T: 31 };
-    line([P(far.HP), P(far.K), P(far.A), P(far.E), P(far.T)], "rgba(255,255,255,.45)", 2);
+    if (!res.markers) line([P(far.HP), P(far.K), P(far.A), P(far.E), P(far.T)], "rgba(255,255,255,.45)", 2);
     const col = RUN_COL[res.view];
-    line([P(J.S), P(J.HP)], "#fff", 3); line([P(J.HP), P(J.K), P(J.A)], col, 4); line([P(J.A), P(J.E), P(J.T), P(J.A)], col, 3);
+    if (!res.markers) line([P(J.S), P(J.HP)], "#fff", 3); else { g.setLineDash([5, 5]); line([P(J.HP), { x: P(J.HP).x, y: P(J.HP).y - (P(J.K).y - P(J.HP).y) * 0.6 }], "rgba(255,255,255,.6)", 1.5); g.setLineDash([]); }
+    line([P(J.HP), P(J.K), P(J.A)], col, 4); line([P(J.A), P(J.E), P(J.T), P(J.A)], col, 3);
     // referencia vertical en la rodilla (inclinación de la tibia)
     g.setLineDash([5, 5]); line([P(J.K), { x: P(J.K).x, y: P(J.K).y + (P(J.A).y - P(J.K).y) * 1.15 }], "rgba(255,255,255,.6)", 1.5); g.setLineDash([]);
-    [J.S, J.HP, J.K, J.A, J.E, J.T].forEach(i => dot(P(i), i === J.S ? "#E6EBF0" : col, i === J.E || i === J.T ? 4 : 6));
+    (res.markers ? [J.HP, J.K, J.A, J.E, J.T] : [J.S, J.HP, J.K, J.A, J.E, J.T]).forEach(i => dot(P(i), i === J.S ? "#E6EBF0" : col, i === J.E || i === J.T ? 4 : 6));
     if (info) { const off = res.dir > 0 ? -fs * 7.5 : fs * 1.2;
-      runTag(g, P(J.HP).x + off, P(J.HP).y, `Cadera ${Math.round(info.hip)}°`, "", fs);
+      runTag(g, P(J.HP).x + off, P(J.HP).y, `${res.markers ? "Muslo" : "Cadera"} ${Math.round(info.hip)}°`, "", fs);
       runTag(g, P(J.K).x + off, P(J.K).y + fs * 0.4, `Rodilla ${Math.round(info.knee)}°`, "", fs);
       runTag(g, P(J.A).x + off, P(J.A).y + fs * 0.4, `Tobillo ${Math.round(info.ankle)}°`, "", fs); }
   } else {
@@ -4708,7 +5060,7 @@ async function runSnaps(k, v, frames, res) {
     for (const i of [0, 11, 12, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]) { const q = f.lm[i]; x0 = Math.min(x0, q.x * res.vw); x1 = Math.max(x1, q.x * res.vw); y0 = Math.min(y0, q.y * res.vh); y1 = Math.max(y1, q.y * res.vh); }
     let h = (y1 - y0) * 1.32, w = Math.max((x1 - x0) * 1.3, h * W / Hh); h = w * Hh / W;
     w = Math.min(w, res.vw, res.vh * W / Hh); h = w * Hh / W;
-    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2 - (y1 - y0) * 0.04;
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2 - (y1 - y0) * (res.markers ? 0.12 : 0.04);
     return { sx: Math.max(0, Math.min(res.vw - w, cx - w / 2)), sy: Math.max(0, Math.min(res.vh - h, cy - h / 2)), sw: w, sh: h };
   };
   const list = res.view === "P"
@@ -4736,6 +5088,7 @@ function runOverlayBind(k) {
     const w = v.clientWidth, h = v.clientHeight; if (!w) return;
     if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
     g.clearRect(0, 0, w, h);
+    if (st.mkNew || (st.mk && !st.frames)) { const vw = v.videoWidth, vh = v.videoHeight, s = Math.min(w / vw, h / vh); runMkDraw(g, st, s, (w - vw * s) / 2, (h - vh * s) / 2); return; }
     if (st.preview && (!st.frames || !res)) {
       const vw = v.videoWidth, vh = v.videoHeight, s = Math.min(w / vw, h / vh), ox = (w - vw * s) / 2, oy = (h - vh * s) / 2;
       const P = i => ({ x: ox + st.preview[i].x * vw * s, y: oy + st.preview[i].y * vh * s });
@@ -4755,7 +5108,14 @@ function runOverlayBind(k) {
   v.onplay = () => requestAnimationFrame(loop); v.onseeked = draw; v.ontimeupdate = draw;
   RS[k].redraw = draw;
   c.onclick = async e => {
-    const st = RS[k]; if (!st.picking) return;
+    const st = RS[k];
+    if (st.marking) {
+      const r = c.getBoundingClientRect(), vw = v.videoWidth, vh = v.videoHeight, s = Math.min(r.width / vw, r.height / vh);
+      const x = ((e.clientX - r.left) - (r.width - vw * s) / 2) / s, y = ((e.clientY - r.top) - (r.height - vh * s) / 2) / s;
+      if (x >= 0 && y >= 0 && x <= vw && y <= vh) runMkTap(k, x, y);
+      return;
+    }
+    if (!st.picking) return;
     st.picking = false; c.style.pointerEvents = "none"; $("rsPick_" + k).textContent = "👆 Elegir al atleta";
     const r = c.getBoundingClientRect(), vw = v.videoWidth, vh = v.videoHeight, s = Math.min(r.width / vw, r.height / vh);
     const x = ((e.clientX - r.left) - (r.width - vw * s) / 2) / (vw * s), y = ((e.clientY - r.top) - (r.height - vh * s) / 2) / (vh * s);
@@ -4909,9 +5269,9 @@ function runViewHTML(k) {
     return `<div class="rkpis">${runKpi("Cadencia", f1(m.cad.m) + " ppm")}${runKpi("Contacto", f1(m.contact.m) + " ms")}${runKpi("Apoyo", f1(m.stance.m) + "%")}${m.stepLen ? runKpi("Paso", f1(m.stepLen.m) + " cm") : ""}${runKpi("Zancadas", res.nStrides)}${runKpi("Cámara lenta", slowTxt)}</div>
       <h4>Fases de la carrera <span class="note2">(zancada representativa)</span></h4><div class="rgrid">${imgs}</div>
       <h4>Ángulos por fase <span class="note2">(promedio ± desvío de ${res.nStrides} zancadas)</span></h4>
-      <div style="overflow-x:auto"><table class="rtable"><tr><th>Fase</th><th>Cadera</th><th>Rodilla</th><th>Tobillo</th></tr>
+      <div style="overflow-x:auto"><table class="rtable"><tr><th>Fase</th><th>${res.markers ? "Muslo*" : "Cadera"}</th><th>Rodilla</th><th>Tobillo</th></tr>
       ${RUN_PH.map(([ph, nm]) => `<tr><td>${nm}<div class="note2" style="font-size:11px">${RUN_PH_DEF[ph]}</div></td><td>${runPM(res.phases[ph].hip)}</td><td>${runPM(res.phases[ph].knee)}</td><td>${runPM(res.phases[ph].ankle)}</td></tr>`).join("")}</table></div>
-      <p class="note2" style="font-size:12px">Cadera: + flexión / − extensión respecto del tronco. Rodilla: 0° = extendida. Tobillo: + dorsiflexión / − flexión plantar.</p>
+      <p class="note2" style="font-size:12px">${res.markers ? "*Video de la cadera para abajo (puntos marcados): el muslo se mide respecto de la vertical (+ adelante / − atrás). " : "Cadera: + flexión / − extensión respecto del tronco. "}Rodilla: 0° = extendida. Tobillo: + dorsiflexión / − flexión plantar.</p>
       <h4>Rangos orientativos de observación <span class="note2">(orientación segmentaria)</span></h4>
       ${runObsHTML(m)}
       <h4>Indicadores clave</h4>
@@ -5095,7 +5455,7 @@ async function runPdf(share) {
       doc.addPage(); y = 18; h2(`Plano ${runSideName(k).toLowerCase()} · ${res.nStrides} zancadas`);
       para(`Cadencia ${f1(res.met.cad.m)} ppm  ·  contacto ${f1(res.met.contact.m)} ms  ·  apoyo ${f1(res.met.stance.m)}% del ciclo${res.met.stepLen ? `  ·  paso ${f1(res.met.stepLen.m)} cm` : ""}  ·  patrón: ${runStrike(res.met.footIC.m)}`, 9.5);
       await images(RUN.imgs[k], 3, 52);
-      table(["Fase", "Cadera", "Rodilla", "Tobillo"], RUN_PH.map(([ph, nm]) => [nm, ...["hip", "knee", "ankle"].map(j => { const s = res.phases[ph][j]; return Number.isFinite(s.m) ? `${f1(runZ(s.m, 0))}° ± ${f1(s.sd)}` : "-"; })]), [60, 40, 41, 41]);
+      table(["Fase", res.markers ? "Muslo (vertical)" : "Cadera", "Rodilla", "Tobillo"], RUN_PH.map(([ph, nm]) => [nm, ...["hip", "knee", "ankle"].map(j => { const s = res.phases[ph][j]; return Number.isFinite(s.m) ? `${f1(runZ(s.m, 0))}° ± ${f1(s.sd)}` : "-"; })]), [60, 40, 41, 41]);
       table(["", "Contacto", "Final amortiguación", "Final propulsión"], RUN_OBS.map(([n, ks]) => [n, ...ks.map(x => x && res.met[x] ? { t: runFmt(x, res.met[x].m) + "  (" + (runRef(x).ref || "dato") + ")", lvl: runLevel(x, res.met[x].m) } : "-")]), [34, 50, 50, 48]);
       table(["Indicador", "Valor", "Nivel", "Referencia"], ["cad", "trunk", "ankleMS", "hipTO", "vo", "over", "kneeSw", "hipSw"].filter(x => res.met[x]).map(x => { const l = runLevel(x, res.met[x].m); return [runRef(x).n, { t: runFmt(x, res.met[x].m), lvl: l }, l || "dato", runRef(x).ref || ""]; }), [66, 28, 24, 64]);
     }
@@ -5138,7 +5498,7 @@ $("goRun").onclick = openRun;
 
 
 // ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
-const APP_VERSION = "23 oct 2026 (d)";
+const APP_VERSION = "23 oct 2026 (f)";
 $("verTxt").textContent = APP_VERSION;
 async function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
