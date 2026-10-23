@@ -4912,12 +4912,13 @@ async function mkTrack(st, v, i0, p0, onProg) {
   let G = mkGray(v, sc);
   const S = mkInit(G, p0.map(p => ({ x: p.x * sc, y: p.y * sc })), tr.fps);
   tr.markers = S.mk.map(m => !!m);
-  tr.pts[i0] = p0.map(p => ({ ...p })); tr.conf[i0] = [1, 1, 1, 1, 1];
+  tr.pts[i0] = p0.map(p => ({ ...p })); tr.conf[i0] = [1, 1, 1, 1, 1]; tr.last = i0;
   for (let i = i0 + 1; i < tr.n; i++) {
     if (st.cancel) throw new Error("Análisis cancelado.");
     await runSeek(v, tr.t0 + i * tr.dt); G = mkGray(v, sc);
     const r = mkStep(G, S);
     tr.pts[i] = r.P.map(p => ({ x: p.x / sc, y: p.y / sc })); tr.conf[i] = r.conf;
+    tr.last = i; st.livePts = tr.pts[i]; st.redraw && st.redraw();
     if (onProg && i % 3 === 0) { onProg(i); await new Promise(rr => requestAnimationFrame(rr)); }
   }
 }
@@ -4967,7 +4968,7 @@ async function runProcessMarkers(k) {
     if (!(a && +a.altura)) res.scaleSrc = "estimada (cargá la altura del atleta para medir en cm con precisión)";
     delete res.met.trunk; delete res.met.hipTO;   // sin tronco en el cuadro: la cadera se expresa como vector del muslo
     res.t0 = tr.t0; res.t1 = tr.t0 + (tr.n - 1) * tr.dt; res.vw = vw; res.vh = vh; res.date = new Date().toISOString();
-    st.frames = frames; RUN.views[k] = res; st.mk.fix = false;
+    st.frames = frames; RUN.views[k] = res; st.mk.fix = false; st.livePts = null;
     lab.textContent = "Generando las imágenes de cada fase…"; bar.style.width = "100%";
     RUN.imgs[k] = await runSnaps(k, v, frames, res);
     prog.classList.add("hidden");
@@ -4975,12 +4976,14 @@ async function runProcessMarkers(k) {
     $("rsPickMsg_" + k).classList.remove("hidden");
     $("rsPickMsg_" + k).textContent = (lowConf < 0.45 ? "⚠️ El seguimiento tuvo cuadros dudosos (imagen movida o puntos poco visibles). " : "✓ Seguimiento estable. ") + "Reproducí el video y controlá que los puntos sigan a la pierna; si alguno se despega, pausá ahí y tocá «📍 Corregir desde este cuadro».";
     $("rsMk_" + k).textContent = "📍 Corregir desde este cuadro";
+    await runSeek(v, tr.t0); st.redraw && st.redraw();
     RUN.concl = null; runRenderAll();
     $("rsRes_" + k).scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e) {
     prog.classList.add("hidden");
     $("rsRes_" + k).innerHTML = `<div class="rs-err">⚠️ ${esc(e.message || String(e))}</div>`;
-  } finally { st.busy = false; btn.textContent = "▶ Analizar este plano"; }
+    if (st.trk && st.trk.last > 0) { $("rsMk_" + k).textContent = "📍 Corregir desde este cuadro"; $("rsPickMsg_" + k).classList.remove("hidden"); $("rsPickMsg_" + k).textContent = "Pausá en el cuadro donde se despegó el punto (o un poco antes), tocá «📍 Corregir desde este cuadro», marcá los 5 puntos y volvé a analizar: sigue desde ahí."; }
+  } finally { st.busy = false; st.livePts = null; btn.textContent = "▶ Analizar este plano"; st.redraw && st.redraw(); }
 }
 const rMin = a => Math.min(...a.filter(Number.isFinite));
 // Marcar los 5 puntos tocando sobre el video (también sirve para corregir un cuadro)
@@ -4990,7 +4993,7 @@ function runMkMode(k, force) {
   st.marking = force ? true : !st.marking; v.pause();
   c.style.pointerEvents = st.marking ? "auto" : "none"; c.style.cursor = st.marking ? "crosshair" : "";
   const msg = $("rsPickMsg_" + k); msg.classList.remove("hidden");
-  if (st.marking) { st.mkNew = []; msg.textContent = `Pausá en un cuadro donde se vea bien la pierna (ideal: en el apoyo). Tocá 1/5 · ${MK_NAMES[0]}`; $("rsMk_" + k).textContent = "✕ Cancelar"; }
+  if (st.marking) { st.mkNew = []; if (st.trk) { const i = Math.round((v.currentTime - st.trk.t0) / st.trk.dt); if (st.trk.pts[i] && i <= (st.trk.last || 0)) st.mkHint = st.trk.pts[i]; } msg.textContent = `Pausá en un cuadro donde se vea bien la pierna (ideal: en el apoyo). Tocá 1/5 · ${MK_NAMES[0]}`; $("rsMk_" + k).textContent = "✕ Cancelar"; }
   else { st.mkNew = null; msg.textContent = st.mk ? "Puntos marcados." : ""; $("rsMk_" + k).textContent = st.trk ? "📍 Corregir desde este cuadro" : "📍 Marcar los 5 puntos"; }
   st.redraw && st.redraw();
 }
@@ -4998,16 +5001,16 @@ function runMkTap(k, x, y) {
   const st = RS[k], v = $("rsV_" + k), msg = $("rsPickMsg_" + k);
   st.mkNew.push({ x, y });
   if (st.mkNew.length < 5) { msg.textContent = `Tocá ${st.mkNew.length + 1}/5 · ${MK_NAMES[st.mkNew.length]}`; st.redraw && st.redraw(); return; }
-  const fix = !!(st.trk && RUN.views[k] && v.currentTime >= st.trk.t0 && v.currentTime <= st.trk.t0 + st.trk.n * st.trk.dt);
+  const fix = !!(st.trk && v.currentTime >= st.trk.t0 - 1e-3 && v.currentTime <= st.trk.t0 + (st.trk.last || 0) * st.trk.dt + 1e-3);
   st.mk = { t: v.currentTime, pts: st.mkNew, fix }; st.mkNew = null; st.marking = false;
   if (!fix) { st.trk = null; st.frames = null; }
   $("rsC_" + k).style.pointerEvents = "none";
   $("rsMk_" + k).textContent = st.trk ? "📍 Corregir desde este cuadro" : "📍 Marcar los 5 puntos";
-  msg.textContent = fix ? "✓ Cuadro corregido. Tocá «▶ Analizar este plano» para volver a seguir los puntos desde acá." : "✓ 5 puntos marcados. Tocá «▶ Analizar este plano». El análisis empieza en este cuadro.";
+  msg.textContent = fix ? "✓ Cuadro corregido. Tocá «▶ Analizar este plano» para volver a seguir los puntos desde acá." : "✓ 5 puntos marcados. Tocá «▶ Analizar este plano»: vas a ver cómo los puntos siguen a la pierna cuadro a cuadro. Si uno se despega, tocá «■ Cancelar», pausá ahí y corregilo.";
   st.redraw && st.redraw();
 }
-function runMkDraw(g, st, s, ox, oy) {
-  const pts = st.mkNew || (st.mk && !st.frames ? st.mk.pts : null); if (!pts) return;
+function runMkDraw(g, st, s, ox, oy, over) {
+  const pts = over || st.mkNew || (st.mk && !st.frames ? st.mk.pts : null); if (!pts) return;
   const P = q => ({ x: ox + q.x * s, y: oy + q.y * s });
   g.strokeStyle = "#5BBF8A"; g.lineWidth = 3; g.lineCap = "round";
   if (pts.length > 1) { g.beginPath(); pts.slice(0, 3).forEach((q, i) => i ? g.lineTo(P(q).x, P(q).y) : g.moveTo(P(q).x, P(q).y)); g.stroke(); }
@@ -5088,6 +5091,7 @@ function runOverlayBind(k) {
     const w = v.clientWidth, h = v.clientHeight; if (!w) return;
     if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
     g.clearRect(0, 0, w, h);
+    if (st.busy && st.livePts) { const vw = v.videoWidth, vh = v.videoHeight, s = Math.min(w / vw, h / vh); runMkDraw(g, st, s, (w - vw * s) / 2, (h - vh * s) / 2, st.livePts); return; }
     if (st.mkNew || (st.mk && !st.frames)) { const vw = v.videoWidth, vh = v.videoHeight, s = Math.min(w / vw, h / vh); runMkDraw(g, st, s, (w - vw * s) / 2, (h - vh * s) / 2); return; }
     if (st.preview && (!st.frames || !res)) {
       const vw = v.videoWidth, vh = v.videoHeight, s = Math.min(w / vw, h / vh), ox = (w - vw * s) / 2, oy = (h - vh * s) / 2;
@@ -5498,7 +5502,7 @@ $("goRun").onclick = openRun;
 
 
 // ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
-const APP_VERSION = "23 oct 2026 (f)";
+const APP_VERSION = "23 oct 2026 (g)";
 $("verTxt").textContent = APP_VERSION;
 async function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
