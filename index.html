@@ -3065,18 +3065,24 @@ $("pCsv").onclick = () => {
 
 
 // ---- iOS: compartir archivos y pantalla siempre encendida ----
+// Nombre de archivo sin tildes ni símbolos: WhatsApp en iPhone suele fallar con «ó», «·», espacios, etc.
+const safeName = n => n.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ñ/gi, "n").replace(/[^\w.\-]+/g, "_").replace(/_+/g, "_");
 async function saveFile(blob, name, forceShare = false) {
+  name = safeName(name);
   if (!isMobile && !forceShare) {
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     return;
   }
+  // iPhone/iPad: hoja de compartir (WhatsApp, Mail, «Guardar en Archivos»…). Solo el archivo, sin título ni texto:
+  // si se mandan juntos, WhatsApp muchas veces da «No se pudo enviar el mensaje».
   try {
     const file = new File([blob], name, { type: blob.type || "application/octet-stream" });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); return; }
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); return; }
   } catch (e) { if (e && e.name === "AbortError") return; }
-  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
-  document.body.appendChild(a); a.click(); a.remove();
+  // Plan B: abrir el archivo en una pestaña (desde ahí se puede guardar o compartir con el botón de Safari)
+  const u = URL.createObjectURL(blob), w = window.open(u, "_blank");
+  if (!w) { const a = document.createElement("a"); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
 }
 let wakeLock = null;
 async function keepAwake() {
@@ -3385,11 +3391,11 @@ const RULES = {
   thorRot:  { type: "sym", key: "trkRot", thr: 12, ctr: 5, n: 3, labels: ["Izquierda", "Derecha"], comp: [["pelTilt", 6, "movió la pelvis"]], dir: ["girá el tronco sin mover la pelvis", "girá hacia el otro lado"] },
   shFlex:   { type: "sym", key: "shSag", thr: 35, ctr: 20, n: 3, labels: ["Flexión", "Extensión"], comp: [["trkFlex", 10, "movió el tronco (arqueó o se inclinó)"]], dir: ["brazo adelante y arriba", "brazo hacia atrás"] },
   trkFE:    { type: "sym", key: "trkSag", thr: 20, ctr: 8, n: 3, labels: ["Flexión", "Extensión"], comp: [["kneeL", 30, "flexionó mucho las rodillas"]], dir: ["inclinate hacia adelante sin doblar las rodillas", "inclinate hacia atrás"] },
-  shRot:    { type: "sym", key: "shRot", thr: 30, ctr: 15, n: 3, labels: ["Rotación externa", "Rotación interna"], comp: [["elbowL", 25, "no mantuvo el codo a 90°"], ["trkFlex", 10, "movió el tronco"]], dir: ["antebrazo hacia arriba y atrás", "antebrazo hacia abajo"] },
+  shRot:    { type: "sym", key: "shRot", thr: 30, ctr: 15, n: 3, tolBad: 0.75, labels: ["Rotación externa", "Rotación interna"], comp: [["elbowL", 25, "no mantuvo el codo a 90°"], ["trkFlex", 10, "movió el tronco"]], dir: ["antebrazo hacia arriba y atrás", "antebrazo hacia abajo"] },
   shAbd:    { type: "symB", key: "shFront", thr: 35, ctr: 15, n: 3, labels: ["Abducción", "Aducción"], comp: [["trkLat", 8, "inclinó el tronco"], ["shTilt", 8, "elevó un hombro"]], dir: ["subí los brazos por los costados", "cruzá los brazos por delante del cuerpo"] },
   shAbdOld: { type: "both", key: "shElev", hi: 70, lo: 30, n: 3, labels: ["Elevación"], comp: [["trkLat", 8, "inclinó el tronco"]], dir: ["subí los dos brazos por los costados"] },
-  hipFlex:  { type: "one", key: "hipFlex", hi: 45, lo: 15, n: 3, labels: ["Flexión"], comp: [["trkFlex", 15, "inclinó el tronco"]], dir: ["rodilla al pecho"] },
-  kneeFlex: { type: "one", key: "knee", hi: 60, lo: 20, n: 3, labels: ["Flexión"], comp: [["hipFlex", 25, "adelantó el muslo"]], dir: ["talón al glúteo"] },
+  hipFlex:  { type: "one", key: "hipFlex", hi: 45, lo: 15, n: 3, tolBad: 0.75, labels: ["Flexión"], comp: [["trkFlex", 15, "inclinó el tronco"]], dir: ["rodilla al pecho"] },
+  kneeFlex: { type: "one", key: "knee", hi: 60, lo: 20, n: 3, tolBad: 0.75, labels: ["Flexión"], comp: [["hipFlex", 25, "adelantó el muslo"]], dir: ["talón al glúteo"] },
   ankle:    { type: "one", key: "ankle", hi: 8, lo: 2, n: 3, labels: ["Dorsiflexión"], comp: [], dir: ["rodilla hacia adelante sin levantar el talón"] },
   ohs:      { type: "both", key: "knee", hi: 60, lo: 25, n: 5, labels: ["Sentadillas"], comp: [["trkLat", 8, "se inclinó hacia un lado"]], dir: ["bajá"] },
   squat:    { type: "both", key: "knee", hi: 60, lo: 25, n: 5, labels: ["Sentadillas"], comp: [["trkLat", 8, "se inclinó hacia un lado"]], dir: ["bajá"] },
@@ -3471,7 +3477,7 @@ function guideFrame(v, bad) {
     if (back) {
       const why = [];
       for (const [c, lim, msg] of r.comp) if ((GR.cmax[c] || 0) > lim) why.push(msg);
-      if (GR.n && GR.badN / GR.n > 0.3) why.push("se perdieron los puntos");
+      if (GR.n && GR.badN / GR.n > (r.tolBad || 0.3)) why.push("se perdieron los puntos");
       if (GR.n < 3) why.push("demasiado rápido");
       const list = GR.reps[GR.side];
       if (list.filter(q => q.ok).length < r.n) {
@@ -5633,7 +5639,7 @@ $("goRun").onclick = openRun;
 
 
 // ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
-const APP_VERSION = "23 oct 2026 (h)";
+const APP_VERSION = "25 oct 2026";
 $("verTxt").textContent = APP_VERSION;
 async function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
