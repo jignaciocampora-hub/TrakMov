@@ -433,6 +433,7 @@
     <p class="sub">¿Cómo querés empezar?</p>
     <button class="bigcard" id="goVideo"><span class="ill" data-fig="squatF"></span><span style="flex:1"><h2>Analizar un video</h2><p>Cargá cualquier video, medí ángulos de todo el cuerpo, recorrelo cuadro a cuadro y miralo en 3D.</p></span><span class="chev">›</span></button>
     <button class="bigcard" id="goEval"><span class="ill" data-fig="ohSquat"></span><span style="flex:1"><h2>Realizar una evaluación</h2><p>Elegí una evaluación guiada: se configura sola, mide lo que corresponde y guarda el resultado en el historial del atleta.</p></span><span class="chev">›</span></button>
+    <button class="bigcard" id="goVbt"><span class="ill" data-fig="vbtF"></span><span style="flex:1"><h2>VBT · velocidad de la barra</h2><p>Como un encoder con la cámara: velocidad media propulsiva, pico y pérdida de velocidad por repetición, %1RM y perfil carga–velocidad.</p></span><span class="chev">›</span></button>
     <button class="bigcard" id="goRun"><span class="ill" data-fig="runP"></span><span style="flex:1"><h2>Análisis de carrera</h2><p>Filmá en la cinta de perfil (derecha e izquierda) y de atrás: fases de la carrera, ángulos de cadera, rodilla y tobillo, pelvis, pronación, tronco y hombros.</p></span><span class="chev">›</span></button>
     <button class="bigcard" id="goAth"><span class="ill" data-fig="standF"></span><span style="flex:1"><h2>Atletas</h2><p>Fichas con datos personales, grupo y posición, buscador y el historial de evaluaciones de cada uno.</p></span><span class="chev">›</span></button>
     <button class="bigcard" id="goLive"><span class="ill" data-fig="armsUpF"></span><span style="flex:1"><h2>Cámara libre</h2><p>Análisis en vivo de todo el cuerpo con la cámara del celular o de la compu.</p></span><span class="chev">›</span></button>
@@ -576,6 +577,50 @@
       <textarea class="rnote" id="runNote" placeholder="Molestias, historial de lesiones, calzado, indicaciones…"></textarea>
       <button class="btn-d wide" id="runSave">💾 Guardar en el historial del atleta</button>
       <div class="row2" style="margin-top:12px"><button class="btn-o" id="runPdf">📄 Descargar PDF</button><button class="btn-o" id="runPdfShare">📤 Compartir PDF</button></div>
+    </div>
+  </section>
+
+  <section id="scrVbt" class="scr hidden">
+    <button class="backc" id="vbBack" aria-label="Volver">‹</button>
+    <h1 class="lt" id="vbTitle">VBT · velocidad de la barra</h1>
+    <p class="sub">Velocidad de ejecución filmando la barra de perfil, como un encoder.</p>
+    <div class="card athcard"><div class="avatar" id="vbAv">?</div><select id="vbAth" aria-label="Atleta"></select><button class="addbtn" id="vbAdd">+ Nuevo</button></div>
+    <div class="card" id="vbSetup"><h3>Serie</h3>
+      <div class="rs-opts">
+        <label>Ejercicio<select id="vbEx"><option value="sq">Sentadilla</option><option value="bp">Press de banca</option><option value="dl">Peso muerto</option><option value="ht">Hip thrust</option><option value="ot">Otro ejercicio</option></select></label>
+        <label>Carga (kg)<input id="vbLoad" type="number" inputmode="decimal" step="0.5" min="0" placeholder="Ej.: 100"></label>
+        <label>Diámetro del disco (cm)<input id="vbDiam" type="number" inputmode="decimal" step="0.5" value="45"></label>
+        <label>Cortar la serie al perder<select id="vbVl"><option value="10">10% de velocidad</option><option value="20" selected>20% de velocidad</option><option value="30">30% de velocidad</option><option value="40">40% de velocidad</option></select></label>
+      </div>
+    </div>
+    <div class="card" id="vbVidCard">
+      <h3 style="display:flex;justify-content:space-between;align-items:center">Video de la serie <button class="chip" id="vbHowBtn">Cómo filmar</button></h3>
+      <ol class="steps hidden" id="vbHow">
+        <li><b>De perfil</b>, cámara quieta (trípode) a 2–3 m, a la altura de la barra y <b>perpendicular</b> a ella: que el disco se vea redondo, no ovalado.</li>
+        <li>Que el disco (o la punta de la barra) se vea en todo el recorrido. Un <b>sticker de color fuerte</b> en el centro del disco mejora mucho el seguimiento.</li>
+        <li><b>Cámara lenta 120 o 240 cps</b> si podés (mínimo 60). Si el video se reproduce lento, elegí abajo el factor de cámara lenta.</li>
+        <li>Filmá la serie completa, desde que la barra está quieta antes de la 1.ª repetición.</li>
+        <li>Si no usás discos olímpicos de 45 cm, cargá el diámetro real del disco.</li>
+      </ol>
+      <label class="btn-o wide" style="display:block;text-align:center;margin-top:0;position:relative;overflow:hidden">🎥 Filmar o elegir video<input type="file" accept="video/*" id="vbFile" style="position:absolute;opacity:0;width:1px"></label>
+      <div class="hidden" id="vbBody">
+        <div class="rs-vwrap"><video id="vbV" playsinline muted controls preload="auto"></video><canvas id="vbC"></canvas></div>
+        <div class="rs-step"><button data-vstep="-10">⏮ −10</button><button data-vstep="-1">◀ cuadro</button><button data-vstep="1">cuadro ▶</button><button data-vstep="10">+10 ⏭</button></div>
+        <div class="rs-opts">
+          <label>Cuadros/s del video<select id="vbFps"><option value="auto">Detectar solo</option><option>30</option><option>60</option><option>120</option><option>240</option></select></label>
+          <label>Cámara lenta<select id="vbSlow"><option value="1">No (se ve en tiempo real)</option><option value="2">Sí, se ve ×2 más lento</option><option value="4">Sí, ×4 (120 cps)</option><option value="8">Sí, ×8 (240 cps)</option></select></label>
+        </div>
+        <div class="row2" style="margin-top:12px"><button class="btn-o" id="vbCal" style="padding:12px !important">📏 Calibrar con el disco</button><button class="btn-o" id="vbTgt" style="padding:12px !important">🎯 Marcar la barra</button></div>
+        <p class="note2" id="vbMsg" style="margin:8px 0 0"></p>
+        <button class="btn-d wide" id="vbGo">▶ Analizar</button>
+        <div class="rs-prog hidden" id="vbProg"><div></div><span></span></div>
+      </div>
+    </div>
+    <div id="vbRes"></div>
+    <div class="card hidden" id="vbReport"><h3>Notas del profesional</h3>
+      <textarea class="rnote" id="vbNote" placeholder="Sensaciones, RPE, técnica, objetivo de la sesión…"></textarea>
+      <button class="btn-d wide" id="vbSave">💾 Guardar en el historial del atleta</button>
+      <div class="row2" style="margin-top:12px"><button class="btn-o" id="vbPdf">📄 Descargar PDF</button><button class="btn-o" id="vbPdfShare">📤 Compartir PDF</button></div>
     </div>
   </section>
 
@@ -2696,6 +2741,7 @@ const FIGS = {
   ankleP:   { h: [56, 20], l: ["54,34 51,66", "54,34 58,50 62,62", "51,66 66,88 60,112 68,112", "51,66 40,90 30,108 37,110"], a: "M 74 96 A 14 14 0 0 0 66 110" },
   lungeP:   { h: [51, 19], l: ["50,34 50,68", "50,34 50,52 52,66", "50,68 66,84 66,112 74,112", "50,68 40,96 26,108"] },
   postureP: { h: [52, 15], l: [...PF.t, ...PF.arm, ...PF.leg], a: "M 52 26 L 52 114", noArrow: true },
+  vbtF:     { h: [50, 30], l: ["38,44 62,44 60,74 40,74 38,44", "38,44 30,40 20,40", "62,44 70,40 80,40", "40,74 29,90 37,112", "60,74 71,90 63,112", "8,40 92,40"], a: "M 94 64 L 94 22" },
   runP:     { h: [60, 15], l: ["58,25 52,58", "58,28 66,42 75,36", "58,28 47,40 42,53", "52,58 60,84 54,108 64,110", "52,58 38,74 27,68"], a: "M 12 114 L 88 114", noArrow: true },
 };
 function figSVG(k) {
@@ -2780,7 +2826,7 @@ function buildCatalog() {
   $("catalog").innerHTML = `
     <h3>Flujos de evaluación</h3><div class="hscroll">${FLOWS.map(f => tile(f.id, f.n, f.fig, true)).join("")}</div>
     <h3>Movimientos funcionales</h3><div class="hscroll">${PROTOS.filter(p => p.cat === "func").map(p => tile(p.id, p.n, p.fig)).join("")}</div>
-    <h3>Rendimiento</h3><div class="hscroll">${tile("run", "Carrera en cinta", "runP")}${PROTOS.filter(p => p.cat === "perf").map(p => tile(p.id, p.n, p.fig)).join("")}</div>
+    <h3>Rendimiento</h3><div class="hscroll">${tile("vbt", "VBT · velocidad de la barra", "vbtF")}${tile("run", "Carrera en cinta", "runP")}${PROTOS.filter(p => p.cat === "perf").map(p => tile(p.id, p.n, p.fig)).join("")}</div>
     <h3>Rango de movimiento</h3><div class="chips">${regs.map(r => `<button class="chip ${r === romFilter ? "on" : ""}" data-reg="${r}">${r}</button>`).join("")}</div>
     <div class="grid2">${PROTOS.filter(p => p.cat === "rom" && (romFilter === "Todos" || p.reg === romFilter)).map(p => tile(p.id, p.n, p.fig)).join("")}</div>`;
 }
@@ -2789,6 +2835,7 @@ $("catalog").onclick = e => {
   if (b.dataset.reg) { romFilter = b.dataset.reg; buildCatalog(); return; }
   if (b.dataset.flow) { const f = FLOWS.find(x => x.id === b.dataset.flow); flowQueue = f.steps.slice(1); openDetail(f.steps[0], f.n); return; }
   if (b.dataset.proto === "run") { flowQueue = []; openRun(); return; }
+  if (b.dataset.proto === "vbt") { flowQueue = []; openVbt(); return; }
   if (b.dataset.proto) { flowQueue = []; openDetail(b.dataset.proto); }
 };
 
@@ -2846,6 +2893,7 @@ $("afSave").onclick = () => {
   saveDB(); setAth(a.id); $("athModal").classList.add("hidden");
   if (!$("scrDetail").classList.contains("hidden")) fillAthSelect();
   if (!$("scrRun").classList.contains("hidden")) runFillAth();
+  if (!$("scrVbt").classList.contains("hidden")) vbFillAth();
   if (!$("scrProgress").classList.contains("hidden")) buildProgress();
   if (!$("scrAthletes").classList.contains("hidden")) buildAthletes();
   if (!$("scrAthlete").classList.contains("hidden")) openAthlete(a.id);
@@ -2937,6 +2985,7 @@ $("dVid").onclick = () => launch(detailProto, false);
 
 // ---- Guardar resultados ----
 function mainVals(r) {
+  if (r.vbt) { const b = r.vbt.best; return { txt: `${r.vbt.load ? r.vbt.load + " kg · " : ""}${r.vbt.n} reps · mejor VMP ${Number.isFinite(b) ? b.toFixed(2).replace(".", ",") : "–"} m/s`, L: Number.isFinite(b) ? b : NaN }; }
   if (r.run) {
     const v = r.run.views || {}, ks = ["R", "L", "P"].filter(k => v[k]), c = ks.map(k => v[k].met && v[k].met.cad && v[k].met.cad.m).find(Number.isFinite);
     return { txt: `${ks.length} plano${ks.length === 1 ? "" : "s"}${c ? " · cadencia " + Math.round(c) + " ppm" : ""}`, L: Number.isFinite(c) ? c : NaN };
@@ -3046,6 +3095,11 @@ $("pCsv").onclick = () => {
     const a = athObj(r.ath), base = [a ? a.n : "", a && a.grupo || "", a && a.pos || "", new Date(r.date).toLocaleString("es-AR"), r.name, r.view];
     if (r.metrics) for (const k in r.metrics) rows.push([...base, MK[k] ? MK[k].n + (MK[k].b ? (k.endsWith("L") ? " izq" : " der") : "") : k, num(r.metrics[k].mn), num(r.metrics[k].mx), num(r.metrics[k].rom)]);
     if (r.jumps) r.jumps.forEach((j, i) => rows.push([...base, `salto ${i + 1} altura cm`, "", num(j.altura), ""]));
+    if (r.vbt) {
+      const R = runRevive(r.vbt.res);
+      rows.push([...base, "vbt carga kg", "", num(r.vbt.load), ""], [...base, "vbt mejor VMP m/s", "", num(Math.round(R.best * 1000) / 1000), ""], [...base, "vbt pérdida de velocidad %", "", num(Math.round(R.vl * 10) / 10), ""]);
+      R.reps.forEach((q, i) => rows.push([...base, `vbt rep ${i + 1} VMP / VM / VP m/s`, num(Math.round(q.mpv * 1000) / 1000), num(Math.round(q.mv * 1000) / 1000), num(Math.round(q.pv * 1000) / 1000)]));
+    }
     if (r.run) {
       const V = runRevive(r.run.views || {}), r1 = x => Number.isFinite(x) ? Math.round(x * 10) / 10 : "";
       for (const k of ["R", "L"]) if (V[k]) {
@@ -3117,9 +3171,9 @@ $("pImport").onchange = async e => {
 
 // ---- Navegación ----
 function show(id) {
-  ["scrHome", "scrCatalog", "scrDetail", "scrProgress", "scrResult", "scrAthletes", "scrAthlete", "scrRun"].forEach(x => $(x).classList.toggle("hidden", x !== id));
+  ["scrHome", "scrCatalog", "scrDetail", "scrProgress", "scrResult", "scrAthletes", "scrAthlete", "scrRun", "scrVbt"].forEach(x => $(x).classList.toggle("hidden", x !== id));
   $("shell").classList.remove("hidden"); $("scrAnalysis").classList.add("hidden"); document.body.classList.add("light");
-  document.querySelectorAll("[data-tab]").forEach(b => b.classList.toggle("on", b.dataset.tab === id || ((id === "scrDetail" || id === "scrRun") && b.dataset.tab === "scrCatalog") || (id === "scrAthlete" && b.dataset.tab === "scrAthletes")));
+  document.querySelectorAll("[data-tab]").forEach(b => b.classList.toggle("on", b.dataset.tab === id || ((id === "scrDetail" || id === "scrRun" || id === "scrVbt") && b.dataset.tab === "scrCatalog") || (id === "scrAthlete" && b.dataset.tab === "scrAthletes")));
   if (id === "scrAthletes") buildAthletes();
   if (id === "scrCatalog") buildCatalog();
   if (id === "scrProgress") buildProgress();
@@ -5637,9 +5691,350 @@ $("runReConcl").onclick = () => { if (RUN.concl == null || confirm("¿Reemplazar
 $("runHowBtn").onclick = () => $("runHow").classList.toggle("hidden");
 $("goRun").onclick = openRun;
 
+// =====================================================================
+// VBT · ENTRENAMIENTO BASADO EN LA VELOCIDAD (velocidad de la barra filmada de perfil)
+// Se calibra con el diámetro del disco, se sigue el centro del disco (o un sticker) cuadro a cuadro
+// y se calculan, por repetición: velocidad media (VM), velocidad media propulsiva (VMP) y pico (VP).
+// =====================================================================
+const VB_EX = {
+  sq:  { n: "Sentadilla", mvt: 0.32, pct: v => -5.961 * v * v - 50.71 * v + 117, src: "Sánchez-Medina et al. 2017 (sentadilla completa)" },
+  bp:  { n: "Press de banca", mvt: 0.17, pct: v => 8.4326 * v * v - 73.501 * v + 112.33, src: "González-Badillo & Sánchez-Medina 2010" },
+  dl:  { n: "Peso muerto", mvt: 0.14 }, ht: { n: "Hip thrust", mvt: 0.25 }, ot: { n: "Otro ejercicio", mvt: 0.3 }
+};
+const G0 = 9.81;
+let VB = null;
+function vbNew() { if (VB && VB.url) URL.revokeObjectURL(VB.url); VB = { url: null, fps: null, cal: [], tgt: null, mode: null, trk: null, res: null, img: null, saved: null, readonly: false, busy: false, cancel: false, live: null, note: "" }; }
+function vbFillAth() {
+  $("vbAth").innerHTML = db.ath.length ? db.ath.map(a => `<option value="${a.id}" ${a.id === curAth ? "selected" : ""}>${esc(a.n)}</option>`).join("") : '<option value="">Sin atletas: tocá «+ Nuevo»</option>';
+  if (db.ath.length && !athObj(curAth)) setAth(db.ath[0].id);
+  const a = athObj(curAth); $("vbAv").textContent = a ? a.n[0].toUpperCase() : "?";
+}
+function openVbt() {
+  vbNew(); $("vbTitle").textContent = "VBT · velocidad de la barra"; $("vbSetup").classList.remove("hidden"); $("vbVidCard").classList.remove("hidden");
+  $("vbBody").classList.add("hidden"); $("vbRes").innerHTML = ""; $("vbReport").classList.add("hidden"); $("vbMsg").textContent = "";
+  ["vbEx", "vbLoad", "vbDiam", "vbVl"].forEach(id => $(id).disabled = false);
+  vbFillAth(); show("scrVbt");
+}
+async function openVbtSaved(r) {
+  vbNew(); VB.saved = r; VB.readonly = true; VB.res = runRevive(r.vbt.res); VB.note = r.note || "";
+  const m = await idbGet(r.id); VB.img = m && m.vbImg || null;
+  setAth(r.ath); vbFillAth();
+  $("vbEx").value = r.vbt.ex; $("vbLoad").value = r.vbt.load || ""; $("vbDiam").value = r.vbt.diam || 45; $("vbVl").value = r.vbt.vlThr || 20;
+  ["vbEx", "vbLoad", "vbDiam", "vbVl"].forEach(id => $(id).disabled = true);
+  $("vbTitle").textContent = `VBT · ${VB_EX[r.vbt.ex].n}`; $("vbVidCard").classList.add("hidden");
+  show("scrVbt"); vbRender();
+}
+// ---- video y marcas ----
+async function vbLoad(file) {
+  if (VB.url) URL.revokeObjectURL(VB.url);
+  VB.url = URL.createObjectURL(file); VB.fps = null; VB.cal = []; VB.tgt = null; VB.mode = null; VB.trk = null; VB.res = null; VB.img = null;
+  const v = $("vbV"); v.src = VB.url; v.muted = true; $("vbBody").classList.remove("hidden"); $("vbRes").innerHTML = ""; $("vbReport").classList.add("hidden");
+  await new Promise(res => { v.onloadedmetadata = res; v.onerror = res; setTimeout(res, 5000); });
+  try { await v.play(); v.pause(); } catch {}
+  VB.fps = await runEstFps(v);
+  vbMsg(`Video cargado (${VB.fps} cuadros/s). 1) Pausá con la barra quieta arriba y tocá «📏 Calibrar con el disco». 2) Tocá «🎯 Marcar la barra». 3) «▶ Analizar».`);
+  vbDraw();
+}
+const vbMsg = t => { $("vbMsg").textContent = t; };
+const vbFpsNow = () => { const s = $("vbFps").value; return s === "auto" ? (VB.fps || 30) : +s; };
+function vbMap() { const v = $("vbV"), c = $("vbC"), w = c.clientWidth, h = c.clientHeight, vw = v.videoWidth || 1, vh = v.videoHeight || 1, s = Math.min(w / vw, h / vh); return { v, c, w, h, vw, vh, s, ox: (w - vw * s) / 2, oy: (h - vh * s) / 2 }; }
+function vbStartMark(mode) {
+  if (VB.busy || !$("vbV").videoWidth) return;
+  const c = $("vbC");
+  if (VB.mode === mode) { VB.mode = null; c.style.pointerEvents = "none"; vbMsg("Cancelado."); vbDraw(); return; }
+  VB.mode = mode; $("vbV").pause(); c.style.pointerEvents = "auto"; c.style.cursor = "crosshair";
+  if (mode === "cal") { VB.cal = []; vbMsg("Calibración: tocá el BORDE DE ARRIBA del disco (o de lo que tenga el diámetro que cargaste)."); }
+  else vbMsg("Tocá el CENTRO del disco (o el sticker en la punta de la barra). Ese punto es el que se va a seguir.");
+  vbDraw();
+}
+function vbTap(x, y) {
+  const c = $("vbC");
+  if (VB.mode === "cal") {
+    VB.cal.push({ x, y });
+    if (VB.cal.length < 2) { vbMsg("Ahora tocá el BORDE DE ABAJO del disco, justo enfrente."); vbDraw(); return; }
+    VB.mode = null; c.style.pointerEvents = "none";
+    const d = Math.hypot(VB.cal[1].x - VB.cal[0].x, VB.cal[1].y - VB.cal[0].y);
+    vbMsg(`✓ Calibrado: ${f1(d / (+$("vbDiam").value / 100), 0)} píxeles por metro. Ahora tocá «🎯 Marcar la barra».`);
+    if (!VB.tgt) VB.tgt = { x: (VB.cal[0].x + VB.cal[1].x) / 2, y: (VB.cal[0].y + VB.cal[1].y) / 2, t: $("vbV").currentTime, auto: true };
+  } else if (VB.mode === "tgt") {
+    VB.tgt = { x, y, t: $("vbV").currentTime }; VB.mode = null; c.style.pointerEvents = "none";
+    const fix = VB.trk && VB.tgt.t > VB.trk.t0 && VB.tgt.t <= VB.trk.t0 + (VB.trk.last || 0) * VB.trk.dt;
+    VB.tgt.fix = fix;
+    vbMsg(fix ? "✓ Punto corregido en este cuadro. Tocá «▶ Analizar» para volver a seguir la barra desde acá." : "✓ Barra marcada. Tocá «▶ Analizar»: vas a ver el punto siguiendo la barra cuadro a cuadro.");
+  }
+  vbDraw();
+}
+function vbDraw() {
+  const m = vbMap(), g = m.c.getContext("2d"); if (!m.w) return;
+  if (m.c.width !== m.w || m.c.height !== m.h) { m.c.width = m.w; m.c.height = m.h; }
+  g.clearRect(0, 0, m.w, m.h);
+  const P = q => ({ x: m.ox + q.x * m.s, y: m.oy + q.y * m.s });
+  const dot = (q, col, r = 7) => { const A = P(q); g.fillStyle = col; g.strokeStyle = "#fff"; g.lineWidth = 2; g.beginPath(); g.arc(A.x, A.y, r, 0, 7); g.fill(); g.stroke(); };
+  if (VB.cal.length) { VB.cal.forEach(q => dot(q, "#F2A33A", 6)); if (VB.cal.length === 2) { const A = P(VB.cal[0]), B = P(VB.cal[1]); g.strokeStyle = "#F2A33A"; g.setLineDash([5, 4]); g.lineWidth = 2; g.beginPath(); g.moveTo(A.x, A.y); g.lineTo(B.x, B.y); g.stroke(); g.setLineDash([]); g.beginPath(); g.arc((A.x + B.x) / 2, (A.y + B.y) / 2, Math.hypot(B.x - A.x, B.y - A.y) / 2, 0, 7); g.stroke(); } }
+  const tr = VB.trk, t = m.v.currentTime;
+  if (tr && tr.pts.length) {
+    // trayectoria de la barra (hasta el cuadro actual)
+    const iNow = Math.max(0, Math.min((tr.last || 0), Math.round((t - tr.t0) / tr.dt)));
+    g.strokeStyle = "rgba(91,191,138,.9)"; g.lineWidth = 2.5; g.beginPath(); let st = false;
+    for (let i = 0; i <= (VB.busy ? tr.last : iNow); i++) { const q = tr.pts[i]; if (!q) continue; const A = P(q); if (!st) { g.moveTo(A.x, A.y); st = true; } else g.lineTo(A.x, A.y); }
+    g.stroke();
+    const q = VB.busy ? tr.pts[tr.last] : tr.pts[iNow]; if (q) dot(q, "#5BBF8A", 8);
+    if (!VB.busy && VB.res && VB.res.v && t >= tr.t0 && t <= tr.t0 + tr.last * tr.dt) { const vv = VB.res.v[iNow]; if (Number.isFinite(vv)) runTag(g, 10, 30, `${vv >= 0 ? "↑" : "↓"} ${f1(Math.abs(vv), 2)} m/s`, "", 17); }
+  } else if (VB.tgt) dot(VB.tgt, "#5BBF8A", 8);
+}
+// ---- seguimiento de un punto (color si hay sticker; si no, parche de imagen con biblioteca de vistas) ----
+async function vbTrack(i0, p0) {
+  const v = $("vbV"), tr = VB.trk, sc = Math.min(1, 720 / Math.max(v.videoWidth, v.videoHeight));
+  await runSeek(v, tr.t0 + i0 * tr.dt);
+  let G = mkGray(v, sc);
+  const pxm = tr.pxm * sc, rDisc = pxm * (+$("vbDiam").value / 100) / 2;
+  const P0 = { x: p0.x * sc, y: p0.y * sc }, T = Math.max(8, Math.min(40, Math.round(rDisc * 0.55)));
+  const mk = mkMarker(G, P0), lib = [mkPatch(G, P0.x, P0.y, T)];
+  const R = Math.max(10, Math.round(3.2 * pxm / Math.min(tr.fps * tr.slow, 240) * 1.4));   // la barra rara vez supera ~3 m/s
+  let P = P0, vel = { x: 0, y: 0 };
+  tr.pts[i0] = { x: p0.x, y: p0.y }; tr.conf[i0] = 1; tr.last = i0;
+  for (let i = i0 + 1; i < tr.n; i++) {
+    if (VB.cancel) throw new Error("Análisis cancelado.");
+    await runSeek(v, tr.t0 + i * tr.dt); G = mkGray(v, sc);
+    const pred = { x: P.x + vel.x * 0.85, y: P.y + vel.y * 0.85 };
+    let q = null, c = 0;
+    if (mk) { const f = mkFindColor(G, mk, pred, R); if (f) { q = f; c = 0.95; } }
+    if (!q) { const b = mkNccSearch(G, lib, pred, R, null, 0); if (b.s > 0.35) { q = { x: b.x, y: b.y }; c = b.s; if (b.s > 0.6 && i % 4 === 0 && lib.length < 12) { const np = mkPatch(G, q.x, q.y, T); if (Math.max(...lib.map(tp => { let d = 0; for (let k = 0; k < tp.a.length; k++) d += tp.a[k] * np.a[k]; return d / (tp.nrm * np.nrm); })) < 0.9) lib.push(np); } } }
+    if (!q) { q = pred; c = 0.1; }
+    vel = { x: (q.x - P.x) * (c < 0.3 ? 0.5 : 1), y: (q.y - P.y) * (c < 0.3 ? 0.5 : 1) }; P = q;
+    tr.pts[i] = { x: q.x / sc, y: q.y / sc }; tr.conf[i] = c; tr.last = i;
+    vbDraw();
+    if (i % 3 === 0) { $("vbProg").querySelector("div").style.width = (i / tr.n * 100).toFixed(0) + "%"; $("vbProg").querySelector("span").textContent = `Siguiendo la barra: cuadro ${i + 1} de ${tr.n}…`; await new Promise(r => requestAnimationFrame(r)); }
+  }
+}
+// ---- cálculo de repeticiones ----
+function vbCompute(tr, load, exk) {
+  const n = tr.last + 1, rf = tr.fps * tr.slow, dt = 1 / rf;
+  const ok = tr.conf.slice(0, n).map(c => c >= 0.3);
+  const y0 = tr.pts[0].y, x0 = tr.pts[0].x;
+  // posición con suavizado leve (inicio/fin de cada repetición, recorrido y velocidad media);
+  // velocidad instantánea y aceleración con suavizado mayor (~30 ms), porque derivar amplifica el ruido
+  const yRaw = tr.pts.slice(0, n).map(p => -(p.y - y0) / tr.pxm);
+  const y = gaussSmooth(yRaw, ok, Math.max(1, rf * 0.01)), yS = gaussSmooth(yRaw, ok, Math.max(1.6, rf * 0.03)), x = gaussSmooth(tr.pts.slice(0, n).map(p => (p.x - x0) / tr.pxm), ok, Math.max(1, rf * 0.01));
+  const der = arr => arr.map((_, i) => i === 0 || i === n - 1 ? 0 : (arr[i + 1] - arr[i - 1]) / (2 * dt));
+  const v1 = der(y), v = der(yS), a = der(v);
+  // puntos de giro (zigzag con histéresis): abajo → arriba = fase concéntrica
+  const range = rPct(y, 0.98) - rPct(y, 0.02), thr = Math.max(0.07, range * 0.3);
+  const turns = []; let dir = 0, ext = 0, hi = 0, lo = 0;
+  for (let i = 1; i < n; i++) {
+    if (dir === 0) {   // todavía no se sabe si arranca bajando (sentadilla, banca) o subiendo (peso muerto)
+      if (y[i] > y[hi]) hi = i; if (y[i] < y[lo]) lo = i;
+      if (y[hi] - y[i] > thr) { turns.push({ i: hi, top: true }); dir = -1; ext = i; }
+      else if (y[i] - y[lo] > thr) { turns.push({ i: lo, top: false }); dir = 1; ext = i; }
+    } else if (dir === 1) { if (y[i] > y[ext]) ext = i; else if (y[ext] - y[i] > thr) { turns.push({ i: ext, top: true }); dir = -1; ext = i; } }
+    else { if (y[i] < y[ext]) ext = i; else if (y[i] - y[ext] > thr) { turns.push({ i: ext, top: false }); dir = 1; ext = i; } }
+  }
+  if (dir === 1) turns.push({ i: ext, top: true }); else if (dir === -1) turns.push({ i: ext, top: false });
+  const reps = [];
+  for (let k = 0; k + 1 < turns.length; k++) {
+    if (turns[k].top || !turns[k + 1].top) continue;
+    let s = turns[k].i, e = turns[k + 1].i;
+    // recorte de los extremos quietos (velocidad < 0,03 m/s)
+    while (s < e && v1[s + 1] < 0.05) s++;
+    while (e > s && v1[e - 1] < 0.05) e--;
+    const dur = (e - s) * dt; if (dur < 0.12) continue;
+    let pk = s; for (let i = s; i <= e; i++) if (v[i] > v[pk]) pk = i;
+    let pe = e; for (let i = pk; i < e; i++) if (a[i] < -G0 && a[i + 1] < -G0) { pe = i; break; }   // fin de la fase propulsiva: desaceleración mayor que la gravedad
+    const rom = y[e] - y[s], mv = rom / dur, mpv = pe > s ? (y[pe] - y[s]) / ((pe - s) * dt) : mv;
+    let pw = 0, cnt = 0; for (let i = s; i <= pe; i++) { pw += load * (G0 + a[i]) * v[i]; cnt++; }
+    // excéntrica previa (de la cima anterior a este fondo)
+    const prevTop = k > 0 && turns[k - 1].top ? turns[k - 1].i : null;
+    const ecc = prevTop != null ? { dur: (turns[k].i - prevTop) * dt, mv: (y[prevTop] - y[turns[k].i]) / ((turns[k].i - prevTop) * dt) } : null;
+    const xs = x.slice(s, e + 1);
+    reps.push({ s, e, pk, pe, rom, dur, mv, mpv, pv: v[pk], tpv: (pk - s) * dt, pow: load > 0 ? pw / cnt : NaN, ecc, dx: Math.max(...xs) - Math.min(...xs) });
+  }
+  const best = reps.length ? Math.max(...reps.map(r => r.mpv)) : NaN;
+  reps.forEach(r => r.loss = (best - r.mpv) / best * 100);
+  const vl = reps.length > 1 ? reps[reps.length - 1].loss : 0;
+  const ex = VB_EX[exk], first = reps[0];
+  const pct = ex.pct && first ? Math.max(30, Math.min(100, ex.pct(first.mpv))) : NaN;
+  return { y, x, v, reps, best, vl, pct, e1rm: Number.isFinite(pct) && load > 0 ? load / (pct / 100) : NaN, rf, n, t0: tr.t0, dt: tr.dt };
+}
+async function vbAnalyze() {
+  if (VB.busy) { VB.cancel = true; return; }
+  const v = $("vbV");
+  if (!v.videoWidth) return;
+  if (VB.cal.length < 2) { vbMsg("⚠️ Primero calibrá con el disco (📏)."); return; }
+  if (!VB.tgt) { vbMsg("⚠️ Marcá la barra (🎯)."); return; }
+  if (!athObj(curAth)) { openAthForm(null); return; }
+  VB.busy = true; VB.cancel = false; $("vbGo").textContent = "■ Cancelar"; v.pause();
+  const prog = $("vbProg"); prog.classList.remove("hidden");
+  try {
+    keepAwake();
+    const fps = vbFpsNow(), sl = $("vbSlow").value, slow = sl === "1" ? 1 : +sl;
+    const pxm = Math.hypot(VB.cal[1].x - VB.cal[0].x, VB.cal[1].y - VB.cal[0].y) / (+$("vbDiam").value / 100);
+    const corr = VB.tgt.fix && VB.trk;
+    if (!corr) { const t0 = VB.tgt.t, dt = 1 / fps, n = Math.min(4000, Math.floor((v.duration - 0.02 - t0) / dt) + 1); VB.trk = { t0, dt, fps, slow, pxm, n, pts: new Array(n), conf: new Array(n).fill(0), last: 0 }; }
+    else { VB.trk.pxm = pxm; VB.trk.slow = slow; }
+    const tr = VB.trk, i0 = corr ? Math.round((VB.tgt.t - tr.t0) / tr.dt) : 0;
+    await vbTrack(i0, VB.tgt);
+    const load = +$("vbLoad").value || 0, res = vbCompute(tr, load, $("vbEx").value);
+    if (!res.reps.length) throw new Error("No se detectaron repeticiones. Revisá que el punto haya seguido a la barra (mirá la línea verde), que la calibración sea correcta y que el tramo incluya las repeticiones completas.");
+    VB.res = res; VB.tgt.fix = false;
+    VB.img = await vbSnap();
+    prog.classList.add("hidden");
+    const lowQ = rMean(tr.conf.slice(0, tr.last + 1)) < 0.5;
+    vbMsg((lowQ ? "⚠️ Hubo cuadros dudosos en el seguimiento. " : "✓ Seguimiento estable. ") + "Reproducí el video para ver la trayectoria y la velocidad de cada instante. Si el punto se despegó de la barra, pausá ahí, tocá «🎯 Marcar la barra» y volvé a analizar desde ese cuadro.");
+    await runSeek(v, tr.t0); vbDraw(); vbRender();
+    $("vbRes").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) { prog.classList.add("hidden"); vbMsg("⚠️ " + (e.message || e)); }
+  finally { VB.busy = false; $("vbGo").textContent = "▶ Analizar"; vbDraw(); }
+}
+// foto con la trayectoria de la barra dibujada (para el informe)
+async function vbSnap() {
+  const v = $("vbV"), tr = VB.trk, res = VB.res, r0 = res.reps[0];
+  await runSeek(v, tr.t0 + (r0 ? r0.s : 0) * tr.dt);
+  const vw = v.videoWidth, vh = v.videoHeight, W = vw >= vh ? 640 : 480, H = Math.round(W * vh / vw), s = W / vw;
+  const c = document.createElement("canvas"); c.width = W; c.height = H; const g = c.getContext("2d");
+  g.drawImage(v, 0, 0, W, H); g.fillStyle = "rgba(0,0,0,.18)"; g.fillRect(0, 0, W, H);
+  g.lineWidth = 3; g.lineCap = "round";
+  for (let i = 1; i <= tr.last; i++) { const a = tr.pts[i - 1], b = tr.pts[i], vv = res.v[i] || 0; g.strokeStyle = vv > 0.05 ? "#5BBF8A" : vv < -0.05 ? "#F2A33A" : "#E6EBF0"; g.beginPath(); g.moveTo(a.x * s, a.y * s); g.lineTo(b.x * s, b.y * s); g.stroke(); }
+  g.fillStyle = "rgba(15,34,51,.9)"; g.fillRect(0, 0, W, 30); g.fillStyle = "#5BBF8A"; g.font = "700 17px Barlow, sans-serif";
+  g.fillText(`${VB_EX[$("vbEx").value].n}${+$("vbLoad").value ? " · " + $("vbLoad").value + " kg" : ""} · trayectoria (verde sube, naranja baja)`, 10, 21);
+  return c.toDataURL("image/jpeg", 0.85);
+}
+// ---- resultados ----
+const VB_ZONES = [[1.3, "Velocidad máxima"], [1.0, "Fuerza-velocidad"], [0.75, "Potencia"], [0.5, "Fuerza"], [0, "Fuerza máxima"]];
+const vbZone = v => (VB_ZONES.find(z => v >= z[0]) || VB_ZONES[4])[1];
+function vbLvProfile(exk, aid, cur) {
+  const pts = db.res.filter(r => r.vbt && r.ath === aid && r.vbt.ex === exk && r.vbt.load > 0 && Date.now() - new Date(r.date) < 60 * 864e5 && (!VB.saved || r.id !== VB.saved.id))
+    .map(r => ({ x: r.vbt.load, y: r.vbt.best }));
+  if (cur && cur.x > 0 && Number.isFinite(cur.y)) pts.push(cur);
+  const byLoad = {}; pts.forEach(p => { if (!byLoad[p.x] || p.y > byLoad[p.x]) byLoad[p.x] = p.y; });
+  const P = Object.entries(byLoad).map(([x, y]) => ({ x: +x, y })).sort((a, b) => a.x - b.x);
+  if (P.length < 2) return { P };
+  const mx = rMean(P.map(p => p.x)), my = rMean(P.map(p => p.y));
+  const b = P.reduce((s, p) => s + (p.x - mx) * (p.y - my), 0) / (P.reduce((s, p) => s + (p.x - mx) ** 2, 0) || 1), a0 = my - b * mx;
+  const ss = P.reduce((s, p) => s + (p.y - my) ** 2, 0), sr = P.reduce((s, p) => s + (p.y - (a0 + b * p.x)) ** 2, 0);
+  return { P, a: a0, b, r2: ss ? 1 - sr / ss : NaN, e1rm: b < 0 ? (VB_EX[exk].mvt - a0) / b : NaN };
+}
+function vbRender() {
+  const res = VB.res; if (!res) { $("vbRes").innerHTML = ""; return; }
+  const exk = $("vbEx").value, ex = VB_EX[exk], load = +$("vbLoad").value || 0, thr = +$("vbVl").value;
+  const lv = vbLvProfile(exk, curAth, { x: load, y: res.best });
+  const rows = res.reps.map((r, i) => { const flag = r.loss >= thr; return `<tr><td>${i + 1}</td><td><b>${f1(r.mpv, 2)}</b></td><td>${f1(r.mv, 2)}</td><td>${f1(r.pv, 2)}</td><td>${f1(r.rom * 100, 0)} cm</td><td>${f1(r.dur, 2)} s</td><td style="color:${flag ? "#B4353A" : "#2E7D55"};font-weight:700">${i ? "−" + f1(r.loss, 0) + "%" : "–"}</td>${load ? `<td>${f1(r.pow, 0)} W</td>` : ""}</tr>`; }).join("");
+  const vlLvl = res.vl >= thr ? "Pobre" : res.vl >= thr * 0.75 ? "Regular" : "Excelente";
+  $("vbRes").innerHTML = `<div class="card"><h3>Resultados · ${ex.n}${load ? ` · ${load} kg` : ""}</h3>
+    <div class="rkpis">${runKpi("Repeticiones", res.reps.length)}${runKpi("Mejor VMP", f1(res.best, 2) + " m/s")}${runKpi("Pérdida de velocidad", runPill(lvlC && lvlC(vlLvl) ? vlLvl : null, f1(res.vl, 0) + "%"))}${Number.isFinite(res.pct) ? runKpi("%1RM estimado", "≈" + f1(res.pct, 0) + "%") : ""}${Number.isFinite(res.e1rm) ? runKpi("1RM estimado", "≈" + f1(res.e1rm, 0) + " kg") : ""}</div>
+    ${res.vl >= thr ? `<div class="rs-err" style="background:#FFF4E2;color:#8A5A12">⚠️ La serie superó el ${thr}% de pérdida de velocidad: para este objetivo, conviene cortar la serie antes.</div>` : ""}
+    <h4>Por repetición <span class="note2">(VMP = velocidad media propulsiva · VM = media · VP = pico, en m/s)</span></h4>
+    <div style="overflow-x:auto"><table class="rtable"><tr><th>#</th><th>VMP</th><th>VM</th><th>VP</th><th>Recorrido</th><th>Concéntrica</th><th>Pérdida</th>${load ? "<th>Potencia</th>" : ""}</tr>${rows}</table></div>
+    <h4>VMP por repetición</h4><canvas class="rchart" id="vbBars" style="height:170px"></canvas>
+    <h4>Velocidad de la barra en el tiempo</h4><canvas class="rchart" id="vbCurve" style="height:170px"></canvas>
+    ${VB.img ? `<h4>Trayectoria de la barra</h4><img src="${VB.img}" style="width:100%;border-radius:12px" alt="Trayectoria">` : ""}
+    <p class="note2" style="font-size:12px">Zona de la mejor repetición: <b>${vbZone(res.best)}</b>. ${Number.isFinite(res.pct) ? `%1RM estimado con la ecuación general de ${ex.src} a partir de la VMP de la 1.ª repetición: es orientativo, el perfil individual es más preciso. ` : ""}Recorrido horizontal de la barra: ${f1(Math.max(...res.reps.map(r => r.dx)) * 100, 0)} cm. Cuadros/s reales: ${res.rf}${res.rf < 60 ? " ⚠️ con menos de 60 cps la velocidad pico pierde precisión: filmá en cámara lenta" : ""}.</p></div>
+    <div class="card"><h3>Perfil carga–velocidad <span class="note2">(${ex.n}, últimos 60 días)</span></h3>
+    ${lv.P.length < 2 ? `<p>Cargá al menos 2 series con cargas distintas (por ejemplo 40%, 60% y 80%) para ver el perfil y el 1RM estimado del atleta.</p>` :
+      `<canvas class="rchart" id="vbLv" style="height:190px"></canvas><p class="note2" style="font-size:12px">Recta: VMP = ${f1(lv.a, 3)} ${lv.b < 0 ? "−" : "+"} ${f1(Math.abs(lv.b), 4)} × carga · R² ${f1(lv.r2, 2)} · velocidad del 1RM (VMP mínima) ${ex.mvt} m/s.${Number.isFinite(lv.e1rm) ? ` <b>1RM estimado por perfil ≈ ${f1(lv.e1rm, 0)} kg.</b>` : ""}</p>`}</div>`;
+  $("vbReport").classList.remove("hidden"); $("vbNote").value = VB.note || "";
+  $("vbSave").textContent = VB.saved ? "💾 Guardar cambios" : "💾 Guardar en el historial del atleta";
+  setTimeout(() => { vbBars(res, thr); vbCurve(res); if (lv.P.length >= 2) vbLvChart(lv, ex, load); }, 30);
+}
+function vbCanvas(id) { const c = $(id); if (!c) return null; const g = c.getContext("2d"), dpr = devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight; c.width = w * dpr; c.height = h * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h); g.font = "11px Barlow, sans-serif"; return { g, w, h }; }
+function vbBars(res, thr) {
+  const C = vbCanvas("vbBars"); if (!C) return; const { g, w, h } = C, n = res.reps.length, mx = Math.max(...res.reps.map(r => r.mpv)) * 1.15, ml = 34, mb = 18;
+  const Y = v => 6 + (h - 6 - mb) * (1 - v / mx), bw = (w - ml - 8) / n;
+  g.strokeStyle = "#E8EDF1"; g.fillStyle = "#7A8896"; g.textAlign = "right";
+  for (let v = 0; v <= mx; v += mx > 1.2 ? 0.4 : 0.2) { g.beginPath(); g.moveTo(ml, Y(v)); g.lineTo(w - 8, Y(v)); g.stroke(); g.fillText(f1(v, 1), ml - 4, Y(v) + 4); }
+  const cut = res.best * (1 - thr / 100); g.setLineDash([5, 4]); g.strokeStyle = "#E5484D"; g.beginPath(); g.moveTo(ml, Y(cut)); g.lineTo(w - 8, Y(cut)); g.stroke(); g.setLineDash([]);
+  g.textAlign = "left"; g.fillStyle = "#E5484D"; g.fillText(`−${thr}%`, ml + 2, Y(cut) - 3);
+  res.reps.forEach((r, i) => { const x = ml + i * bw + bw * 0.15, ww = bw * 0.7; g.fillStyle = r.loss >= thr ? "#E8955A" : "#5BBF8A"; g.fillRect(x, Y(r.mpv), ww, Y(0) - Y(r.mpv)); g.fillStyle = "#34495E"; g.textAlign = "center"; g.fillText(f1(r.mpv, 2), x + ww / 2, Y(r.mpv) - 3); g.fillStyle = "#7A8896"; g.fillText(i + 1, x + ww / 2, h - 4); });
+}
+function vbCurve(res) {
+  const C = vbCanvas("vbCurve"); if (!C) return; const { g, w, h } = C, ml = 34, mb = 18, n = res.n;
+  const vmax = Math.max(0.5, ...res.v.map(Math.abs)) * 1.1, T = (n - 1) / res.rf;
+  const X = i => ml + (w - ml - 8) * (i / res.rf) / T, Y = v => 6 + (h - 6 - mb) * (1 - (v + vmax) / (2 * vmax));
+  res.reps.forEach(r => { g.fillStyle = "rgba(91,191,138,.14)"; g.fillRect(X(r.s), 6, X(r.e) - X(r.s), h - 6 - mb); });
+  g.strokeStyle = "#E8EDF1"; g.fillStyle = "#7A8896"; g.textAlign = "right";
+  [-vmax, 0, vmax].forEach(v => { g.beginPath(); g.moveTo(ml, Y(v)); g.lineTo(w - 8, Y(v)); g.stroke(); g.fillText(f1(v, 1), ml - 4, Y(v) + 4); });
+  g.textAlign = "center"; for (let s = 0; s <= T; s += T > 12 ? 4 : T > 5 ? 2 : 1) g.fillText(s + " s", X(s * res.rf), h - 4);
+  g.strokeStyle = "#3C8FCB"; g.lineWidth = 2; g.beginPath(); res.v.forEach((v, i) => i ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v))); g.stroke();
+}
+function vbLvChart(lv, ex, load) {
+  const C = vbCanvas("vbLv"); if (!C) return; const { g, w, h } = C, ml = 36, mb = 20;
+  const xMax = Math.max(...lv.P.map(p => p.x), Number.isFinite(lv.e1rm) ? lv.e1rm : 0) * 1.08, yMax = Math.max(...lv.P.map(p => p.y)) * 1.2;
+  const X = x => ml + (w - ml - 10) * x / xMax, Y = y => 6 + (h - 6 - mb) * (1 - y / yMax);
+  g.strokeStyle = "#E8EDF1"; g.fillStyle = "#7A8896";
+  for (let y = 0; y <= yMax; y += 0.2) { g.beginPath(); g.moveTo(ml, Y(y)); g.lineTo(w - 10, Y(y)); g.stroke(); g.textAlign = "right"; g.fillText(f1(y, 1), ml - 4, Y(y) + 4); }
+  g.textAlign = "center"; for (let x = 0; x <= xMax; x += xMax > 150 ? 50 : 20) g.fillText(x + " kg", X(x), h - 5);
+  g.setLineDash([5, 4]); g.strokeStyle = "#E5484D"; g.beginPath(); g.moveTo(ml, Y(ex.mvt)); g.lineTo(w - 10, Y(ex.mvt)); g.stroke(); g.setLineDash([]);
+  g.strokeStyle = "#3C8FCB"; g.lineWidth = 2; g.beginPath(); g.moveTo(X(0), Y(lv.a)); const xe = Number.isFinite(lv.e1rm) ? lv.e1rm : xMax; g.lineTo(X(xe), Y(lv.a + lv.b * xe)); g.stroke();
+  lv.P.forEach(p => { g.fillStyle = p.x === load ? "#F2A33A" : "#3C8FCB"; g.beginPath(); g.arc(X(p.x), Y(p.y), 5, 0, 7); g.fill(); });
+  if (Number.isFinite(lv.e1rm)) { g.fillStyle = "#E5484D"; g.beginPath(); g.arc(X(lv.e1rm), Y(ex.mvt), 5, 0, 7); g.fill(); g.textAlign = "right"; g.fillText(`1RM ≈ ${f1(lv.e1rm, 0)} kg`, X(lv.e1rm) - 6, Y(ex.mvt) - 6); }
+}
+// ---- guardar e informe ----
+function vbSlim(res) { return { reps: res.reps.map(r => ({ rom: r.rom, dur: r.dur, mv: r.mv, mpv: r.mpv, pv: r.pv, tpv: r.tpv, pow: r.pow, loss: r.loss, dx: r.dx, ecc: r.ecc, s: r.s, e: r.e })), best: res.best, vl: res.vl, pct: res.pct, e1rm: res.e1rm, rf: res.rf, n: res.n, v: res.v.map(x => Math.round(x * 1000) / 1000) }; }
+async function vbSave() {
+  if (!VB.res) return; if (!athObj(curAth)) { openAthForm(null); return; }
+  let r = VB.saved;
+  if (!r) { r = { id: "r" + Date.now(), ath: curAth, proto: "vbt", date: new Date().toISOString(), view: "R" }; db.res.push(r); VB.saved = r; }
+  const exk = $("vbEx").value;
+  r.name = `VBT · ${VB_EX[exk].n}`;
+  r.vbt = { ex: exk, load: +$("vbLoad").value || 0, diam: +$("vbDiam").value, vlThr: +$("vbVl").value, best: VB.res.best, n: VB.res.reps.length, res: vbSlim(VB.res) };
+  r.note = $("vbNote").value; saveDB();
+  if (VB.img) await idbPut({ id: r.id, vbImg: VB.img });
+  $("vbSave").textContent = "✓ Guardado"; setTimeout(() => $("vbSave").textContent = "💾 Guardar cambios", 1500);
+}
+async function vbPdf(share) {
+  const btn = $(share ? "vbPdfShare" : "vbPdf"), old = btn.textContent; btn.textContent = "Generando…"; btn.disabled = true;
+  try {
+    const jsPDF = await loadJsPDF(), a = athObj(curAth), res = VB.res, exk = $("vbEx").value, ex = VB_EX[exk], load = +$("vbLoad").value || 0, thr = +$("vbVl").value, d = VB.saved ? new Date(VB.saved.date) : new Date();
+    const doc = new jsPDF({ unit: "mm", format: "a4" }), W = 210, M = 14, CW = W - 2 * M; let y = 0;
+    const san = t => String(t).replace(/[—–−]/g, "-").replace(/≈/g, "~").replace(/≥/g, ">=").replace(/≤/g, "<=").replace(/±/g, "+/-").replace(/×/g, "x").replace(/[^\x00-\xFF]/g, "");
+    const h2 = t => { doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(52, 73, 94); doc.text(san(t), M, y); doc.setDrawColor(91, 191, 138); doc.setLineWidth(0.6); doc.line(M, y + 1.6, M + 22, y + 1.6); y += 7; };
+    const para = (t, size = 9.5, col = [60, 72, 84]) => { doc.setFont("helvetica", "normal"); doc.setFontSize(size); doc.setTextColor(...col); for (const ln of doc.splitTextToSize(san(t), CW)) { if (y > 280) { doc.addPage(); y = 18; } doc.text(ln, M, y); y += size * 0.45; } y += 1.5; };
+    doc.setFillColor(15, 34, 51); doc.rect(0, 0, W, 22, "F");
+    const logo = await logoURL(); let lx = M; if (logo) { doc.addImage(logo, "PNG", M, 3.5, 15, 15); lx = M + 19; }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.setTextColor(255, 255, 255); doc.text("Trak", lx, 14.2); doc.setTextColor(91, 191, 138); doc.text("Mov", lx + doc.getTextWidth("Trak"), 14.2);
+    doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.text("Informe VBT · velocidad de la barra", W - M, 14, { align: "right" });
+    y = 32; doc.setTextColor(52, 73, 94); doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text(san(`${ex.n}${load ? " · " + load + " kg" : ""}`), M, y); y += 6.5;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(107, 123, 138); doc.text(san(`${a ? a.n + (athMeta(a) ? "  ·  " + athMeta(a) : "") : ""}  ·  ${d.toLocaleDateString("es-AR")}`), M, y); y += 9;
+    h2("Resumen");
+    para(`${res.reps.length} repeticiones · mejor VMP ${f1(res.best, 2)} m/s (${vbZone(res.best)}) · pérdida de velocidad ${f1(res.vl, 0)}% (umbral ${thr}%)${Number.isFinite(res.pct) ? ` · ~${f1(res.pct, 0)}% 1RM · 1RM estimado ~${f1(res.e1rm, 0)} kg` : ""}.`);
+    if (res.vl >= thr) para(`La serie superó el ${thr}% de pérdida de velocidad.`, 9.5, [180, 53, 58]);
+    h2("Por repetición");
+    const cols = ["#", "VMP", "VM", "VP", "Recorrido", "Concéntrica", "Pérdida", ...(load ? ["Potencia"] : [])], wd = load ? [10, 22, 22, 22, 26, 26, 22, 26] : [12, 26, 26, 26, 30, 30, 26];
+    doc.setFillColor(241, 245, 247); doc.rect(M, y - 4, CW, 5.6, "F"); doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(107, 123, 138);
+    let x = M; cols.forEach((t, i) => { doc.text(san(t), x + 1.5, y); x += wd[i]; }); y += 5.6; doc.setFont("helvetica", "normal"); doc.setTextColor(60, 72, 84);
+    res.reps.forEach((r, i) => { const vals = [String(i + 1), f1(r.mpv, 2), f1(r.mv, 2), f1(r.pv, 2), f1(r.rom * 100, 0) + " cm", f1(r.dur, 2) + " s", i ? "-" + f1(r.loss, 0) + "%" : "-", ...(load ? [f1(r.pow, 0) + " W"] : [])]; x = M; vals.forEach((t, j) => { if (j === 6 && r.loss >= thr) doc.setTextColor(180, 53, 58); doc.text(san(t), x + 1.5, y); doc.setTextColor(60, 72, 84); x += wd[j]; }); y += 5; });
+    y += 3;
+    for (const id of ["vbBars", "vbCurve"]) { const c = $(id); if (c) { const im = c.toDataURL("image/png"), hh = CW * c.height / c.width; if (y + hh > 280) { doc.addPage(); y = 18; } doc.addImage(im, "PNG", M, y, CW, hh); y += hh + 4; } }
+    if (VB.img) { const [iw, ih] = await imgSize(VB.img), ww = Math.min(CW, 120), hh = ww * ih / iw; if (y + hh > 280) { doc.addPage(); y = 18; } doc.addImage(VB.img, "JPEG", M + (CW - ww) / 2, y, ww, hh); y += hh + 4; }
+    const lc = $("vbLv"); if (lc) { if (y + 70 > 280) { doc.addPage(); y = 18; } h2("Perfil carga-velocidad"); const hh = CW * lc.height / lc.width; doc.addImage(lc.toDataURL("image/png"), "PNG", M, y, CW, hh); y += hh + 3; }
+    if ($("vbNote").value.trim()) { h2("Notas del profesional"); para($("vbNote").value); }
+    para("VMP = velocidad media propulsiva (fase en la que la barra acelera por encima de -9,81 m/s2). %1RM por ecuación general: orientativo.", 8, [122, 136, 150]);
+    const pages = doc.getNumberOfPages();
+    for (let i = 1; i <= pages; i++) { doc.setPage(i); doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(150, 160, 170); doc.text(`Generado con ${APP_NAME} · ${new Date().toLocaleDateString("es-AR")}`, M, 287); doc.text("Velocidad estimada por video con una cámara: complementa, no reemplaza, un encoder lineal.", M, 291); doc.text(`${i}/${pages}`, W - M, 287, { align: "right" }); }
+    await saveFile(doc.output("blob"), `VBT_${(a ? a.n : "atleta")}_${ex.n}_${load || ""}kg_${d.toISOString().slice(0, 10)}.pdf`, share);
+  } catch (e) { alert("No se pudo generar el informe: " + (e.message || e)); }
+  btn.textContent = old; btn.disabled = false;
+}
+// ---- eventos ----
+$("vbFile").onchange = e => { const f = e.target.files[0]; if (f) vbLoad(f); e.target.value = ""; };
+$("vbCal").onclick = () => vbStartMark("cal");
+$("vbTgt").onclick = () => vbStartMark("tgt");
+$("vbGo").onclick = vbAnalyze;
+document.querySelectorAll("[data-vstep]").forEach(b => b.onclick = () => { const v = $("vbV"); v.pause(); v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + (+b.dataset.vstep) / vbFpsNow())); });
+$("vbC").onclick = e => { if (!VB.mode) return; const m = vbMap(), r = $("vbC").getBoundingClientRect(); const x = ((e.clientX - r.left) - m.ox) / m.s, y = ((e.clientY - r.top) - m.oy) / m.s; if (x >= 0 && y >= 0 && x <= m.vw && y <= m.vh) vbTap(x, y); };
+{ const v = $("vbV"); const loop = () => { vbDraw(); if (!v.paused && !v.ended) requestAnimationFrame(loop); }; v.onplay = () => requestAnimationFrame(loop); v.onseeked = vbDraw; v.ontimeupdate = vbDraw; window.addEventListener("resize", () => VB && vbDraw()); }
+$("vbAth").onchange = e => { setAth(e.target.value); vbFillAth(); };
+$("vbAdd").onclick = () => openAthForm(null);
+$("vbBack").onclick = () => { if (VB && VB.readonly && VB.saved && athObj(VB.saved.ath)) { openAthlete(VB.saved.ath); return; } show("scrCatalog"); };
+$("vbSave").onclick = vbSave; $("vbPdf").onclick = () => vbPdf(false); $("vbPdfShare").onclick = () => vbPdf(true);
+$("vbNote").oninput = () => { VB.note = $("vbNote").value; };
+["vbEx", "vbLoad", "vbVl"].forEach(id => $(id).addEventListener("change", () => { if (VB && VB.res && VB.trk && !VB.readonly) { VB.res = vbCompute(VB.trk, +$("vbLoad").value || 0, $("vbEx").value); vbRender(); } else if (VB && VB.res) vbRender(); }));
+$("vbHowBtn").onclick = () => $("vbHow").classList.toggle("hidden");
+$("goVbt").onclick = openVbt;
+
+
 
 // ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
-const APP_VERSION = "25 oct 2026";
+const APP_VERSION = "27 oct 2026";
 $("verTxt").textContent = APP_VERSION;
 async function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
@@ -5695,7 +6090,7 @@ function idb() {
   return idbP = idbP || new Promise((res, rej) => { const q = indexedDB.open("am_media", 1); q.onupgradeneeded = () => q.result.createObjectStore("media", { keyPath: "id" }); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
 }
 async function idbPut(o) {
-  if (!o.video && !o.image && !o.series && !o.runImgs) return;
+  if (!o.video && !o.image && !o.series && !o.runImgs && !o.vbImg) return;
   // el video puede tardar un instante en cerrarse después de detener
   try { const d = await idb(); d.transaction("media", "readwrite").objectStore("media").put(o); } catch { $("status").textContent = "No se pudo guardar el video en este dispositivo (espacio lleno)."; }
 }
@@ -5712,6 +6107,7 @@ const keyName = k => MK[k] ? MK[k].n + (MK[k].b ? (k.endsWith("L") ? " izq" : " 
 async function openResult(id, scrollToReport = false) {
   const r = db.res.find(x => x.id === id); if (!r) return;
   if (r.run) { openRunSaved(r); return; }
+  if (r.vbt) { openVbtSaved(r); return; }
   curRes = r; freeUrls();
   const a = athObj(r.ath), d = new Date(r.date);
   $("rTitle").textContent = r.name;
