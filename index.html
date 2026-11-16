@@ -99,6 +99,15 @@
   #guide .head{font:700 17px "Barlow Condensed",sans-serif;margin-bottom:4px}
   #guide .now{margin-top:6px;font:700 18px "Barlow Condensed",sans-serif;color:var(--amber)}
   #guide .warnl{color:var(--warn);font-size:12px}
+  #guide .refl{color:#93A1AF;font-size:12px;margin:-2px 0 3px}
+  #guide .lv{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 1px;vertical-align:middle;border:1px solid rgba(255,255,255,.5)}
+  .infoB{border:0;background:none;color:#3C8FCB;font-size:15px;padding:0 2px;cursor:pointer;line-height:1;min-width:0;box-shadow:none}
+  #refModal{position:fixed;inset:0;background:rgba(10,14,18,.8);z-index:61;display:grid;place-items:center;padding:16px}
+  #refModal.hidden{display:none}
+  #refModal .box{background:#fff;border-radius:14px;padding:18px;max-width:520px;width:100%;color:#34495E;max-height:86vh;overflow:auto;font-size:15px;line-height:1.4}
+  #refModal h3{margin:0 0 8px;font:700 22px "Barlow Condensed",sans-serif;color:#1F2D3A}
+  #refModal .ok{color:#1E8E73;font-weight:700}#refModal .warn{color:#B8901A;font-weight:700}#refModal .bad{color:#D33A3F;font-weight:700}
+  #refModal .rtl td{text-align:left;vertical-align:top}
   #guide .r{display:inline-block;min-width:44px;text-align:center;border-radius:6px;padding:0 4px;margin:1px 2px;font-variant-numeric:tabular-nums}
   #guide .r.ok{background:rgba(63,184,160,.25);color:#7FE0C8}#guide .r.bad{background:rgba(229,72,77,.25);color:#FF9A9D}#guide .r.todo{background:rgba(255,255,255,.08);color:#93A1AF}
   #doneModal{position:fixed;inset:0;background:rgba(10,14,18,.8);z-index:60;display:grid;place-items:center;padding:16px}
@@ -466,6 +475,7 @@
       <div class="row2"><div class="pill" id="dDur"></div><div class="pill" id="dLvl"></div></div>
       <ol id="dSteps" class="steps hidden"></ol>
     </div>
+    <div class="card" id="dRefCard"><h3>Qué se mide y valores de referencia</h3><div id="dRef"></div></div>
     <div class="row2"><button class="btn-o" id="dInstr">Instrucciones</button><button class="btn-d" id="dCam">Iniciar</button></div>
     <button class="btn-o wide" id="dVid">Analizar un video grabado</button>
   </section>
@@ -739,6 +749,8 @@
 </main>
 </div>
 <div id="updBar" class="hidden">Hay una versión nueva disponible <button id="updBtn">Actualizar</button></div>
+<div id="refModal" class="hidden"><div class="box"><h3 id="refTitle"></h3><div id="refBody"></div>
+  <button id="refClose" class="btn-d" style="width:100%;margin-top:14px">Entendido</button></div></div>
 <div id="doneModal" class="hidden"><div class="box"><h3 id="doneTitle"></h3><div id="doneBody"></div>
   <div class="btns"><button id="doneRepeat">↺ Repetir</button><button id="doneSave" class="primary">💾 Guardar</button></div>
   <button id="doneClose" style="width:100%;margin-top:10px">Cerrar sin guardar</button></div></div>
@@ -832,6 +844,115 @@ METRICS.forEach(m => { if (!m.id) return; if (m.b) { MK[m.id + "L"] = m; MK[m.id
 const KEYS = Object.keys(MK);
 { let g; METRICS.forEach(m => { if (m.g) g = m.g; else m.grp = g; }); }
 const MI = Object.fromEntries(METRICS.filter(m => m.id).map(m => [m.id, m]));
+
+// =====================================================================
+// QUÉ SE MIDE Y VALORES DE REFERENCIA
+// Movilidad articular: valores normales en adultos (AAOS / Norkin & White) y los criterios de puntaje de cada evaluación.
+// Postura y movimientos funcionales: los mismos umbrales que usa el puntaje (Excelente / Bueno / Regular / Pobre).
+// kind "rom": mayor es mejor (verde al llegar al rango normal) · "rom2": distinto valor según el sentido (+/−)
+// kind "dev": desvío, menor es mejor (verde / amarillo / rojo) · "info": dato sin rango de normalidad
+// =====================================================================
+const MREF = {
+  neckInc:  { kind: "rom", ok: 30, ex: 40, post: [5, 15], q: "Inclinación de la cabeza hacia el hombro: ángulo de la línea de los ojos/orejas respecto de la línea de hombros.", how: "De frente.", ref: "Movilidad: normal 40–45° por lado (excelente ≥40°, pobre <20°). En postura de pie: <5° alineado, >15° marcado." },
+  neckRot:  { kind: "rom", ok: 45, ex: 60, post: [5, 15], q: "Giro de la cabeza hacia cada lado respecto de los hombros.", how: "De frente, hombros quietos.", ref: "Movilidad: normal 70–80° por lado (excelente ≥60°, pobre <30°). En postura: <5° alineado." },
+  neckFlex: { kind: "rom2", pos: [30, 40], neg: [30, 40], q: "Flexión (mentón al pecho) y extensión (mirar al techo) de la cabeza respecto del tronco.", how: "De perfil.", ref: "Normal: flexión 45–50°, extensión 45–70° (excelente ≥40°, pobre <20°)." },
+  trkLat:   { kind: "dev", w: 3, bad: 6, q: "Inclinación lateral del tronco: línea media de la pelvis a los hombros respecto de la vertical.", how: "De frente.", ref: "De pie o en sentadilla: <3° alineado, 3–6° leve, >6° marcado. Movilidad (inclinarse a propósito): normal 30–35° por lado." },
+  trkFlex:  { kind: "info", q: "Inclinación del tronco hacia adelante respecto de la vertical.", how: "De perfil.", ref: "En sentadilla, lo ideal es que el tronco quede paralelo a la tibia (diferencia <5°). En postura de pie: <5°." },
+  trkRot:   { kind: "rom", ok: 35, ex: 45, q: "Giro de la línea de hombros respecto de la pelvis.", how: "De frente (estimado con la profundidad).", ref: "Rotación torácica: normal 35–45° por lado (excelente ≥45°, pobre <25°)." },
+  hipRot:   { kind: "info", q: "Giro de la pelvis respecto de los pies.", how: "De frente (estimado).", ref: "Dato complementario: en postura y sentadilla, cercano a 0°." },
+  shTilt:   { kind: "dev", w: 3, bad: 6, q: "Desnivel de la línea de hombros (qué hombro queda más bajo).", how: "De frente o de espalda.", ref: "<2° excelente · 2–5° bueno · 5–8° regular · >8° pobre." },
+  pelTilt:  { kind: "dev", w: 3, bad: 6, q: "Desnivel de la pelvis (qué cadera queda más baja).", how: "De frente o de espalda.", ref: "<2° excelente · 2–5° bueno · 5–8° regular · >8° pobre." },
+  shElev:   { kind: "rom", ok: 165, ex: 175, q: "Elevación del brazo: ángulo del brazo (hombro–codo) respecto del tronco, en cualquier plano.", how: "De frente o de perfil.", ref: "Elevación completa: 170–180°. En sentadilla overhead: excelente ≥180°, pobre <150°." },
+  armPlane: { kind: "info", q: "Plano en el que se eleva el brazo: 0° hacia el costado, 90° hacia adelante.", how: "De frente (estimado).", ref: "Dato para interpretar la elevación del brazo." },
+  elbow:    { kind: "rom", ok: 135, ex: 145, q: "Flexión del codo: ángulo entre brazo y antebrazo (0° = extendido).", how: "De frente o de perfil.", ref: "Normal: 145–150°." },
+  shSag:    { kind: "rom2", pos: [165, 180], neg: [50, 60], q: "Flexión (brazo adelante y arriba) y extensión (hacia atrás) del hombro respecto del tronco.", how: "De perfil.", ref: "Normal: flexión 180° (excelente ≥180°, pobre <150°); extensión 50–60° (excelente ≥60°, pobre <40°)." },
+  shFront:  { kind: "rom2", pos: [165, 180], neg: [35, 50], q: "Abducción (separar el brazo hacia arriba) y aducción (cruzarlo por delante) en el plano frontal.", how: "De frente.", ref: "Normal: abducción 180° (excelente ≥180°, pobre <150°); aducción 30–50° (excelente ≥50°, pobre <20°)." },
+  shRot:    { kind: "rom2", pos: [90, 100], neg: [75, 90], q: "Rotación del hombro con brazo y codo a 90°: ángulo del antebrazo respecto de la horizontal.", how: "De perfil.", ref: "Normal: rotación externa 90–100° (pobre <70°); rotación interna 70–90° (pobre <60°)." },
+  trkSag:   { kind: "rom2", pos: [75, 90], neg: [20, 30], q: "Flexión y extensión del tronco de pie: ángulo del tronco (cadera–hombro) respecto del muslo.", how: "De perfil.", ref: "Normal: flexión 90° (excelente ≥90°, pobre <45°); extensión 20–30° (excelente ≥30°, pobre <10°)." },
+  hipFlex:  { kind: "rom", ok: 90, ex: 108, q: "Flexión de cadera: ángulo del muslo respecto del tronco.", how: "De perfil, rodilla flexionada.", ref: "Normal: 120° (excelente ≥108°, bueno 90–108°, pobre <60°)." },
+  hipAbd:   { kind: "rom", ok: 34, ex: 40, q: "Abducción de cadera: separación del muslo hacia el costado respecto de la pelvis.", how: "De frente.", ref: "Normal: 40–45°." },
+  hipIR:    { kind: "rom2", pos: [30, 40], neg: [40, 50], q: "Rotación de cadera sentado con la rodilla a 90°: ángulo de la pierna (rodilla–tobillo) respecto de la vertical.", how: "De frente, sentado.", ref: "Normal: rotación interna 35–45° (pobre <20°); rotación externa 45–50° (pobre <30°)." },
+  knee:     { kind: "rom", ok: 101, ex: 122, q: "Flexión de rodilla: ángulo entre muslo y pierna (0° = extendida).", how: "De perfil (o de frente en sentadilla).", ref: "Movilidad: normal 135–140°. Sentadilla: excelente >120°, pobre <90°. Sentadilla a una pierna y estocada: excelente >90°, pobre <60°." },
+  shin:     { kind: "info", q: "Inclinación de la tibia hacia adelante respecto de la vertical.", how: "De perfil.", ref: "En sentadilla se compara con el tronco: lo ideal es que queden paralelos." },
+  valgus:   { kind: "dev", w: 5, bad: 10, q: "Valgo dinámico de rodilla (FPPA): cuánto se va la rodilla hacia adentro respecto de la línea cadera–tobillo.", how: "De frente.", ref: "<5° normal · 5–10° moderado · >10° aumentado (sentadilla a una pierna: excelente <5°, pobre >10°)." },
+  ankle:    { kind: "rom", ok: 30, ex: 36, q: "Dorsiflexión de tobillo en carga: inclinación de la tibia hacia adelante sin levantar el talón.", how: "De perfil.", ref: "Normal en carga (lunge test): 35–40° o más; <30° restringido." },
+  headFwd:  { kind: "dev", w: 3, bad: 6, q: "Cabeza adelantada: distancia horizontal entre la oreja y el hombro.", how: "De perfil, de pie.", ref: "Orientativo: <3 cm alineado, >6 cm marcado." },
+  shFwd:    { kind: "dev", w: 3, bad: 6, q: "Hombro adelantado: distancia horizontal entre el hombro y la cadera.", how: "De perfil, de pie.", ref: "Orientativo: <3 cm alineado, >6 cm marcado." },
+  hipFwd:   { kind: "dev", w: 3, bad: 6, q: "Cadera respecto del tobillo (línea de plomada).", how: "De perfil, de pie.", ref: "Orientativo: <3 cm alineado, >6 cm marcado." },
+  kneeAlign:{ kind: "dev", w: 5, bad: 8, q: "Rodilla de pie: flexión o hiperextensión respecto de la línea cadera–tobillo.", how: "De perfil.", ref: "<2° excelente · 2–5° bueno · 5–8° regular · >8° pobre." },
+  fhAng:    { kind: "dev", w: 15, bad: 25, q: "Cabeza adelantada: ángulo de la línea hombro–oreja respecto de la vertical.", how: "De perfil.", ref: "<5° excelente · 5–15° bueno · 15–25° regular · >25° pobre." },
+  headPitch:{ kind: "dev", w: 15, bad: 25, q: "Cabeza inclinada hacia arriba o abajo (línea oreja–ojo).", how: "De perfil (estimado).", ref: "<5° excelente · 5–15° bueno · 15–25° regular · >25° pobre." },
+  footRot:  { kind: "dev", w: 15, bad: 25, q: "Rotación del pie: cuánto apunta la punta hacia afuera.", how: "De frente (estimado).", ref: "<5° excelente · 5–15° bueno · 15–25° regular · >25° pobre (5–15° hacia afuera es habitual)." }
+};
+// Qué evalúa cada test y sus componentes (para la ficha antes de empezar)
+const PREF = {
+  cervFlex: "Movilidad del cuello hacia adelante y hacia atrás: ángulo de la cabeza respecto del tronco.",
+  neckLat: "Movilidad del cuello hacia cada hombro: ángulo de inclinación de la cabeza.",
+  neckRot: "Movilidad del cuello girando a cada lado.",
+  shFlex: "Movilidad del hombro llevando el brazo adelante–arriba (flexión) y hacia atrás (extensión).",
+  shAbd: "Movilidad del hombro separando el brazo hacia arriba (abducción) y cruzándolo por delante (aducción).",
+  shRot: "Rotación externa e interna del hombro con el brazo y el codo a 90°.",
+  trkLat: "Movilidad del tronco inclinándose hacia cada lado.",
+  trkFE: "Movilidad del tronco hacia adelante y hacia atrás, de pie, respecto del muslo.",
+  trkRot: "Rotación del tronco de pie: giro de los hombros respecto de la pelvis.",
+  thorRot: "Rotación torácica sentado, con la pelvis fija.",
+  hipRotS: "Rotación interna y externa de la cadera, sentado con la rodilla a 90°.",
+  hipFlex: "Flexión de cadera de pie, llevando la rodilla al pecho.",
+  kneeFlex: "Flexión de rodilla de pie, llevando el talón al glúteo.",
+  ankle: "Dorsiflexión del tobillo en carga: rodilla hacia adelante sin levantar el talón.",
+  sj: "Squat Jump: salto desde sentadilla sostenida, sin contramovimiento. Altura por tiempo de vuelo.",
+  cmj: "Countermovement Jump: salto con contramovimiento. Altura por tiempo de vuelo.",
+  sjcm: "Salto desde sentadilla con un contramovimiento previo. Altura por tiempo de vuelo."
+};
+const L4 = (t, u = "°") => `<${t[0]}${u} excelente · ${t[0]}–${t[1]}${u} bueno · ${t[1]}–${t[2]}${u} regular · >${t[2]}${u} pobre`;
+const H4 = (t, u = "°") => `>${t[0]}${u} excelente · ${t[1]}–${t[0]}${u} bueno · ${t[2]}–${t[1]}${u} regular · <${t[2]}${u} pobre`;
+const FREF = {
+  ohs: [["Estabilidad", "Desvío lateral de la línea media del cuerpo.", L4([5, 10, 15])], ["Postura", "Diferencia entre la inclinación del tronco y la de la tibia en el punto más bajo (lo ideal: paralelos).", L4([5, 10, 15])], ["Profundidad", "Flexión de rodilla en el punto más bajo.", H4([120, 105, 90])], ["Movilidad de hombros", "Elevación de los brazos en el punto más bajo.", "≥180° excelente · 165–180° bueno · 150–165° regular · <150° pobre"], ["Alineación de rodillas (complementario)", "Valgo de rodilla máximo.", L4([5, 10, 15])], ["Simetría (complementario)", "Diferencia de flexión entre rodillas.", L4([5, 10, 15])]],
+  squat: [["Estabilidad", "Desvío lateral de la línea media del cuerpo.", L4([5, 10, 15])], ["Postura", "Diferencia entre la inclinación del tronco y la de la tibia en el punto más bajo.", L4([5, 10, 15])], ["Profundidad", "Flexión de rodilla en el punto más bajo.", H4([120, 105, 90])], ["Alineación de rodillas (complementario)", "Valgo de rodilla máximo.", L4([5, 10, 15])], ["Simetría (complementario)", "Diferencia de flexión entre rodillas.", L4([5, 10, 15])]],
+  sls: [["Valgo de rodilla", "Cuánto se va la rodilla hacia adentro.", "<5° excelente · 5–7° bueno · 7–10° regular · >10° pobre"], ["Flexión lateral de tronco", "Inclinación del tronco hacia un lado.", L4([5, 10, 15])], ["Inclinación de pelvis", "Caída de la pelvis del lado de la pierna en el aire.", L4([5, 10, 15])], ["Flexión de tronco", "Inclinación del tronco adelante/atrás.", L4([5, 10, 15])], ["Flexión de rodilla", "Profundidad alcanzada.", H4([90, 75, 60])]],
+  lunge: [["Valgo de rodilla", "Rodilla de adelante hacia adentro.", L4([5, 10, 15])], ["Estabilidad", "Desvío de la línea media respecto de la vertical.", L4([5, 10, 15])], ["Postura", "Inclinación del tronco respecto de la vertical.", L4([5, 10, 15])], ["Profundidad", "Flexión de la rodilla de adelante.", H4([90, 75, 60])], ["Movilidad de cadera", "Ángulo del muslo respecto de la pelvis.", H4([90, 75, 60])], ["Movilidad de tobillo", "Dorsiflexión con el talón apoyado.", L4([10, 20, 30])]],
+  posture: [["Inclinación lateral de cabeza", "", L4([5, 10, 15])], ["Rotación de cuello", "", L4([5, 10, 15])], ["Alineación de hombros", "Desnivel entre hombros.", L4([2, 5, 8])], ["Tronco (lateral)", "", L4([5, 10, 15])], ["Alineación de cadera", "Desnivel de la pelvis.", L4([2, 5, 8])], ["Alineación de rodillas", "Valgo/varo.", L4([2, 5, 8])], ["Alineación de pies", "Rotación de la punta hacia afuera (estimado).", L4([5, 15, 25])]],
+  postureP: [["Inclinación de cabeza adelante/atrás", "", L4([5, 15, 25])], ["Cabeza adelantada", "Ángulo hombro–oreja respecto de la vertical.", L4([5, 15, 25])], ["Tronco (adelante/atrás)", "", L4([5, 10, 15])], ["Alineación de rodillas", "Flexión o hiperextensión de pie.", L4([2, 5, 8])]]
+};
+// Componentes con criterio de movilidad de una evaluación (sin resultado todavía)
+function protoRefs(pid) {
+  const r = RULES[pid], sc = SCORING[pid], nm = NORMS[pid]; if (!r || !(sc || nm)) return [];
+  return (r.labels || []).map((label, i) => ({ label, sc: sc ? (sc[label] || sc[label.split(" ")[0]] || sc["*"] || null) : null, norm: nm ? nm[i] ?? nm[0] : 0 })).filter(x => x.sc || x.norm);
+}
+// Nivel de un valor según el criterio de la evaluación
+const protoLvl = (x, val) => isFinite(val) ? lvlX({ ...x, val }) : null;
+function protoRefLine(x) { return refX(x).replace("excelente", "Excelente").replace("normal", "Normal"); }
+function protoRefHTML(pid) {
+  const p = PR[pid]; if (!p) return "";
+  let h = "";
+  const intro = PREF[pid] || (FREF[pid] ? "" : p.desc || "");
+  if (intro) h += `<p style="margin:0 0 8px"><b>Qué se mide:</b> ${esc(intro)}</p>`;
+  const R = protoRefs(pid);
+  if (R.length) h += refTableHTML(R) + `<p class="note2" style="font-size:12px;margin:6px 0 0">Valores normales de movilidad en adultos (AAOS / Norkin & White). El puntaje es 0% en el límite de «pobre» y 100% en el de «excelente».</p>`;
+  if (FREF[pid]) h += `<div style="overflow-x:auto;margin-top:6px"><table class="rtable rtl">${FREF[pid].map(([n, d, r]) => `<tr><td><b>${n}</b>${d ? `<div class="note2" style="font-size:12px">${d}</div>` : ""}</td><td class="note2" style="font-size:12px;white-space:nowrap">${r.split(" · ").join("<br>")}</td></tr>`).join("")}</table></div>
+    <p class="note2" style="font-size:12px;margin:6px 0 0">Cada componente suma de 0 (pobre) a 3 (excelente); el puntaje global es el promedio.</p>`;
+  if (p.mode === "jump") h += `<p class="note2" style="font-size:12px;margin:6px 0 0">Se valida cada salto (✓/✗). Una variación entre saltos (CV) ≤5% indica saltos consistentes; >10%, mucha variación. Compará siempre con el propio historial del atleta.</p>`;
+  const ms = (p.m || []).filter(id => MREF[id]);
+  if (ms.length) h += `<details style="margin-top:10px"><summary style="cursor:pointer;font-weight:700;color:#3C8FCB">Cómo se mide cada ángulo</summary>${ms.map(id => `<p style="margin:8px 0 0"><b>${MI[id].n}:</b> ${MREF[id].q} <span class="note2">${MREF[id].how}</span><br><span class="note2" style="font-size:12px">Referencia: ${MREF[id].ref}</span></p>`).join("")}</details>`;
+  return h;
+}
+// Ventana con la explicación de un ángulo (desde la tabla en vivo)
+function openMetricRef(id) {
+  const R = MREF[id], m = MI[id]; if (!R || !m) return;
+  $("refTitle").textContent = m.n;
+  $("refBody").innerHTML = `<p style="margin:4px 0"><b>Qué se mide:</b> ${R.q}</p><p style="margin:4px 0"><b>Cómo filmar:</b> ${R.how}</p><p style="margin:8px 0 4px"><b>Valores de referencia:</b></p><p style="margin:0">${R.ref}</p>
+    ${R.kind === "rom" || R.kind === "rom2" ? `<p class="note" style="margin-top:8px">En la tabla en vivo, el valor se pone <span class="ok">verde</span> cuando llega al rango normal.</p>` : R.kind === "dev" ? `<p class="note" style="margin-top:8px">En la tabla en vivo: <span class="ok">verde</span> alineado, <span class="warn">amarillo</span> leve, <span class="bad">rojo</span> marcado.</p>` : ""}
+    ${m.est ? `<p class="note">Medición estimada: usala como referencia y confirmala con la observación clínica.</p>` : ""}`;
+  $("refModal").classList.remove("hidden");
+}
+function openProtoRef(pid) {
+  const p = PR[pid]; if (!p) return;
+  $("refTitle").textContent = p.n; $("refBody").innerHTML = protoRefHTML(pid);
+  $("refModal").classList.remove("hidden");
+}
+
+$("refClose").onclick = () => $("refModal").classList.add("hidden");
+$("refModal").onclick = e => { if (e.target.id === "refModal") $("refModal").classList.add("hidden"); };
 const ALL = Object.keys(MI);
 const inGrp = (...gs) => ALL.filter(id => gs.includes(MI[id].grp));
 const PRESETS = {
@@ -946,7 +1067,18 @@ function resetSmooth() { for (const k in S) delete S[k]; FILT = {}; TRAIL = {}; 
 let TRAIL = {};
 const fmt = (m, v) => { const u = m.u ? " " + m.u : "°"; return !isFinite(v) ? "–" : m.s ? `${Math.abs(v).toFixed(m.u ? 1 : 0)}${u} ${v >= 0 ? m.s[0] : m.s[1]}` : `${v.toFixed(0)}${u}`; };
 const U = k => (MK[k] && MK[k].u) ? " " + MK[k].u : "°";
-const cls = (m, v) => !m.w || !isFinite(v) ? "" : Math.abs(v) >= m.bad ? "bad" : Math.abs(v) >= m.w ? "warn" : "ok";
+const cls = (m, v) => {
+  if (!isFinite(v)) return "";
+  const R = MREF[m.id], a = Math.abs(v);
+  const post = typeof activeProto !== "undefined" && activeProto && /^posture/.test(activeProto.id);
+  if (R && post && R.post) return a >= R.post[1] ? "bad" : a >= R.post[0] ? "warn" : "ok";
+  if (m.w) return a >= m.bad ? "bad" : a >= m.w ? "warn" : "ok";
+  if (!R) return "";
+  if (R.kind === "dev") return a >= R.bad ? "bad" : a >= R.w ? "warn" : "ok";
+  if (R.kind === "rom") return a >= R.ok ? "ok" : "";
+  if (R.kind === "rom2") return a >= (v >= 0 ? R.pos : R.neg)[0] ? "ok" : "";
+  return "";
+};
 
 // ---------- Geometría ----------
 const sub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: (a.z || 0) - (b.z || 0) });
@@ -1080,13 +1212,14 @@ function buildLive() {
     if (m.g) { pend = m.g; continue; }
     if (!shown(m.id)) continue;
     if (pend) { h += `<tr><td class="grp" colspan="3">${pend}</td></tr>`; pend = null; }
-    const n = m.n + (m.est ? ' <span class="note">(est.)</span>' : "");
+    const n = m.n + (m.est ? ' <span class="note">(est.)</span>' : "") + (MREF[m.id] ? ` <button class="infoB" data-ref="${m.id}" aria-label="Qué se mide">ⓘ</button>` : "");
     h += m.b && side ? `<tr><td>${n}</td><td colspan="2" id="v_${m.id}${side}">–</td></tr>`
        : m.b ? `<tr><td>${n}</td><td id="v_${m.id}L">–</td><td id="v_${m.id}R">–</td></tr>`
              : `<tr><td>${n}</td><td colspan="2" id="v_${m.id}">–</td></tr>`;
   }
   if (!sel.size) h += '<tr><td colspan="3" class="note">No hay articulaciones seleccionadas.</td></tr>';
   $("liveTable").innerHTML = h + "</tbody>";
+  $("liveTable").querySelectorAll("[data-ref]").forEach(b => b.onclick = e => { e.stopPropagation(); openMetricRef(b.dataset.ref); });
   const prevSel = $("metricSel").value;
   $("metricSel").innerHTML = METRICS.filter(m => m.id && shown(m.id)).map(m => `<option value="${m.id}">${m.n}</option>`).join("");
   if (shown(prevSel)) $("metricSel").value = prevSel;
@@ -2962,6 +3095,7 @@ function openDetail(id, flowName) {
   $("dSideWrap").classList.toggle("hidden", p.view !== "profile" && !p.sidePick);
   $("dSideWrap").querySelector("p").textContent = p.sidePick ? "¿Qué pierna evaluás?" : "¿Desde qué lado filmás?";
   $("dSideWrap").querySelectorAll("[data-side]").forEach(b => b.textContent = (b.dataset.side === "L" ? (p.sidePick ? "Pierna izquierda" : "Lado izquierdo") : (p.sidePick ? "Pierna derecha" : "Lado derecho")));
+  const rh = protoRefHTML(id); $("dRef").innerHTML = rh; $("dRefCard").classList.toggle("hidden", !rh);
   fillAthSelect(); show("scrDetail");
 }
 $("dInstr").onclick = () => $("dSteps").classList.toggle("hidden");
@@ -2977,7 +3111,8 @@ function launch(p, useCam) {
   if (p.mode === "jump") { $("jtype").value = p.jt; }
   $("athlete").value = athObj(curAth).n;
   $("protoBar").classList.remove("hidden");
-  $("protoBar").innerHTML = `<b>${esc(athObj(curAth).n)}</b> · ${p.steps.map((x, i) => `${i + 1}) ${x}`).join(" ")}` + (p.mode === "jump" ? "" : " Al terminar: «■ Detener» y «💾 Guardar».");
+  $("protoBar").innerHTML = `<b>${esc(athObj(curAth).n)}</b> · ${p.steps.map((x, i) => `${i + 1}) ${x}`).join(" ")}` + (p.mode === "jump" ? "" : " Al terminar: «■ Detener» y «💾 Guardar».") + ` <button class="infoB" id="pbRef" style="font-size:14px;font-weight:700">ⓘ Qué se mide y valores de referencia</button>`;
+  $("pbRef").onclick = () => openProtoRef(p.id);
   if (useCam) startCamera(); else $("file").click();
 }
 $("dCam").onclick = () => launch(detailProto, true);
@@ -3589,10 +3724,14 @@ function guideDraw(nowTxt) {
   const r = GR.r, cal = calib || !activeProto.m || !activeProto.m.some(id => MI[id].neu);
   let h = `<div class="head">${esc(activeProto.n)}</div>`;
   if (r.type !== "hold" && r.type !== "jump") h += `<div>${calib ? (calib.ok ? "✓ Calibración verificada" : "⚠ Calibración con poca estabilidad") : cal ? "✓ Calibrado" : "⚠ Sin calibrar: los valores pueden tener error"}</div>`;
+  const PRF = protoRefs(activeProto.id);
   r.labels.forEach((l, k) => {
+    const X = PRF.find(x => x.label === l) || (PRF.length === r.labels.length ? PRF[k] : null);
     const okN = GR.reps[k].filter(q => q.ok).length, cells = GR.reps[k].map(q => `<span class="r ${q.ok ? "ok" : "bad"}">${q.ok ? "✓" : "✗"} ${isFinite(q.peak) ? (r.type === "jump" ? q.peak.toFixed(1).replace(".", ",") + " cm" : q.peak.toFixed(0) + "°") : ""}</span>`).join("");
     const todo = Array.from({ length: Math.max(0, r.n - okN) }, () => `<span class="r todo">◻</span>`).join("");
-    h += `<div>${l}: ${cells}${todo}</div>`;
+    const dots = X ? GR.reps[k].filter(q => q.ok && isFinite(q.peak)).map(q => { const lv = lvlX({ ...X, val: q.peak }); return `<span class="lv" style="background:${lvlC(lv).bd}" title="${lv}"></span>`; }).join("") : "";
+    h += `<div>${l}: ${cells}${todo}${dots ? ` <span class="lvw">${dots}</span>` : ""}</div>`;
+    if (X) h += `<div class="refl">Ref.: ${protoRefLine(X)}</div>`;
   });
   const lastBad = GR.reps.flat().filter(q => !q.ok).slice(-1)[0];
   if (lastBad) h += `<div class="warnl">✗ No válida: ${lastBad.why}. Repetila.</div>`;
@@ -6034,7 +6173,7 @@ $("goVbt").onclick = openVbt;
 
 
 // ---------- Aviso de versión nueva (para la app instalada en escritorio, iPhone o iPad) ----------
-const APP_VERSION = "27 oct 2026";
+const APP_VERSION = "16 nov 2026";
 $("verTxt").textContent = APP_VERSION;
 async function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
